@@ -28,4 +28,5 @@ replay_pid*
 
 # Local claude files
 .claude/
+CLAUDE.md
 skills-lock.json
