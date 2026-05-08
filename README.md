@@ -1,12 +1,31 @@
-# GenOps — Job Application Tracker
+# JobReady — Team GenOps
 
-A web application that helps job seekers manage and prepare for their job search:
+> End-to-end job application and preparation hub — TUM AET DevOps 2026
 
-- **Track applications** across stages (Applied, Interview, Offer, ...).
-- **Connect an email account** to surface AI-generated insights and recommended next steps.
-- **Generate tailored cover letters** from a filled-in profile and target role.
-- **Get role-fit analysis** highlighting strengths and gaps versus the job description.
-- **Drill into insights** with chat-based follow-up questions.
+JobReady consolidates the entire job search journey into a single intelligent platform: build a structured professional profile, track applications via email integration, generate tailored resumes/cover letters/fit analyses, and rehearse for interviews with AI-powered mock sessions.
+
+---
+
+## Backlog & Issue Conventions
+
+GitHub Issues are the single source of truth for work items. Each issue follows the ID format defined below.
+
+### Issue ID Prefixes
+
+| Prefix | Subsystem |
+|---|---|
+| `PROJ-I##` | Infrastructure & DevOps |
+| `PROJ-D##` | Database |
+| `PROJ-S##` | Server — Spring Boot |
+| `PROJ-G##` | GenAI Service |
+| `PROJ-C##` | Client — Frontend |
+| `PROJ-A##` | Engineering Artefacts & Documentation |
+| `PROJ-P##` | Project Skills / Working Agreements |
+
+### Labels
+
+Issues are labelled by **type** (`task`, `feature`, `bonus`) and **component** (`infra`, `server`, `genai`, `client`, `planning`).
+
 
 ## Architecture
 
@@ -34,25 +53,19 @@ monitoring/             Prometheus rules + Grafana dashboard JSON
 .github/workflows/      CI/CD pipelines
 docs/
   architecture/         Subsystem decomposition, AOM, use case diagrams
-  requirements/         Problem statement + project requirements
+  problem-statement/    Problem statement
+  project_requirements.md  Requirements document
 ```
 
-## Quick Start
-
-> Local stack runs in three commands or fewer once `docker-compose.yml` lands. Currently scaffolding.
-
-```bash
-docker compose up
-```
 
 ## Documentation
 
 - [Microservice design](docs/architecture/microservice-design.md) — service boundaries, data ownership, orchestration patterns
-- [Component diagram](docs/architecture/componentDiagram.png)
-- [Use case diagram](docs/architecture/useCaseDiagram.png)
-- [Analysis Object Model](docs/architecture/analysisObjectModel.png)
-- [Requirements](docs/requirements/requirements.md)
-- [Problem statement](docs/requirements/problem_statement_template.md)
+- [Component diagram](docs/architecture/component_diagram.png)
+- [Use case diagram](docs/architecture/use_case_diagram.png)
+- [Analysis Object Model](docs/architecture/analysis_object_model.png)
+- [Requirements](docs/project_requirements.md)
+- [Problem statement](docs/problem-statement/problem_statement.md)
 
 ## Tech Stack
 
@@ -62,4 +75,6 @@ LLM backend selectable via `LLM_BACKEND` env var: `cloud` (OpenAI API) or `local
 
 ## Team
 
-Three students; each owns one primary subsystem (frontend, backend, GenAI) but contributes across boundaries on integration, deployment, and observability.
+
+
+
