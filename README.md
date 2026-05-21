@@ -60,7 +60,7 @@ docs/
 
 ## Documentation
 
-- [Microservice design](docs/architecture/microservice-design.md) — service boundaries, data ownership, orchestration patterns
+- [Microservice design](docs/architecture/microservice_design.md) — service boundaries, data ownership, orchestration patterns
 - [Component diagram](docs/architecture/component_diagram.png)
 - [Use case diagram](docs/architecture/use_case_diagram.png)
 - [Analysis Object Model](docs/architecture/analysis_object_model.png)
