@@ -2,7 +2,7 @@
 
 ## TL;DR
 
-Five services derived from five bounded contexts. Four Spring Boot services share one Postgres instance with schema-per-service enforced by DB-user permissions. One Python/FastAPI GenAI service is stateless. Cover-letter generation is GenAI-orchestrated (read-only fan-out, client triggers save); email-insights generation is `application-service`-orchestrated (because it writes domain state). JWT is token-forwarded and verified at every hop. Mock-interview chat and Resume PDF parsing are descoped from v1.
+Five services derived from five bounded contexts. Four Spring Boot services share one Postgres instance with schema-per-service enforced by DB-user permissions. One Python/FastAPI GenAI service is stateless. Cover-letter generation is GenAI-orchestrated (read-only fan-out, client triggers save); email-insights generation is `application`-orchestrated (because it writes domain state). JWT is token-forwarded and verified at every hop. Mock-interview chat and Resume PDF parsing are descoped from v1.
 
 ---
 
@@ -10,11 +10,11 @@ Five services derived from five bounded contexts. Four Spring Boot services shar
 
 | Service | Language | Bounded Context | DB Schema | Stateless? |
 |---|---|---|---|---|
-| `auth-service` | Spring Boot | Identity | `auth` | yes (JWT only) |
-| `application-service` | Spring Boot | Job Application Tracking + Recommendations | `application` | yes |
-| `email-service` | Spring Boot | Email Integration (external adapter) | `email` | yes |
-| `document-service` | Spring Boot | Document Storage (Profile, CoverLetter) | `document` | yes |
-| `genai-service` | Python / FastAPI | GenAI Generation | *(none)* | yes |
+| `auth` | Spring Boot | Identity | `auth` | yes (JWT only) |
+| `application` | Spring Boot | Job Application Tracking + Recommendations | `application` | yes |
+| `email` | Spring Boot | Email Integration (external adapter) | `email` | yes |
+| `document` | Spring Boot | Document Storage (Profile, CoverLetter) | `document` | yes |
+| `genai` | Python / FastAPI | GenAI Generation | *(none)* | yes |
 
 Satisfies the project requirement of ≥3 Spring Boot services with margin. Each service owns exactly one bounded context with no overlapping responsibilities.
 
@@ -34,16 +34,16 @@ Satisfies the project requirement of ≥3 Spring Boot services with margin. Each
 
 | Entity | Owning Service | Schema.Table | Notes |
 |---|---|---|---|
-| User | `auth-service` | `auth.users` | id, email, hashed_password only |
-| Profile | `document-service` | `document.profiles` | structured candidate data; v1 primary |
-| Resume | `document-service` | `document.resumes` | **deferred from v1** |
-| CoverLetter | `document-service` | `document.cover_letters` | content + edits; PDF generated on demand |
-| EmailConnection | `email-service` | `email.email_connections` | OAuth refresh tokens |
-| Email | `email-service` | `email.emails` | normalized email data |
-| JobApplication | `application-service` | `application.job_applications` | core domain object |
-| Recommendation | `application-service` | `application.recommendations` | FK to job_application; denormalized insight |
+| User | `auth` | `auth.users` | id, email, hashed_password only |
+| Profile | `document` | `document.profiles` | structured candidate data; v1 primary |
+| Resume | `document` | `document.resumes` | **deferred from v1** |
+| CoverLetter | `document` | `document.cover_letters` | content + edits; PDF generated on demand |
+| EmailConnection | `email` | `email.email_connections` | OAuth refresh tokens |
+| Email | `email` | `email.emails` | normalized email data |
+| JobApplication | `application` | `application.job_applications` | core domain object |
+| Recommendation | `application` | `application.recommendations` | FK to job_application; denormalized insight |
 
-`genai-service` has **no schema**. Insight-chat transcripts live in browser state for v1.
+`genai` has **no schema**. Insight-chat transcripts live in browser state for v1.
 
 ---
 
@@ -90,7 +90,7 @@ Client (with full transcript) ──(JWT)──> genai-service POST /api/v1/insi
                                               returns: { assistantMessage }
 ```
 
-No `chatId`, no DB, no session. If persistence is added later, it goes in `application-service` next to Recommendation, *not* in `genai-service`.
+No `chatId`, no DB, no session. If persistence is added later, it goes in `application` next to Recommendation, *not* in `genai`.
 
 ### 4.4 Role-fit analysis — *GenAI orchestrates (same shape as cover letter)*
 
@@ -114,12 +114,12 @@ No persistence; client displays and discards. Same orchestrator-owns-destination
 
 - **One Postgres instance**, four schemas (`auth`, `application`, `email`, `document`).
 - **Each service has its own DB user** with `GRANT` only on its own schema. Cross-schema queries fail at the database layer — boundary enforced by permissions, not convention.
-- `genai-service` has no DB connection at all.
+- `genai` has no DB connection at all.
 
 ### 5.2 Authentication propagation
 
 - Gateway (Traefik / NGINX) verifies JWT signature on ingress.
-- **Every service re-verifies** the JWT using `auth-service`'s public key (mounted as a Kubernetes Secret). Defense in depth.
+- **Every service re-verifies** the JWT using `auth`'s public key (mounted as a Kubernetes Secret). Defense in depth.
 - Services **forward** the `Authorization: Bearer <jwt>` header on outgoing service-to-service calls.
 - `user_id` is **always extracted from the JWT claim**. Never accepted in request body, query string, or any other header. This is non-negotiable.
 
@@ -133,14 +133,14 @@ No persistence; client displays and discards. Same orchestrator-owns-destination
 
 | Consumer | Provider | Why |
 |---|---|---|
-| `web-client` | `auth-service` | login, register |
-| `web-client` | `application-service` | applications CRUD, refresh-insights |
-| `web-client` | `document-service` | profile, cover-letter save/export |
-| `web-client` | `genai-service` | cover-letter generate, insight-chat, role-fit |
-| `genai-service` | `document-service` | profile fetch (cover-letter, role-fit flows) |
-| `genai-service` | `application-service` | application fetch (cover-letter, role-fit flows) |
-| `application-service` | `email-service` | emails fetch (refresh-insights flow) |
-| `application-service` | `genai-service` | email-insights call (refresh-insights flow) |
+| `web-client` | `auth` | login, register |
+| `web-client` | `application` | applications CRUD, refresh-insights |
+| `web-client` | `document` | profile, cover-letter save/export |
+| `web-client` | `genai` | cover-letter generate, insight-chat, role-fit |
+| `genai` | `document` | profile fetch (cover-letter, role-fit flows) |
+| `genai` | `application` | application fetch (cover-letter, role-fit flows) |
+| `application` | `email` | emails fetch (refresh-insights flow) |
+| `application` | `genai` | email-insights call (refresh-insights flow) |
 
 ---
 
@@ -172,10 +172,10 @@ The choices below aren't self-evident from the diagram. Read this section before
 
 3. **Email-service stays ignorant.** It does not know about JobApplications. It does not know about Recommendations. Its sole responsibility is "talk to Gmail/Outlook on the user's behalf and expose normalized email data". This deliberate ignorance keeps the integration boundary clean and reusable.
 
-4. **Recommendation lives in `application-service`, not its own service.** It has no independent lifecycle, always consumed at the application-card level, and a separate service would force a cross-service join on every dashboard render — the distributed-monolith anti-smell.
+4. **Recommendation lives in `application`, not its own service.** It has no independent lifecycle, always consumed at the application-card level, and a separate service would force a cross-service join on every dashboard render — the distributed-monolith anti-smell.
 
 5. **Schema-per-service in one Postgres**, not five Postgres instances. Same isolation guarantee (DB-user permissions block cross-schema reads), much lower operational cost. Defensible: enforce ownership at the database, not by convention.
 
 6. **JWT token-forwarding for v1**, not service-to-service identity. Lower setup cost; acceptable risk for a 3-person student project. Document the upgrade path to mTLS / service-JWTs when cron flows arrive.
 
-7. **No chat persistence in v1.** Chat is enrichment over the persisted insight, not load-bearing data. Browser-held transcript is sufficient. Adding persistence later is additive (new `chats` table in `application-service`), not structural.
+7. **No chat persistence in v1.** Chat is enrichment over the persisted insight, not load-bearing data. Browser-held transcript is sufficient. Adding persistence later is additive (new `chats` table in `application`), not structural.

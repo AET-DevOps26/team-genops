@@ -33,11 +33,11 @@ Five services, one frontend. See [`docs/architecture/microservice-design.md`](do
 
 | Service | Stack | Responsibility |
 |---|---|---|
-| `auth-service` | Spring Boot | Identity, JWT issuance |
-| `application-service` | Spring Boot | Application CRUD + Recommendations |
-| `email-service` | Spring Boot | Gmail/Outlook integration |
-| `document-service` | Spring Boot | Profiles + Cover letters |
-| `genai-service` | Python / FastAPI | LLM-backed AI features |
+| `auth` | Spring Boot | Identity, JWT issuance |
+| `application` | Spring Boot | Application CRUD + Recommendations |
+| `email` | Spring Boot | Gmail/Outlook integration |
+| `document` | Spring Boot | Profiles + Cover letters |
+| `genai` | Python / FastAPI | LLM-backed AI features |
 | `web-client` | React + TypeScript | UI |
 
 Single Postgres instance with schema-per-service. Auth at the gateway; JWT verified at every hop. OpenAPI-first contract in [`api/openapi.yaml`](api/openapi.yaml).
@@ -45,7 +45,7 @@ Single Postgres instance with schema-per-service. Auth at the gateway; JWT verif
 ## Repository Layout
 
 ```
-api/openapi.yaml        Single source of truth for all REST contracts
+api/openapi.yaml         Single source of truth for all REST contracts
 services/               Spring Boot + FastAPI service code
 web-client/             React + TypeScript frontend
 infra/                  Kubernetes manifests / Helm charts
