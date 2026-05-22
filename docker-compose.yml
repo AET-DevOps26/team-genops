@@ -18,6 +18,24 @@ services:
       timeout: 5s
       retries: 5
 
+  web-client:
+    build:
+      context: ./web-client
+    container_name: web-client
+    restart: unless-stopped
+    ports:
+      - "5173:80"
+    depends_on:
+      - auth
+
+  auth:
+    build:
+      context: ./services/auth
+    container_name: auth
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+
   pgadmin:
     # Dev tool only — do not include in Kubernetes manifests
     image: dpage/pgadmin4
