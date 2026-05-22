@@ -67,9 +67,49 @@ docs/
 - [Requirements](docs/project_requirements.md)
 - [Problem statement](docs/problem-statement/problem_statement.md)
 
+## Local Development
+
+**Prerequisites:** Docker, Docker Compose, Java 21, Node 24, Maven.
+
+```bash
+# Copy env file and fill in values
+cp .env.example .env
+
+# Start everything
+docker compose up --build
+
+# Start a single service
+docker compose up --build auth
+docker compose up --build web-client
+```
+
+| Service | URL |
+|---|---|
+| Frontend | http://localhost:5173 |
+| Auth API | http://localhost:8080 |
+| Postgres | localhost:5432 |
+| pgAdmin | http://localhost:5050 |
+
+**Frontend dev mode** (hot reload, no Docker):
+```bash
+cd web-client && npm install && npm run dev
+```
+
+**Auth service dev mode:**
+```bash
+cd services/auth && ./mvnw spring-boot:run
+```
+
+**OpenAPI codegen** (run from `api/`):
+```bash
+make generate   # regenerate all stubs + TS types
+make lint       # lint openapi.yaml
+make check      # CI drift check
+```
+
 ## Tech Stack
 
-React · Spring Boot (4 services) · Python / FastAPI · PostgreSQL · Docker Compose · Kubernetes / Helm · GitHub Actions · Prometheus + Grafana.
+React · Spring Boot · Python / FastAPI · PostgreSQL · Redis · Docker Compose · Kubernetes / Helm · GitHub Actions · Prometheus + Grafana.
 
 LLM backend selectable via `LLM_BACKEND` env var: `cloud` (OpenAI API) or `local` (LLaMA / GPT4All via Ollama).
 
