@@ -1,0 +1,9 @@
+extends:
+  - recommended
+
+rules:
+  # Components may be defined ahead of the endpoints that use them
+  # as the spec grows — suppress until all services are wired in.
+  no-unused-components: off
+
+  info-license: off
