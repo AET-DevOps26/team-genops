@@ -1,0 +1,246 @@
+openapi: 3.1.0
+info:
+  title: JobReady API
+  version: 1.0.0
+  description: |
+    JobReady is an AI-powered job application tracker that helps candidates manage their job search end-to-end.
+
+    Core capabilities:
+    - Auth & Profiles — JWT-based registration/login; structured candidate profiles (experience, education, skills, certifications, languages).
+    - Application Tracking — create applications by pasting a job description; manage status transitions (Applied → Interviewing → Offer → Rejected); auto-link incoming emails to the correct application.
+    - Gmail Integration — connect/disconnect Gmail accounts; fetch and store application-related emails; surface follow-up recommendations for stale applications.
+    - AI Features — tailored cover letter generation, candidate-role fit analysis with gap identification, and email-based insights — all driven by the candidate profile and target job description.
+    - Document Management — store and retrieve AI-generated cover letters and fit analyses.
+  contact:
+    name: JobReady Support
+
+servers:
+  - url: http://localhost:8080
+    description: Local development (API Gateway)
+  - url: https://api.jobready.com
+    description: Production
+
+security:
+  - BearerAuth: []
+
+tags:
+  - name: Auth
+    description: Authentication and session management
+
+paths:
+  /api/v1/auth/register:
+    post:
+      tags: [Auth]
+      summary: Register a new user
+      description: Creates a new account and returns tokens immediately — no separate login step required.
+      security: []
+      operationId: register
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+      responses:
+        '201':
+          description: Account created; tokens issued
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenResponse'
+        '409':
+          description: Email already registered
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          description: Validation error (e.g. password too short)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/v1/auth/login:
+    post:
+      tags: [Auth]
+      summary: Login with email and password
+      security: []
+      operationId: login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenResponse'
+        '401':
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/v1/auth/refresh:
+    post:
+      tags: [Auth]
+      summary: Refresh access token
+      description: |
+        Exchanges a valid refresh token for a new access token and a new refresh token.
+        The old refresh token is immediately invalidated.
+      security: []
+      operationId: refreshToken
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RefreshRequest'
+      responses:
+        '200':
+          description: New token pair issued
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenResponse'
+        '401':
+          description: Refresh token invalid, expired, or already rotated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/v1/auth/logout:
+    post:
+      tags: [Auth]
+      summary: Logout and invalidate refresh token
+      description: Blacklists the provided refresh token. The access token expires naturally.
+      operationId: logout
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RefreshRequest'
+      responses:
+        '204':
+          description: Logged out successfully
+        '401':
+          description: Missing or invalid access token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/v1/auth/me:
+    get:
+      tags: [Auth]
+      summary: Get current user info
+      description: Returns the authenticated user's identity decoded from the JWT — no database call.
+      operationId: getMe
+      responses:
+        '200':
+          description: Current user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+        '401':
+          description: Missing or expired access token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    RegisterRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          format: email
+          example: jane@example.com
+        password:
+          type: string
+          format: password
+          minLength: 8
+
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          format: email
+          example: jane@example.com
+        password:
+          type: string
+          format: password
+          minLength: 8
+
+    RefreshRequest:
+      type: object
+      required: [refresh_token]
+      properties:
+        refresh_token:
+          type: string
+
+    TokenResponse:
+      type: object
+      properties:
+        access_token:
+          type: string
+          description: Short-lived JWT (15 min). Claims — sub, email, iat, exp, jti.
+        refresh_token:
+          type: string
+          description: Long-lived rotating token (7 days). Stored and validated in Redis.
+        token_type:
+          type: string
+          enum: [Bearer]
+        expires_in:
+          type: integer
+          description: Access token lifetime in seconds
+          example: 900
+
+    UserResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Stable user identifier — matches JWT `sub` claim
+        email:
+          type: string
+          format: email
+        created_at:
+          type: string
+          format: date-time
+
+    Error:
+      type: object
+      required: [code, message]
+      properties:
+        code:
+          type: string
+          example: INVALID_CREDENTIALS
+        message:
+          type: string
+          example: Email or password is incorrect
+        details:
+          type: object
+          additionalProperties: true
+          description: Optional field-level validation errors or additional context

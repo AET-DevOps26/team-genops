@@ -1,0 +1,13 @@
+{
+  "name": "jobready-api",
+  "private": true,
+  "description": "Shared OpenAPI contract and codegen tooling. Not a runtime package.",
+  "scripts": {
+    "lint": "redocly lint ../openapi.yaml",
+    "generate": "./codegen.sh"
+  },
+  "devDependencies": {
+    "@redocly/cli": "^1.25.0",
+    "openapi-typescript": "^7.4.0"
+  }
+}
