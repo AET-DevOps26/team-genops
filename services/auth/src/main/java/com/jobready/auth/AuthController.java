@@ -22,7 +22,7 @@ public class AuthController {
             "access_token",  "stub-access-token",
             "refresh_token", "stub-refresh-token",
             "token_type",    "Bearer",
-            "expires_in",    900
+            "expires_in",    1400
         );
     }
 }

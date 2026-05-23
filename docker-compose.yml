@@ -21,20 +21,26 @@ services:
   web-client:
     build:
       context: ./web-client
+      dockerfile: Dockerfile.dev
     container_name: web-client
     restart: unless-stopped
     ports:
-      - "5173:80"
+      - "5173:5173"
     depends_on:
-      - auth
+      auth:
+        condition: service_healthy
 
   auth:
     build:
       context: ./services/auth
+      dockerfile: Dockerfile.dev
     container_name: auth
     restart: unless-stopped
     ports:
       - "8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
 
   pgadmin:
     # Dev tool only — do not include in Kubernetes manifests
