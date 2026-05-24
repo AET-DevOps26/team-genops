@@ -35,8 +35,10 @@ for svc in "${!SPRING_SERVICES[@]}"; do
     -g spring \
     -o "$out" \
     --global-property "apis=$tag,models,supportingFiles=ApiUtil.java" \
-    --additional-properties "useSpringBoot3=true,interfaceOnly=true,useTags=true,openApiNullable=false,basePackage=com.jobready.$svc,apiPackage=com.jobready.$svc.generated.api,modelPackage=com.jobready.$svc.generated.model"
-
+    --additional-properties "useSpringBoot3=true,interfaceOnly=true,\
+useTags=true,openApiNullable=false,hideGenerationTimestamp=true,\
+basePackage=com.jobready.$svc,apiPackage=com.jobready.$svc.generated.api,\
+modelPackage=com.jobready.$svc.generated.model"
 done
 
 
