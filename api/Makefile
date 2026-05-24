@@ -16,7 +16,8 @@ generate:
 	./scripts/codegen.sh
 
 lint:
-	npx --yes --prefix ./scripts @redocly/cli lint $(SPEC) --config ./scripts/redocly.yaml
+	@[ -d scripts/node_modules ] || npm install --prefix scripts --silent
+	cd scripts && npm run lint
 
 check: generate
 	@git diff --exit-code -- \
