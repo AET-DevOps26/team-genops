@@ -1,28 +1,41 @@
 package com.jobready.auth;
 
-import org.springframework.web.bind.annotation.*;
-import java.util.Map;
+import com.jobready.auth.exception.EmailAlreadyTakenException;
+import com.jobready.auth.generated.api.AuthApi;
+import com.jobready.auth.generated.model.RegisterRequest;
+import com.jobready.auth.generated.model.TokenResponse;
+import com.jobready.auth.user.User;
+import com.jobready.auth.user.UserRepository;
+import lombok.RequiredArgsConstructor;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@RequestMapping("/api/v1/auth")
-public class AuthController {
+@RequiredArgsConstructor
+public class AuthController implements AuthApi {
 
-    @PostMapping("/register")
-    public Map<String, Object> register(@RequestBody Map<String, String> body) {
-        return stubTokenResponse();
-    }
+    private final UserRepository userRepository;
+    private final PasswordEncoder passwordEncoder;
 
-    @PostMapping("/login")
-    public Map<String, Object> login(@RequestBody Map<String, String> body) {
-        return stubTokenResponse();
-    }
+    @Override
+    public ResponseEntity<TokenResponse> register(RegisterRequest request) {
+        if (userRepository.existsByEmail(request.getEmail())) {
+            throw new EmailAlreadyTakenException(request.getEmail());
+        }
 
-    private Map<String, Object> stubTokenResponse() {
-        return Map.of(
-            "access_token",  "stub-access-token",
-            "refresh_token", "stub-refresh-token",
-            "token_type",    "Bearer",
-            "expires_in",    1400
-        );
+        User user = new User();
+        user.setEmail(request.getEmail());
+        user.setPasswordHash(passwordEncoder.encode(request.getPassword()));
+        userRepository.save(user);
+
+        // JWT issuance is not yet implemented — stub tokens returned
+        TokenResponse tokens = new TokenResponse()
+            .accessToken("stub-access-token")
+            .refreshToken("stub-refresh-token")
+            .tokenType(TokenResponse.TokenTypeEnum.BEARER)
+            .expiresIn(900);
+
+        return ResponseEntity.status(201).body(tokens);
     }
 }
