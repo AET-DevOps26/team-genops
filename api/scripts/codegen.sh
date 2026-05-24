@@ -10,7 +10,7 @@ SERVICES="$ROOT/services"
 WEB_CLIENT="$ROOT/web-client"
 
 echo "==> Linting $SPEC"
-npx --yes @redocly/cli lint "$SPEC"
+npx @redocly/cli lint "$SPEC"
 
 # ---------------------------------------------------------------------------
 # Spring Boot services
@@ -27,38 +27,26 @@ declare -A SPRING_SERVICES=(
 
 for svc in "${!SPRING_SERVICES[@]}"; do
   tag="${SPRING_SERVICES[$svc]}"
-  out="$SERVICES/$svc/src/main/java/com/jobready/$svc/generated"
+  out="$SERVICES/$svc"
 
-  echo "==> Generating Spring stubs for $svc (tag: $tag) -> $out"
-  npx --yes @openapitools/openapi-generator-cli generate \
+  echo "==> Generating Spring stubs for $svc (tag: $tag) -> $out/src/main/java/com/jobready/$svc/generated"
+  npx @openapitools/openapi-generator-cli generate \
     -i "$SPEC" \
     -g spring \
     -o "$out" \
-    --global-property "apis=$tag,models" \
-    --additional-properties "useSpringBoot3=true,interfaceOnly=true,useTags=true,basePackage=com.jobready.$svc,apiPackage=com.jobready.$svc.generated.api,modelPackage=com.jobready.$svc.generated.model"
+    --global-property "apis=$tag,models,supportingFiles=ApiUtil.java" \
+    --additional-properties "useSpringBoot3=true,interfaceOnly=true,useTags=true,openApiNullable=false,basePackage=com.jobready.$svc,apiPackage=com.jobready.$svc.generated.api,modelPackage=com.jobready.$svc.generated.model"
 
 done
 
-# ---------------------------------------------------------------------------
-# GenAI service — Python client (consumes the full API, does not produce it)
-# ---------------------------------------------------------------------------
-echo "==> Generating Python client for genai -> $SERVICES/genai/client"
-if command -v uv &>/dev/null; then
-  uvx openapi-python-client generate \
-    --path "$SPEC" \
-    --output-path "$SERVICES/genai/client" \
-    --overwrite
-else
-  echo "  (uv not available — install from https://docs.astral.sh/uv/ and re-run)"
-  exit 1
-fi
+
 
 # ---------------------------------------------------------------------------
 # Web client — TypeScript types
 # ---------------------------------------------------------------------------
 echo "==> Generating TypeScript types -> $WEB_CLIENT/src/api.ts"
-npx --yes openapi-typescript "$SPEC" -o "$WEB_CLIENT/src/api.ts"
+npx openapi-typescript "$SPEC" -o "$WEB_CLIENT/src/api.ts"
 
 echo ""
-echo "✓ Codegen complete. Review changes with:"
+echo "Codegen complete. Review changes with:"
 echo "  git diff -- $SERVICES $WEB_CLIENT/src/api.ts"
