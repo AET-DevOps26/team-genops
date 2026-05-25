@@ -1,25 +1,23 @@
-package com.jobready.auth;
+package com.jobready.auth.service;
 
 import com.jobready.auth.exception.EmailAlreadyTakenException;
-import com.jobready.auth.generated.api.AuthApi;
-import com.jobready.auth.generated.model.RegisterRequest;
-import com.jobready.auth.generated.model.TokenResponse;
-import com.jobready.auth.user.User;
-import com.jobready.auth.user.UserRepository;
+import com.jobready.auth.generated.modelDto.RegisterRequest;
+import com.jobready.auth.generated.modelDto.TokenResponse;
+import com.jobready.auth.modelEntity.User;
+import com.jobready.auth.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.ResponseEntity;
 import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.stereotype.Service;
 
-@RestController
+@Service
 @RequiredArgsConstructor
-public class AuthController implements AuthApi {
+public class AuthServiceImpl implements AuthService {
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
 
     @Override
-    public ResponseEntity<TokenResponse> register(RegisterRequest request) {
+    public TokenResponse register(RegisterRequest request) {
         if (userRepository.existsByEmail(request.getEmail())) {
             throw new EmailAlreadyTakenException(request.getEmail());
         }
@@ -30,12 +28,10 @@ public class AuthController implements AuthApi {
         userRepository.save(user);
 
         // JWT issuance is not yet implemented — stub tokens returned
-        TokenResponse tokens = new TokenResponse()
+        return new TokenResponse()
             .accessToken("stub-access-token")
             .refreshToken("stub-refresh-token")
             .tokenType(TokenResponse.TokenTypeEnum.BEARER)
             .expiresIn(900);
-
-        return ResponseEntity.status(201).body(tokens);
     }
 }

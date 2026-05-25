@@ -1,4 +1,4 @@
-package com.jobready.auth.generated.model;
+package com.jobready.auth.generated.modelDto;
 
 import java.net.URI;
 import java.util.Objects;
@@ -15,29 +15,29 @@ import java.util.*;
 import jakarta.annotation.Generated;
 
 /**
- * LoginRequest
+ * RegisterRequest
  */
 
 @Generated(value = "org.openapitools.codegen.languages.SpringCodegen", comments = "Generator version: 7.22.0")
-public class LoginRequest {
+public class RegisterRequest {
 
   private String email;
 
   private String password;
 
-  public LoginRequest() {
+  public RegisterRequest() {
     super();
   }
 
   /**
    * Constructor with only required parameters
    */
-  public LoginRequest(String email, String password) {
+  public RegisterRequest(String email, String password) {
     this.email = email;
     this.password = password;
   }
 
-  public LoginRequest email(String email) {
+  public RegisterRequest email(String email) {
     this.email = email;
     return this;
   }
@@ -58,7 +58,7 @@ public class LoginRequest {
     this.email = email;
   }
 
-  public LoginRequest password(String password) {
+  public RegisterRequest password(String password) {
     this.password = password;
     return this;
   }
@@ -87,9 +87,9 @@ public class LoginRequest {
     if (o == null || getClass() != o.getClass()) {
       return false;
     }
-    LoginRequest loginRequest = (LoginRequest) o;
-    return Objects.equals(this.email, loginRequest.email) &&
-        Objects.equals(this.password, loginRequest.password);
+    RegisterRequest registerRequest = (RegisterRequest) o;
+    return Objects.equals(this.email, registerRequest.email) &&
+        Objects.equals(this.password, registerRequest.password);
   }
 
   @Override
@@ -100,7 +100,7 @@ public class LoginRequest {
   @Override
   public String toString() {
     StringBuilder sb = new StringBuilder();
-    sb.append("class LoginRequest {\n");
+    sb.append("class RegisterRequest {\n");
     sb.append("    email: ").append(toIndentedString(email)).append("\n");
     sb.append("    password: ").append("*").append("\n");
     sb.append("}");

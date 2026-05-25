@@ -38,7 +38,7 @@ for svc in "${!SPRING_SERVICES[@]}"; do
     --additional-properties "useSpringBoot3=true,interfaceOnly=true,\
 useTags=true,openApiNullable=false,hideGenerationTimestamp=true,\
 basePackage=com.jobready.$svc,apiPackage=com.jobready.$svc.generated.api,\
-modelPackage=com.jobready.$svc.generated.model"
+modelPackage=com.jobready.$svc.generated.modelDto"
 done
 
 

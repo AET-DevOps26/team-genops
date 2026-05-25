@@ -5,12 +5,12 @@
  */
 package com.jobready.auth.generated.api;
 
-import com.jobready.auth.generated.model.Error;
-import com.jobready.auth.generated.model.LoginRequest;
-import com.jobready.auth.generated.model.RefreshRequest;
-import com.jobready.auth.generated.model.RegisterRequest;
-import com.jobready.auth.generated.model.TokenResponse;
-import com.jobready.auth.generated.model.UserResponse;
+import com.jobready.auth.generated.modelDto.Error;
+import com.jobready.auth.generated.modelDto.LoginRequest;
+import com.jobready.auth.generated.modelDto.RefreshRequest;
+import com.jobready.auth.generated.modelDto.RegisterRequest;
+import com.jobready.auth.generated.modelDto.TokenResponse;
+import com.jobready.auth.generated.modelDto.UserResponse;
 import io.swagger.v3.oas.annotations.ExternalDocumentation;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;

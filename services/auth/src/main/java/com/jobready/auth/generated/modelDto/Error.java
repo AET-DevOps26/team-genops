@@ -1,4 +1,4 @@
-package com.jobready.auth.generated.model;
+package com.jobready.auth.generated.modelDto;
 
 import java.net.URI;
 import java.util.Objects;

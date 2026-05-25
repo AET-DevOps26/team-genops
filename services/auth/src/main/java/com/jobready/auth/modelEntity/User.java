@@ -1,4 +1,4 @@
-package com.jobready.auth.user;
+package com.jobready.auth.modelEntity;
 
 import jakarta.persistence.*;
 import lombok.Getter;

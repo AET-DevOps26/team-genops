@@ -1,5 +1,6 @@
-package com.jobready.auth.user;
+package com.jobready.auth.repository;
 
+import com.jobready.auth.modelEntity.User;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.Optional;

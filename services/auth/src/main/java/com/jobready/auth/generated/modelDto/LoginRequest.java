@@ -1,4 +1,4 @@
-package com.jobready.auth.generated.model;
+package com.jobready.auth.generated.modelDto;
 
 import java.net.URI;
 import java.util.Objects;
@@ -15,29 +15,29 @@ import java.util.*;
 import jakarta.annotation.Generated;
 
 /**
- * RegisterRequest
+ * LoginRequest
  */
 
 @Generated(value = "org.openapitools.codegen.languages.SpringCodegen", comments = "Generator version: 7.22.0")
-public class RegisterRequest {
+public class LoginRequest {
 
   private String email;
 
   private String password;
 
-  public RegisterRequest() {
+  public LoginRequest() {
     super();
   }
 
   /**
    * Constructor with only required parameters
    */
-  public RegisterRequest(String email, String password) {
+  public LoginRequest(String email, String password) {
     this.email = email;
     this.password = password;
   }
 
-  public RegisterRequest email(String email) {
+  public LoginRequest email(String email) {
     this.email = email;
     return this;
   }
@@ -58,7 +58,7 @@ public class RegisterRequest {
     this.email = email;
   }
 
-  public RegisterRequest password(String password) {
+  public LoginRequest password(String password) {
     this.password = password;
     return this;
   }
@@ -87,9 +87,9 @@ public class RegisterRequest {
     if (o == null || getClass() != o.getClass()) {
       return false;
     }
-    RegisterRequest registerRequest = (RegisterRequest) o;
-    return Objects.equals(this.email, registerRequest.email) &&
-        Objects.equals(this.password, registerRequest.password);
+    LoginRequest loginRequest = (LoginRequest) o;
+    return Objects.equals(this.email, loginRequest.email) &&
+        Objects.equals(this.password, loginRequest.password);
   }
 
   @Override
@@ -100,7 +100,7 @@ public class RegisterRequest {
   @Override
   public String toString() {
     StringBuilder sb = new StringBuilder();
-    sb.append("class RegisterRequest {\n");
+    sb.append("class LoginRequest {\n");
     sb.append("    email: ").append(toIndentedString(email)).append("\n");
     sb.append("    password: ").append("*").append("\n");
     sb.append("}");
