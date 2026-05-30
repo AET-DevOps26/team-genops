@@ -142,7 +142,7 @@ paths:
     get:
       tags: [Auth]
       summary: Get current user info
-      description: Returns the authenticated user's identity decoded from the JWT — no database call.
+      description: Returns the authenticated user's profile fetched from the database using the JWT sub claim.
       operationId: getMe
       responses:
         '200':

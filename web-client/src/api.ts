@@ -91,7 +91,7 @@ export interface paths {
         };
         /**
          * Get current user info
-         * @description Returns the authenticated user's identity decoded from the JWT — no database call.
+         * @description Returns the authenticated user's profile fetched from the database using the JWT sub claim.
          */
         get: operations["getMe"];
         put?: never;
