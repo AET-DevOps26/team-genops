@@ -39,5 +39,6 @@ replay_pid*
 .claude/
 CLAUDE.md
 skills-lock.json
+k8s_notes.md
 
 node_modules
