@@ -1,0 +1,93 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: auth
+  namespace: {{ .Values.global.namespace }}
+  labels:
+    app: auth
+    {{- include "jobready.labels" . | nindent 4 }}
+spec:
+  # The | (pipe) in Go templates feeds the left value into the right function.
+  # int converts the value to an integer (required by Kubernetes for replicas).
+  replicas: {{ .Values.auth.replicas | int }}
+  selector:
+    matchLabels:
+      app: auth
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  template:
+    metadata:
+      labels:
+        app: auth
+    spec:
+      initContainers:
+        - name: wait-for-postgres
+          image: postgres:16-alpine
+          command:
+            - sh
+            - -c
+            - |
+              until pg_isready -h postgres -p 5432 -U $(POSTGRES_USER); do
+                echo "Waiting for postgres..."
+                sleep 2
+              done
+          env:
+            - name: POSTGRES_USER
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.postgres.existingSecret }}
+                  key: POSTGRES_USER
+      containers:
+        - name: auth
+          # Build the full image reference from values:
+          # global.imageRegistry/auth.image:auth.tag
+          image: {{ .Values.global.imageRegistry }}/{{ .Values.auth.image }}:{{ .Values.auth.tag }}
+          imagePullPolicy: {{ .Values.global.imagePullPolicy }}
+          ports:
+            - containerPort: {{ .Values.auth.port }}
+          env:
+            - name: POSTGRES_DB
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.postgres.existingSecret }}
+                  key: POSTGRES_DB
+            - name: SPRING_DATASOURCE_URL
+              value: jdbc:postgresql://postgres:5432/$(POSTGRES_DB)
+            - name: SPRING_DATASOURCE_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.postgres.existingSecret }}
+                  key: POSTGRES_USER
+            - name: SPRING_DATASOURCE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.postgres.existingSecret }}
+                  key: POSTGRES_PASSWORD
+            - name: CORS_ALLOWED_ORIGINS
+              # Reads auth.corsAllowedOrigins from values.yaml.
+              # Override at deploy time:
+              #   helm install jobready . --set auth.corsAllowedOrigins=https://myapp.com
+              value: {{ .Values.auth.corsAllowedOrigins | quote }}
+            - name: SPRING_PROFILES_ACTIVE
+              value: "kubernetes"
+          resources:
+            {{- toYaml .Values.auth.resources | nindent 12 }}
+          livenessProbe:
+            httpGet:
+              path: /actuator/health
+              port: {{ .Values.auth.port }}
+            initialDelaySeconds: 60
+            periodSeconds: 15
+            failureThreshold: 3
+            timeoutSeconds: 5
+          readinessProbe:
+            httpGet:
+              path: /actuator/health
+              port: {{ .Values.auth.port }}
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            failureThreshold: 3
+            timeoutSeconds: 5
