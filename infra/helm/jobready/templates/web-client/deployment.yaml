@@ -1,0 +1,45 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: web-client
+  namespace: {{ .Values.global.namespace }}
+  labels:
+    app: web-client
+    {{- include "jobready.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.webClient.replicas | int }}
+  selector:
+    matchLabels:
+      app: web-client
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  template:
+    metadata:
+      labels:
+        app: web-client
+    spec:
+      containers:
+        - name: web-client
+          image: {{ .Values.global.imageRegistry }}/{{ .Values.webClient.image }}:{{ .Values.webClient.tag }}
+          imagePullPolicy: {{ .Values.global.imagePullPolicy }}
+          ports:
+            - containerPort: {{ .Values.webClient.port }}
+          resources:
+            {{- toYaml .Values.webClient.resources | nindent 12 }}
+          livenessProbe:
+            httpGet:
+              path: /
+              port: {{ .Values.webClient.port }}
+            initialDelaySeconds: 5
+            periodSeconds: 15
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /
+              port: {{ .Values.webClient.port }}
+            initialDelaySeconds: 3
+            periodSeconds: 5
+            failureThreshold: 3
