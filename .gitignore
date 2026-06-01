@@ -35,10 +35,8 @@
 hs_err_pid*
 replay_pid*
 
-# Local claude files
-.claude/
-CLAUDE.md
-skills-lock.json
-k8s_notes.md
+# Claude Code — ignore personal settings but commit shared config and skills
+.claude/settings.local.json
+.claude/__pycache__/
 
 node_modules
