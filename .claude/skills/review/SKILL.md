@@ -44,6 +44,18 @@ Work through each category and call out any issues found.
 - Names are clear and consistent with the rest of the codebase?
 - No premature abstractions or features beyond the PR scope?
 
+## Definition of Done
+
+Before approving, confirm all DoD criteria are met:
+
+- [ ] Feature works end-to-end (manually verified or covered by tests)
+- [ ] Unit/integration tests written or updated for new logic
+- [ ] All CI checks pass (build · test · lint)
+- [ ] PR reviewed and approved by at least one teammate
+- [ ] `api/openapi.yaml` updated and codegen re-run if any endpoint changed
+- [ ] New env vars added to `.env.example`
+- [ ] `CLAUDE.md` or `docs/` updated if behaviour, ports, or architecture changed
+
 ## Output format
 
 Summarise findings as:

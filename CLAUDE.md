@@ -131,18 +131,6 @@ make -C api generate
 
 This regenerates Java DTOs for Spring Boot services and TypeScript types for the web client. Commit both the spec and the generated files. Lint blocks merge if the spec is invalid.
 
-## Definition of Done
-
-A task is **done** when all of the following are true:
-
-- [ ] Feature works end-to-end (manually verified or covered by tests)
-- [ ] Unit/integration tests written or updated for new logic
-- [ ] All CI checks pass (build · test · lint)
-- [ ] PR reviewed and approved by at least one teammate
-- [ ] `api/openapi.yaml` updated and codegen re-run if any endpoint changed
-- [ ] New env vars added to `.env.example`
-- [ ] `CLAUDE.md` or `docs/` updated if behaviour, ports, or architecture changed
-
 ## Key Constraints
 
 - **Reliability over features** — deploy early and iterate; a running subset beats a broken full system.
