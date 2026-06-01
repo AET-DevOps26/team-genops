@@ -57,7 +57,32 @@ Required env vars (see `.env.example`): `POSTGRES_USER`, `POSTGRES_PASSWORD`, `P
 PROJ-<issue-id>/<short-description>
 ```
 
-Examples: `PROJ-I12/add-cover-letter-endpoint`, `PROJ-S04/fix-jwt-refresh`
+Examples: `PROJ-I12/add-cover-letter-endpoint`, `PROJ-S04/fix-jwt-refresh`, `PROJ-P01/define-branching-convention`
+
+The issue ID comes from the GitHub issue title prefix (e.g. `PROJ-C01`, `PROJ-S03`, `PROJ-I05`). Use kebab-case for the description. No `feature/` or `fix/` prefixes.
+
+### Commit message format
+
+Follow **Conventional Commits**:
+
+```
+<type>: <short imperative summary (≤72 chars)>
+
+[optional body — explain why, not what]
+```
+
+**Allowed types:** `feat`, `fix`, `refactor`, `test`, `docs`, `chore`, `ci`, `infra`
+
+Examples:
+```
+feat: add JWT verification to document service
+fix: return 401 instead of 500 on expired token
+test: add unit tests for CoverLetterService
+ci: add lint step to PR workflow
+docs: update OpenAPI spec for /applications endpoint
+```
+
+Use the imperative mood ("add", not "adds" or "added"). No AI attribution lines.
 
 ### CI/CD
 - GitHub Actions on every PR: build → test → lint
@@ -105,6 +130,18 @@ make -C api generate
 ```
 
 This regenerates Java DTOs for Spring Boot services and TypeScript types for the web client. Commit both the spec and the generated files. Lint blocks merge if the spec is invalid.
+
+## Definition of Done
+
+A task is **done** when all of the following are true:
+
+- [ ] Feature works end-to-end (manually verified or covered by tests)
+- [ ] Unit/integration tests written or updated for new logic
+- [ ] All CI checks pass (build · test · lint)
+- [ ] PR reviewed and approved by at least one teammate
+- [ ] `api/openapi.yaml` updated and codegen re-run if any endpoint changed
+- [ ] New env vars added to `.env.example`
+- [ ] `CLAUDE.md` or `docs/` updated if behaviour, ports, or architecture changed
 
 ## Key Constraints
 
