@@ -18,6 +18,7 @@ Optional title hint. If not provided, derive from the branch name and commit his
 4. Confirm the current branch follows the naming convention: `PROJ-<issue-id>/<short-description>` (e.g. `PROJ-I12/add-cover-letter-endpoint`). If it does not, warn the user.
 5. Push the branch if it has no upstream: `git push -u origin HEAD`
 6. Create the PR using `gh pr create` with the fields below.
+7. After the PR is created, set the current user as assignee: `gh pr edit <number> --add-assignee @me`
 
 ## PR fields
 
