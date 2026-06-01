@@ -1,0 +1,71 @@
+global:
+  namespace: jobready
+
+  # The container registry prefix. Every image name is:
+  #   {{ .Values.global.imageRegistry }}/{{ .Values.someService.image }}:{{ .Values.someService.tag }}
+  imageRegistry: ghcr.io/aet-devops26
+
+  # imagePullPolicy for all services.
+  # Use "IfNotPresent" locally to avoid re-pulling, "Always" in CI/CD.
+  imagePullPolicy: Always
+
+postgres:
+  image: pgvector/pgvector
+  tag: pg16
+  storage: 5Gi
+
+  # Name of an existing Secret in the cluster that holds:
+  #   POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_DB
+  # Create it from your .env file before running helm install:
+  #   kubectl create secret generic postgres-secret \
+  #     --from-env-file=.env \
+  #     -n jobready
+  existingSecret: postgres-secret
+
+  resources:
+    requests:
+      memory: "256Mi"
+      cpu: "100m"
+    limits:
+      memory: "512Mi"
+      cpu: "500m"
+
+auth:
+  image: jobready-auth
+  tag: latest
+  replicas: 1
+  port: 8080
+
+  # The frontend origin allowed by CORS.
+  # Override this with your real frontend URL when deploying to a real cluster.
+  corsAllowedOrigins: "http://jobready.local"
+
+  resources:
+    requests:
+      memory: "256Mi"
+      cpu: "100m"
+    limits:
+      memory: "512Mi"
+      cpu: "500m"
+
+webClient:
+  image: jobready-web-client
+  tag: latest
+  replicas: 1
+  port: 80
+
+  resources:
+    requests:
+      memory: "64Mi"
+      cpu: "25m"
+    limits:
+      memory: "128Mi"
+      cpu: "100m"
+
+ingress:
+  enabled: true
+  host: jobready.local          # Override with your real domain in production
+  ingressClassName: nginx       # Must match your installed Ingress Controller
+  tls:
+    enabled: false              # Set to true and provide a cert for HTTPS
+    secretName: jobready-tls    # Name of a TLS Secret (cert + key)

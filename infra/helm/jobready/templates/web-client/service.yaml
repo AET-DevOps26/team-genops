@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: web-client
+  namespace: {{ .Values.global.namespace }}
+  labels:
+    app: web-client
+    {{- include "jobready.labels" . | nindent 4 }}
+spec:
+  type: ClusterIP
+  selector:
+    app: web-client
+  ports:
+    - name: http
+      port: {{ .Values.webClient.port }}
+      targetPort: {{ .Values.webClient.port }}
+      protocol: TCP
