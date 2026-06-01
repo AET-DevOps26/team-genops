@@ -51,6 +51,25 @@ Closes #<issue number>
 - [ ] Screenshots attached for any UI changes
 ```
 
+## Labels
+
+Apply one or more labels that match the nature of the change:
+
+| Label | When to use |
+|---|---|
+| `feature` | New user-facing functionality |
+| `bug` | Fixing a defect |
+| `enhancement` | Improving existing behaviour |
+| `infra` | CI/CD, Docker, Kubernetes, tooling |
+| `documentation` | README, CLAUDE.md, OpenAPI, architecture docs |
+| `planning` | Conventions, process, Definition of Done |
+| `server` | Spring Boot backend changes |
+| `client` | Frontend changes |
+| `genai` | Python GenAI service changes |
+| `task` | Technical or process task with no direct user impact |
+
+Use `gh pr edit <number> --add-label "<label1>,<label2>"` to apply.
+
 ## Rules
 
 - Target branch is always `main` unless the user specifies otherwise.
