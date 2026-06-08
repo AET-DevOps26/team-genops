@@ -85,6 +85,10 @@ cp web-client/.env.example web-client/.env
 # 3. Codegen tooling — only needed when regenerating from openapi.yaml
 npm ci --prefix api/scripts
 make -C api generate   # skip if generated files are already committed
+
+# 4. Git hooks — runs file hygiene checks before every commit
+pip install pre-commit
+pre-commit install
 ```
 
 ### Start the stack
