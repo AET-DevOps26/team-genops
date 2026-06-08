@@ -1,0 +1,32 @@
+version: 2
+
+updates:
+  # GitHub Actions
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+
+  # Auth service (Maven)
+  - package-ecosystem: maven
+    directory: /services/auth
+    schedule:
+      interval: weekly
+
+  # GenAI service (pip)
+  - package-ecosystem: pip
+    directory: /services/genai
+    schedule:
+      interval: weekly
+
+  # Web client (npm)
+  - package-ecosystem: npm
+    directory: /web-client
+    schedule:
+      interval: weekly
+
+  # OpenAPI codegen scripts (npm)
+  - package-ecosystem: npm
+    directory: /api/scripts
+    schedule:
+      interval: weekly
