@@ -16,11 +16,13 @@ The system is composed of five services in a single mono-repo:
 |---|---|---|---|
 | `auth` | Spring Boot | Identity — credentials, JWT issuance | 8080 |
 | `application` | Spring Boot | Job application tracking + recommendations | TBD |
-| `email` | Spring Boot | Email integration (Gmail/Outlook adapter) | TBD |
 | `document` | Spring Boot | Document storage — Profile, CoverLetter | TBD |
+| `email` | Python / FastAPI | Email integration (Gmail/Outlook adapter) | TBD |
 | `genai` | Python / FastAPI | GenAI generation — stateless LLM calls | 8000 |
 
-One shared PostgreSQL instance with schema-per-service isolation (each service has its own DB user with access only to its schema). `genai` has no database.
+One shared PostgreSQL instance with schema-per-service isolation (each service has its own DB user with access only to its schema). Each service owns its schema migrations in `src/main/resources/db/migration/` (Spring Boot/Flyway) or `alembic/versions/` (Python/Alembic).
+
+> **Note:** `email` was moved from Spring Boot to Python/FastAPI. OAuth2 integration with Gmail and Outlook is significantly easier with Python libraries (`google-auth-oauthlib`, `msal`). The project still meets the requirement of at least 3 Spring Boot microservices (`auth`, `application`, `document`).
 
 **Frontend:** React + Vite + TypeScript + Tailwind CSS (`web-client/`, port 5173)
 
@@ -101,10 +103,10 @@ Run from inside the service directory (e.g. `services/auth`):
 
 Each microservice exposes OpenAPI docs at `/swagger-ui.html` and `/v3/api-docs`.
 
-### GenAI service (Python)
+### Python services (genai + email)
 
 ```sh
-cd services/genai
+cd services/genai   # or services/email
 pip install -r requirements.txt
 uvicorn src.main:app --reload --port 8000  # start locally
 pytest                                      # run tests
@@ -149,10 +151,9 @@ This regenerates Java DTOs for Spring Boot services and TypeScript types for the
 ├── services/
 │   ├── auth/            # Spring Boot — Identity
 │   ├── application/     # Spring Boot — Job application tracking
-│   ├── email/           # Spring Boot — Email integration
 │   ├── document/        # Spring Boot — Profile & document storage
-│   ├── genai/           # Python FastAPI — GenAI generation
-│   └── db/              # schema.sql — shared Postgres schema definitions
+│   ├── email/           # Python FastAPI — Email integration (Gmail/Outlook)
+│   └── genai/           # Python FastAPI — GenAI generation
 ├── api/
 │   └── openapi.yaml     # Single source of truth for all REST contracts
 ├── infra/
@@ -191,4 +192,13 @@ Skill files live in `.claude/skills/<name>/SKILL.md`.
 
 ## Current State
 
-Services scaffolded: `auth` (Spring Boot, functional with DB), `genai` (Python scaffold), `web-client` (React + Vite scaffold). Services `application`, `email`, and `document` are not yet implemented. `docker-compose.yml` runs `auth` + `postgres` + `web-client`. Kubernetes manifests and monitoring config are pending.
+Services scaffolded: `auth` (Spring Boot, functional with DB), `genai` (Python scaffold), `web-client` (React + Vite scaffold). Services `application`, `document`, and `email` are not yet implemented beyond DB schema definitions.
+
+PostgreSQL schemas designed and migration files written for all services:
+- `auth` — Flyway migration at `src/main/resources/db/migration/`
+- `document` — Flyway migration at `src/main/resources/db/migration/`
+- `application` — Flyway migration at `src/main/resources/db/migration/`
+- `email` — Alembic migration at `alembic/versions/`
+- `genai` — Alembic migration at `alembic/versions/`
+
+`docker-compose.yml` runs `auth` + `postgres` + `web-client`. Kubernetes manifests and monitoring config are pending.
