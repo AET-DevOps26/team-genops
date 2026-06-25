@@ -16,7 +16,7 @@ generate:
 	./scripts/codegen.sh
 
 lint:
-	@[ -d scripts/node_modules ] || npm install --prefix scripts --silent
+	@[ -d scripts/node_modules ] || npm ci --prefix scripts --silent
 	cd scripts && npm run lint
 
 check: generate
