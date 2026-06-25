@@ -14,4 +14,11 @@ public class GlobalExceptionHandler {
             .body(new Error().code("EMAIL_TAKEN")
             .message("Email already registered"));
     }
+
+    @ExceptionHandler(InvalidCredentialsException.class)
+    public ResponseEntity<Error> handleInvalidCredentials(InvalidCredentialsException ex) {
+        return ResponseEntity.status(401)
+            .body(new Error().code("INVALID_CREDENTIALS")
+            .message("Email or password is incorrect"));
+    }
 }
