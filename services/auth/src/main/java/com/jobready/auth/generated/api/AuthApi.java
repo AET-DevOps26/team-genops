@@ -50,7 +50,7 @@ public interface AuthApi {
     String PATH_GET_ME = "/api/v1/auth/me";
     /**
      * GET /api/v1/auth/me : Get current user info
-     * Returns the authenticated user&#39;s identity decoded from the JWT — no database call.
+     * Returns the authenticated user&#39;s profile fetched from the database using the JWT sub claim.
      *
      * @return Current user (status code 200)
      *         or Missing or expired access token (status code 401)
@@ -58,7 +58,7 @@ public interface AuthApi {
     @Operation(
         operationId = "getMe",
         summary = "Get current user info",
-        description = "Returns the authenticated user's identity decoded from the JWT — no database call.",
+        description = "Returns the authenticated user's profile fetched from the database using the JWT sub claim.",
         tags = { "Auth" },
         responses = {
             @ApiResponse(responseCode = "200", description = "Current user", content = {
