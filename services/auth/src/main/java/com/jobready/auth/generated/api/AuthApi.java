@@ -7,9 +7,7 @@ package com.jobready.auth.generated.api;
 
 import com.jobready.auth.generated.modelDto.Error;
 import com.jobready.auth.generated.modelDto.LoginRequest;
-import com.jobready.auth.generated.modelDto.RefreshRequest;
 import com.jobready.auth.generated.modelDto.RegisterRequest;
-import com.jobready.auth.generated.modelDto.TokenResponse;
 import com.jobready.auth.generated.modelDto.UserResponse;
 import io.swagger.v3.oas.annotations.ExternalDocumentation;
 import io.swagger.v3.oas.annotations.Operation;
@@ -50,7 +48,7 @@ public interface AuthApi {
     String PATH_GET_ME = "/api/v1/auth/me";
     /**
      * GET /api/v1/auth/me : Get current user info
-     * Returns the authenticated user&#39;s profile fetched from the database using the JWT sub claim.
+     * Returns the authenticated user&#39;s profile, resolved from the JWT &#x60;sub&#x60; claim. The access token is taken from the &#x60;jr_access&#x60; cookie (or, behind the gateway, the translated &#x60;Authorization: Bearer&#x60; header). 
      *
      * @return Current user (status code 200)
      *         or Missing or expired access token (status code 401)
@@ -58,7 +56,7 @@ public interface AuthApi {
     @Operation(
         operationId = "getMe",
         summary = "Get current user info",
-        description = "Returns the authenticated user's profile fetched from the database using the JWT sub claim.",
+        description = "Returns the authenticated user's profile, resolved from the JWT `sub` claim. The access token is taken from the `jr_access` cookie (or, behind the gateway, the translated `Authorization: Bearer` header). ",
         tags = { "Auth" },
         responses = {
             @ApiResponse(responseCode = "200", description = "Current user", content = {
@@ -69,6 +67,7 @@ public interface AuthApi {
             })
         },
         security = {
+            @SecurityRequirement(name = "CookieAuth"),
             @SecurityRequirement(name = "BearerAuth")
         }
     )
@@ -102,18 +101,20 @@ public interface AuthApi {
     String PATH_LOGIN = "/api/v1/auth/login";
     /**
      * POST /api/v1/auth/login : Login with email and password
+     * Verifies credentials and sets HttpOnly access + refresh cookies. Tokens are never returned in the body; the body carries the user&#39;s profile. 
      *
      * @param loginRequest  (required)
-     * @return Login successful (status code 200)
+     * @return Login successful; session cookies set (status code 200)
      *         or Invalid credentials (status code 401)
      */
     @Operation(
         operationId = "login",
         summary = "Login with email and password",
+        description = "Verifies credentials and sets HttpOnly access + refresh cookies. Tokens are never returned in the body; the body carries the user's profile. ",
         tags = { "Auth" },
         responses = {
-            @ApiResponse(responseCode = "200", description = "Login successful", content = {
-                @Content(mediaType = "application/json", schema = @Schema(implementation = TokenResponse.class))
+            @ApiResponse(responseCode = "200", description = "Login successful; session cookies set", content = {
+                @Content(mediaType = "application/json", schema = @Schema(implementation = UserResponse.class))
             }),
             @ApiResponse(responseCode = "401", description = "Invalid credentials", content = {
                 @Content(mediaType = "application/json", schema = @Schema(implementation = Error.class))
@@ -126,13 +127,13 @@ public interface AuthApi {
         produces = { "application/json" },
         consumes = { "application/json" }
     )
-    default ResponseEntity<TokenResponse> login(
+    default ResponseEntity<UserResponse> login(
         @Parameter(name = "LoginRequest", description = "", required = true) @Valid @RequestBody LoginRequest loginRequest
     ) {
         getRequest().ifPresent(request -> {
             for (MediaType mediaType: MediaType.parseMediaTypes(request.getHeader("Accept"))) {
                 if (mediaType.isCompatibleWith(MediaType.valueOf("application/json"))) {
-                    String exampleString = "{ \"access_token\" : \"access_token\", \"refresh_token\" : \"refresh_token\", \"token_type\" : \"Bearer\", \"expires_in\" : 900 }";
+                    String exampleString = "{ \"created_at\" : \"2000-01-23T04:56:07.000+00:00\", \"id\" : \"046b6c7f-0b8a-43b9-b35d-6489e6daee91\", \"email\" : \"email\" }";
                     ApiUtil.setExampleResponse(request, "application/json", exampleString);
                     break;
                 }
@@ -150,36 +151,35 @@ public interface AuthApi {
 
     String PATH_LOGOUT = "/api/v1/auth/logout";
     /**
-     * POST /api/v1/auth/logout : Logout and invalidate refresh token
-     * Blacklists the provided refresh token. The access token expires naturally.
+     * POST /api/v1/auth/logout : Logout and invalidate the session
+     * Revokes the refresh token read from the &#x60;jr_refresh&#x60; cookie and clears both session cookies (&#x60;jr_access&#x60;, &#x60;jr_refresh&#x60;). No request body. 
      *
-     * @param refreshRequest  (required)
-     * @return Logged out successfully (status code 204)
-     *         or Missing or invalid access token (status code 401)
+     * @return Logged out; session cookies cleared (status code 204)
+     *         or Missing or invalid session (status code 401)
      */
     @Operation(
         operationId = "logout",
-        summary = "Logout and invalidate refresh token",
-        description = "Blacklists the provided refresh token. The access token expires naturally.",
+        summary = "Logout and invalidate the session",
+        description = "Revokes the refresh token read from the `jr_refresh` cookie and clears both session cookies (`jr_access`, `jr_refresh`). No request body. ",
         tags = { "Auth" },
         responses = {
-            @ApiResponse(responseCode = "204", description = "Logged out successfully"),
-            @ApiResponse(responseCode = "401", description = "Missing or invalid access token", content = {
+            @ApiResponse(responseCode = "204", description = "Logged out; session cookies cleared"),
+            @ApiResponse(responseCode = "401", description = "Missing or invalid session", content = {
                 @Content(mediaType = "application/json", schema = @Schema(implementation = Error.class))
             })
         },
         security = {
+            @SecurityRequirement(name = "CookieAuth"),
             @SecurityRequirement(name = "BearerAuth")
         }
     )
     @RequestMapping(
         method = RequestMethod.POST,
         value = AuthApi.PATH_LOGOUT,
-        produces = { "application/json" },
-        consumes = { "application/json" }
+        produces = { "application/json" }
     )
     default ResponseEntity<Void> logout(
-        @Parameter(name = "RefreshRequest", description = "", required = true) @Valid @RequestBody RefreshRequest refreshRequest
+        
     ) {
         getRequest().ifPresent(request -> {
             for (MediaType mediaType: MediaType.parseMediaTypes(request.getHeader("Accept"))) {
@@ -198,22 +198,19 @@ public interface AuthApi {
     String PATH_REFRESH_TOKEN = "/api/v1/auth/refresh";
     /**
      * POST /api/v1/auth/refresh : Refresh access token
-     * Exchanges a valid refresh token for a new access token and a new refresh token. The old refresh token is immediately invalidated. 
+     * Reads the refresh token from the &#x60;jr_refresh&#x60; HttpOnly cookie, rotates it, and sets a fresh access + refresh cookie pair. The old refresh token is immediately invalidated. No request body — the cookie carries the token. 
      *
-     * @param refreshRequest  (required)
-     * @return New token pair issued (status code 200)
-     *         or Refresh token invalid, expired, or already rotated (status code 401)
+     * @return New session cookies set (status code 204)
+     *         or Refresh cookie missing, invalid, expired, or already rotated (status code 401)
      */
     @Operation(
         operationId = "refreshToken",
         summary = "Refresh access token",
-        description = "Exchanges a valid refresh token for a new access token and a new refresh token. The old refresh token is immediately invalidated. ",
+        description = "Reads the refresh token from the `jr_refresh` HttpOnly cookie, rotates it, and sets a fresh access + refresh cookie pair. The old refresh token is immediately invalidated. No request body — the cookie carries the token. ",
         tags = { "Auth" },
         responses = {
-            @ApiResponse(responseCode = "200", description = "New token pair issued", content = {
-                @Content(mediaType = "application/json", schema = @Schema(implementation = TokenResponse.class))
-            }),
-            @ApiResponse(responseCode = "401", description = "Refresh token invalid, expired, or already rotated", content = {
+            @ApiResponse(responseCode = "204", description = "New session cookies set"),
+            @ApiResponse(responseCode = "401", description = "Refresh cookie missing, invalid, expired, or already rotated", content = {
                 @Content(mediaType = "application/json", schema = @Schema(implementation = Error.class))
             })
         }
@@ -221,19 +218,13 @@ public interface AuthApi {
     @RequestMapping(
         method = RequestMethod.POST,
         value = AuthApi.PATH_REFRESH_TOKEN,
-        produces = { "application/json" },
-        consumes = { "application/json" }
+        produces = { "application/json" }
     )
-    default ResponseEntity<TokenResponse> refreshToken(
-        @Parameter(name = "RefreshRequest", description = "", required = true) @Valid @RequestBody RefreshRequest refreshRequest
+    default ResponseEntity<Void> refreshToken(
+        
     ) {
         getRequest().ifPresent(request -> {
             for (MediaType mediaType: MediaType.parseMediaTypes(request.getHeader("Accept"))) {
-                if (mediaType.isCompatibleWith(MediaType.valueOf("application/json"))) {
-                    String exampleString = "{ \"access_token\" : \"access_token\", \"refresh_token\" : \"refresh_token\", \"token_type\" : \"Bearer\", \"expires_in\" : 900 }";
-                    ApiUtil.setExampleResponse(request, "application/json", exampleString);
-                    break;
-                }
                 if (mediaType.isCompatibleWith(MediaType.valueOf("application/json"))) {
                     String exampleString = "{ \"code\" : \"INVALID_CREDENTIALS\", \"details\" : { \"key\" : \"\" }, \"message\" : \"Email or password is incorrect\" }";
                     ApiUtil.setExampleResponse(request, "application/json", exampleString);
@@ -249,21 +240,21 @@ public interface AuthApi {
     String PATH_REGISTER = "/api/v1/auth/register";
     /**
      * POST /api/v1/auth/register : Register a new user
-     * Creates a new account and returns tokens immediately — no separate login step required.
+     * Creates a new account and signs the user in immediately — no separate login step. Access and refresh tokens are delivered as HttpOnly cookies (never in the body); the response body carries the authenticated user&#39;s profile. 
      *
      * @param registerRequest  (required)
-     * @return Account created; tokens issued (status code 201)
+     * @return Account created; session cookies set (status code 201)
      *         or Email already registered (status code 409)
      *         or Validation error (e.g. password too short) (status code 422)
      */
     @Operation(
         operationId = "register",
         summary = "Register a new user",
-        description = "Creates a new account and returns tokens immediately — no separate login step required.",
+        description = "Creates a new account and signs the user in immediately — no separate login step. Access and refresh tokens are delivered as HttpOnly cookies (never in the body); the response body carries the authenticated user's profile. ",
         tags = { "Auth" },
         responses = {
-            @ApiResponse(responseCode = "201", description = "Account created; tokens issued", content = {
-                @Content(mediaType = "application/json", schema = @Schema(implementation = TokenResponse.class))
+            @ApiResponse(responseCode = "201", description = "Account created; session cookies set", content = {
+                @Content(mediaType = "application/json", schema = @Schema(implementation = UserResponse.class))
             }),
             @ApiResponse(responseCode = "409", description = "Email already registered", content = {
                 @Content(mediaType = "application/json", schema = @Schema(implementation = Error.class))
@@ -279,13 +270,13 @@ public interface AuthApi {
         produces = { "application/json" },
         consumes = { "application/json" }
     )
-    default ResponseEntity<TokenResponse> register(
+    default ResponseEntity<UserResponse> register(
         @Parameter(name = "RegisterRequest", description = "", required = true) @Valid @RequestBody RegisterRequest registerRequest
     ) {
         getRequest().ifPresent(request -> {
             for (MediaType mediaType: MediaType.parseMediaTypes(request.getHeader("Accept"))) {
                 if (mediaType.isCompatibleWith(MediaType.valueOf("application/json"))) {
-                    String exampleString = "{ \"access_token\" : \"access_token\", \"refresh_token\" : \"refresh_token\", \"token_type\" : \"Bearer\", \"expires_in\" : 900 }";
+                    String exampleString = "{ \"created_at\" : \"2000-01-23T04:56:07.000+00:00\", \"id\" : \"046b6c7f-0b8a-43b9-b35d-6489e6daee91\", \"email\" : \"email\" }";
                     ApiUtil.setExampleResponse(request, "application/json", exampleString);
                     break;
                 }

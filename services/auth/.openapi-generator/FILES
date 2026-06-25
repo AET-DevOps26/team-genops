@@ -2,7 +2,5 @@ src/main/java/com/jobready/auth/generated/api/ApiUtil.java
 src/main/java/com/jobready/auth/generated/api/AuthApi.java
 src/main/java/com/jobready/auth/generated/modelDto/Error.java
 src/main/java/com/jobready/auth/generated/modelDto/LoginRequest.java
-src/main/java/com/jobready/auth/generated/modelDto/RefreshRequest.java
 src/main/java/com/jobready/auth/generated/modelDto/RegisterRequest.java
-src/main/java/com/jobready/auth/generated/modelDto/TokenResponse.java
 src/main/java/com/jobready/auth/generated/modelDto/UserResponse.java

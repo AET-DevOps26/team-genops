@@ -15,7 +15,9 @@ export interface paths {
         put?: never;
         /**
          * Register a new user
-         * @description Creates a new account and returns tokens immediately — no separate login step required.
+         * @description Creates a new account and signs the user in immediately — no separate login step.
+         *     Access and refresh tokens are delivered as HttpOnly cookies (never in the body);
+         *     the response body carries the authenticated user's profile.
          */
         post: operations["register"];
         delete?: never;
@@ -33,7 +35,11 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Login with email and password */
+        /**
+         * Login with email and password
+         * @description Verifies credentials and sets HttpOnly access + refresh cookies.
+         *     Tokens are never returned in the body; the body carries the user's profile.
+         */
         post: operations["login"];
         delete?: never;
         options?: never;
@@ -52,8 +58,9 @@ export interface paths {
         put?: never;
         /**
          * Refresh access token
-         * @description Exchanges a valid refresh token for a new access token and a new refresh token.
-         *     The old refresh token is immediately invalidated.
+         * @description Reads the refresh token from the `jr_refresh` HttpOnly cookie, rotates it,
+         *     and sets a fresh access + refresh cookie pair. The old refresh token is
+         *     immediately invalidated. No request body — the cookie carries the token.
          */
         post: operations["refreshToken"];
         delete?: never;
@@ -72,8 +79,9 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Logout and invalidate refresh token
-         * @description Blacklists the provided refresh token. The access token expires naturally.
+         * Logout and invalidate the session
+         * @description Revokes the refresh token read from the `jr_refresh` cookie and clears both
+         *     session cookies (`jr_access`, `jr_refresh`). No request body.
          */
         post: operations["logout"];
         delete?: never;
@@ -91,7 +99,9 @@ export interface paths {
         };
         /**
          * Get current user info
-         * @description Returns the authenticated user's profile fetched from the database using the JWT sub claim.
+         * @description Returns the authenticated user's profile, resolved from the JWT `sub` claim.
+         *     The access token is taken from the `jr_access` cookie (or, behind the gateway,
+         *     the translated `Authorization: Bearer` header).
          */
         get: operations["getMe"];
         put?: never;
@@ -124,22 +134,6 @@ export interface components {
             /** Format: password */
             password: string;
         };
-        RefreshRequest: {
-            refresh_token: string;
-        };
-        TokenResponse: {
-            /** @description Short-lived JWT (15 min). Claims — sub, email, iat, exp, jti. */
-            access_token?: string;
-            /** @description Long-lived rotating token (7 days). Stored and validated in Redis. */
-            refresh_token?: string;
-            /** @enum {string} */
-            token_type?: "Bearer";
-            /**
-             * @description Access token lifetime in seconds
-             * @example 900
-             */
-            expires_in?: number;
-        };
         UserResponse: {
             /**
              * Format: uuid
@@ -165,7 +159,21 @@ export interface components {
     responses: never;
     parameters: never;
     requestBodies: never;
-    headers: never;
+    headers: {
+        /**
+         * @description Two HttpOnly cookies are set:
+         *     `jr_access` (the access JWT, Path=/, Max-Age, HttpOnly; Secure; SameSite=Strict)
+         *     and `jr_refresh` (the rotating refresh token, Path=/api/v1/auth,
+         *     Max-Age, HttpOnly; Secure; SameSite=Strict).
+         * @example jr_access=<jwt>; Path=/; Max-Age=900; HttpOnly; Secure; SameSite=Strict
+         */
+        SessionCookies: string;
+        /**
+         * @description Both session cookies are expired (Max-Age=0).
+         * @example jr_access=; Path=/; Max-Age=0; HttpOnly; Secure; SameSite=Strict
+         */
+        ClearedCookies: string;
+    };
     pathItems: never;
 }
 export type $defs = Record<string, never>;
@@ -183,13 +191,14 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Account created; tokens issued */
+            /** @description Account created; session cookies set */
             201: {
                 headers: {
+                    "Set-Cookie": components["headers"]["SessionCookies"];
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["TokenResponse"];
+                    "application/json": components["schemas"]["UserResponse"];
                 };
             };
             /** @description Email already registered */
@@ -225,13 +234,14 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Login successful */
+            /** @description Login successful; session cookies set */
             200: {
                 headers: {
+                    "Set-Cookie": components["headers"]["SessionCookies"];
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["TokenResponse"];
+                    "application/json": components["schemas"]["UserResponse"];
                 };
             };
             /** @description Invalid credentials */
@@ -252,22 +262,17 @@ export interface operations {
             path?: never;
             cookie?: never;
         };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["RefreshRequest"];
-            };
-        };
+        requestBody?: never;
         responses: {
-            /** @description New token pair issued */
-            200: {
+            /** @description New session cookies set */
+            204: {
                 headers: {
+                    "Set-Cookie": components["headers"]["SessionCookies"];
                     [name: string]: unknown;
                 };
-                content: {
-                    "application/json": components["schemas"]["TokenResponse"];
-                };
+                content?: never;
             };
-            /** @description Refresh token invalid, expired, or already rotated */
+            /** @description Refresh cookie missing, invalid, expired, or already rotated */
             401: {
                 headers: {
                     [name: string]: unknown;
@@ -285,20 +290,17 @@ export interface operations {
             path?: never;
             cookie?: never;
         };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["RefreshRequest"];
-            };
-        };
+        requestBody?: never;
         responses: {
-            /** @description Logged out successfully */
+            /** @description Logged out; session cookies cleared */
             204: {
                 headers: {
+                    "Set-Cookie": components["headers"]["ClearedCookies"];
                     [name: string]: unknown;
                 };
                 content?: never;
             };
-            /** @description Missing or invalid access token */
+            /** @description Missing or invalid session */
             401: {
                 headers: {
                     [name: string]: unknown;
