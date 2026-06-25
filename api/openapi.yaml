@@ -32,7 +32,10 @@ paths:
     post:
       tags: [Auth]
       summary: Register a new user
-      description: Creates a new account and returns tokens immediately — no separate login step required.
+      description: |
+        Creates a new account and signs the user in immediately — no separate login step.
+        Access and refresh tokens are delivered as HttpOnly cookies (never in the body);
+        the response body carries the authenticated user's profile.
       security: []
       operationId: register
       requestBody:
@@ -43,11 +46,14 @@ paths:
               $ref: '#/components/schemas/RegisterRequest'
       responses:
         '201':
-          description: Account created; tokens issued
+          description: Account created; session cookies set
+          headers:
+            Set-Cookie:
+              $ref: '#/components/headers/SessionCookies'
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/TokenResponse'
+                $ref: '#/components/schemas/UserResponse'
         '409':
           description: Email already registered
           content:
@@ -65,6 +71,9 @@ paths:
     post:
       tags: [Auth]
       summary: Login with email and password
+      description: |
+        Verifies credentials and sets HttpOnly access + refresh cookies.
+        Tokens are never returned in the body; the body carries the user's profile.
       security: []
       operationId: login
       requestBody:
@@ -75,11 +84,14 @@ paths:
               $ref: '#/components/schemas/LoginRequest'
       responses:
         '200':
-          description: Login successful
+          description: Login successful; session cookies set
+          headers:
+            Set-Cookie:
+              $ref: '#/components/headers/SessionCookies'
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/TokenResponse'
+                $ref: '#/components/schemas/UserResponse'
         '401':
           description: Invalid credentials
           content:
@@ -92,25 +104,19 @@ paths:
       tags: [Auth]
       summary: Refresh access token
       description: |
-        Exchanges a valid refresh token for a new access token and a new refresh token.
-        The old refresh token is immediately invalidated.
+        Reads the refresh token from the `jr_refresh` HttpOnly cookie, rotates it,
+        and sets a fresh access + refresh cookie pair. The old refresh token is
+        immediately invalidated. No request body — the cookie carries the token.
       security: []
       operationId: refreshToken
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/RefreshRequest'
       responses:
-        '200':
-          description: New token pair issued
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/TokenResponse'
+        '204':
+          description: New session cookies set
+          headers:
+            Set-Cookie:
+              $ref: '#/components/headers/SessionCookies'
         '401':
-          description: Refresh token invalid, expired, or already rotated
+          description: Refresh cookie missing, invalid, expired, or already rotated
           content:
             application/json:
               schema:
@@ -119,20 +125,22 @@ paths:
   /api/v1/auth/logout:
     post:
       tags: [Auth]
-      summary: Logout and invalidate refresh token
-      description: Blacklists the provided refresh token. The access token expires naturally.
+      summary: Logout and invalidate the session
+      description: |
+        Revokes the refresh token read from the `jr_refresh` cookie and clears both
+        session cookies (`jr_access`, `jr_refresh`). No request body.
       operationId: logout
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/RefreshRequest'
+      security:
+        - CookieAuth: []
+        - BearerAuth: []
       responses:
         '204':
-          description: Logged out successfully
+          description: Logged out; session cookies cleared
+          headers:
+            Set-Cookie:
+              $ref: '#/components/headers/ClearedCookies'
         '401':
-          description: Missing or invalid access token
+          description: Missing or invalid session
           content:
             application/json:
               schema:
@@ -142,8 +150,14 @@ paths:
     get:
       tags: [Auth]
       summary: Get current user info
-      description: Returns the authenticated user's profile fetched from the database using the JWT sub claim.
+      description: |
+        Returns the authenticated user's profile, resolved from the JWT `sub` claim.
+        The access token is taken from the `jr_access` cookie (or, behind the gateway,
+        the translated `Authorization: Bearer` header).
       operationId: getMe
+      security:
+        - CookieAuth: []
+        - BearerAuth: []
       responses:
         '200':
           description: Current user
@@ -164,6 +178,30 @@ components:
       type: http
       scheme: bearer
       bearerFormat: JWT
+    CookieAuth:
+      type: apiKey
+      in: cookie
+      name: jr_access
+      description: |
+        HttpOnly access-token cookie set by the auth service on login/register.
+        Used directly by the auth service; the gateway translates it into an
+        `Authorization: Bearer` header for downstream services.
+
+  headers:
+    SessionCookies:
+      description: |
+        Two HttpOnly cookies are set:
+        `jr_access` (the access JWT, Path=/, Max-Age, HttpOnly; Secure; SameSite=Strict)
+        and `jr_refresh` (the rotating refresh token, Path=/api/v1/auth,
+        Max-Age, HttpOnly; Secure; SameSite=Strict).
+      schema:
+        type: string
+      example: jr_access=<jwt>; Path=/; Max-Age=900; HttpOnly; Secure; SameSite=Strict
+    ClearedCookies:
+      description: Both session cookies are expired (Max-Age=0).
+      schema:
+        type: string
+      example: jr_access=; Path=/; Max-Age=0; HttpOnly; Secure; SameSite=Strict
 
   schemas:
     RegisterRequest:
@@ -191,30 +229,6 @@ components:
           type: string
           format: password
           minLength: 8
-
-    RefreshRequest:
-      type: object
-      required: [refresh_token]
-      properties:
-        refresh_token:
-          type: string
-
-    TokenResponse:
-      type: object
-      properties:
-        access_token:
-          type: string
-          description: Short-lived JWT (15 min). Claims — sub, email, iat, exp, jti.
-        refresh_token:
-          type: string
-          description: Long-lived rotating token (7 days). Stored and validated in Redis.
-        token_type:
-          type: string
-          enum: [Bearer]
-        expires_in:
-          type: integer
-          description: Access token lifetime in seconds
-          example: 900
 
     UserResponse:
       type: object
