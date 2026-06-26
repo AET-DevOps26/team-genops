@@ -40,3 +40,5 @@ replay_pid*
 .claude/__pycache__/
 
 node_modules
+
+dist
