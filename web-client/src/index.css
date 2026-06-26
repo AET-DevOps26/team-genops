@@ -1,1 +1,156 @@
 @import "tailwindcss";
+
+/* ── Design tokens ─────────────────────────────────────────────
+   Ink canvas with a multi-state status palette. The only saturated
+   colors in the UI map to real pipeline stages — color is meaning,
+   never decoration. */
+@theme {
+  --color-ink: #0d0f14;
+  --color-raised: #161a22;
+  --color-raised-2: #1c2230;
+  --color-line: #262b36;
+  --color-fg: #e8eaf0;
+  --color-dim: #8a92a6;
+  --color-faint: #5a6276;
+
+  --color-applied: #5b8def;
+  --color-screen: #b07cf0;
+  --color-interview: #f5a623;
+  --color-offer: #34d399;
+
+  --font-display: "Bricolage Grotesque", "Geist", ui-sans-serif, system-ui,
+    sans-serif;
+  --font-sans: "Geist", ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --font-mono: "Geist Mono", ui-monospace, "SFMono-Regular", monospace;
+}
+
+html {
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+body {
+  margin: 0;
+  background: var(--color-ink);
+  color: var(--color-fg);
+  font-family: var(--font-sans);
+}
+
+/* Keyboard focus is visible on the dark canvas; mouse focus stays quiet. */
+:focus-visible {
+  outline: 2px solid color-mix(in oklab, var(--color-offer) 70%, transparent);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* Status tag: mono, uppercase, tracking — the product's vernacular. */
+.tag {
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+/* Inputs styled as card fields, not generic boxes. */
+.field {
+  background: color-mix(in oklab, var(--color-raised-2) 70%, transparent);
+  border: 1px solid var(--color-line);
+  transition: border-color 0.18s ease, box-shadow 0.18s ease,
+    background 0.18s ease;
+}
+.field:focus-within {
+  border-color: color-mix(in oklab, var(--color-offer) 55%, var(--color-line));
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--color-offer) 16%, transparent);
+  background: color-mix(in oklab, var(--color-raised-2) 92%, transparent);
+}
+.field input {
+  background: transparent;
+  border: none;
+  outline: none;
+  color: var(--color-fg);
+  width: 100%;
+  font-size: 0.9375rem;
+}
+.field input::placeholder {
+  color: var(--color-faint);
+}
+
+/* The board behind the card: dotted stage grid + soft stage glow. */
+.board-grid {
+  background-image: radial-gradient(
+    color-mix(in oklab, var(--color-line) 90%, transparent) 1px,
+    transparent 1px
+  );
+  background-size: 22px 22px;
+  background-position: -1px -1px;
+  mask-image: radial-gradient(120% 90% at 30% 20%, #000 35%, transparent 80%);
+}
+
+/* Primary action — the "go" / advance-a-stage color. */
+.cta {
+  background: var(--color-offer);
+  color: #052e1d;
+  font-weight: 600;
+  transition: transform 0.12s ease, box-shadow 0.18s ease, filter 0.18s ease;
+  box-shadow: 0 8px 30px -10px color-mix(in oklab, var(--color-offer) 60%, transparent);
+}
+.cta:hover:not(:disabled) {
+  filter: brightness(1.06);
+  box-shadow: 0 12px 34px -10px color-mix(in oklab, var(--color-offer) 70%, transparent);
+}
+.cta:active:not(:disabled) {
+  transform: translateY(1px);
+}
+.cta:disabled {
+  filter: saturate(0.4) brightness(0.8);
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+/* ── Orchestrated load ─────────────────────────────────────── */
+@keyframes drop-in {
+  from {
+    opacity: 0;
+    transform: translateY(18px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@keyframes pulse-dot {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 color-mix(in oklab, var(--color-offer) 55%, transparent);
+  }
+  50% {
+    box-shadow: 0 0 0 5px color-mix(in oklab, var(--color-offer) 0%, transparent);
+  }
+}
+.anim-card {
+  animation: drop-in 0.6s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+.anim-rise {
+  animation: rise 0.55s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+.dot-live {
+  animation: pulse-dot 2.4s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .anim-card,
+  .anim-rise,
+  .dot-live {
+    animation: none !important;
+  }
+}

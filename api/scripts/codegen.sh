@@ -46,9 +46,9 @@ done
 # ---------------------------------------------------------------------------
 # Web client — TypeScript types
 # ---------------------------------------------------------------------------
-echo "==> Generating TypeScript types -> $WEB_CLIENT/src/api.ts"
-npx openapi-typescript "$SPEC" -o "$WEB_CLIENT/src/api.ts"
+echo "==> Generating TypeScript types -> $WEB_CLIENT/src/generated/openapi.ts"
+npx openapi-typescript "$SPEC" -o "$WEB_CLIENT/src/generated/openapi.ts"
 
 echo ""
 echo "Codegen complete. Review changes with:"
-echo "  git diff -- $SERVICES $WEB_CLIENT/src/api.ts"
+echo "  git diff -- $SERVICES $WEB_CLIENT/src/generated/openapi.ts"

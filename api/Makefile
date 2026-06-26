@@ -1,6 +1,6 @@
 SPEC         := ./openapi.yaml
 SERVICES     := ../services
-WEB_CLIENT   := ../web-client/src/api.ts
+WEB_CLIENT   := ../web-client/src/generated/openapi.ts
 GENAI_CLIENT := $(SERVICES)/genai/client
 
 .PHONY: generate lint check clean help
