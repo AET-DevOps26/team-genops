@@ -1,6 +1,8 @@
 -- ========================
 -- SCHEMA: document
 -- ========================
+CREATE EXTENSION IF NOT EXISTS pgcrypto;
+
 CREATE SCHEMA IF NOT EXISTS document;
 
 CREATE TABLE document.profiles (

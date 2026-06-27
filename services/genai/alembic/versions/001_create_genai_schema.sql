@@ -2,6 +2,8 @@
 -- SCHEMA: genai
 -- ========================
 
+CREATE EXTENSION IF NOT EXISTS pgcrypto;
+
 -- Enable pgvector extension (required for embedding column)
 CREATE EXTENSION IF NOT EXISTS vector;
 
@@ -21,6 +23,8 @@ CREATE TABLE genai.chat_sessions (
 -- Index for pgvector similarity search on session embeddings per user
 CREATE INDEX ON genai.chat_sessions USING ivfflat (embedding vector_cosine_ops)
     WHERE embedding IS NOT NULL;
+
+CREATE INDEX ON genai.chat_sessions (user_id);
 
 CREATE TABLE genai.chat_messages (
     id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),

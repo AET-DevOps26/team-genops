@@ -1,6 +1,8 @@
 -- ========================
 -- SCHEMA: application
 -- ========================
+CREATE EXTENSION IF NOT EXISTS pgcrypto;
+
 CREATE SCHEMA IF NOT EXISTS application;
 
 CREATE TABLE application.applications (
@@ -20,7 +22,7 @@ CREATE TABLE application.applications (
 CREATE TABLE application.fit_analyses (
     id             UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id        UUID NOT NULL,
-    application_id UUID NOT NULL,
+    application_id UUID NOT NULL REFERENCES application.applications(id) ON DELETE CASCADE,
     strengths      TEXT NOT NULL,
     gaps           TEXT NOT NULL,
     summary        TEXT NOT NULL,

@@ -1,6 +1,8 @@
 -- ========================
 -- SCHEMA: auth
 -- ========================
+CREATE EXTENSION IF NOT EXISTS pgcrypto;
+
 CREATE SCHEMA IF NOT EXISTS auth;
 
 CREATE TABLE auth.users (
