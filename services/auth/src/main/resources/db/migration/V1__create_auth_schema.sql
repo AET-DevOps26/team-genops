@@ -12,7 +12,7 @@ CREATE TABLE auth.users (
 
 CREATE TABLE auth.refresh_tokens (
     id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id    UUID NOT NULL,
+    user_id    UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
     token      VARCHAR(512) NOT NULL UNIQUE,
     expires_at TIMESTAMPTZ NOT NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
