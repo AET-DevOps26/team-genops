@@ -101,7 +101,6 @@ const authSlice = createSlice({
   reducers: {
     clearError(state) {
       state.error = null
-      if (state.status === 'anonymous') state.status = 'unknown'
     },
   },
   extraReducers: (builder) => {
