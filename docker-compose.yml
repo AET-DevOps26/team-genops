@@ -6,9 +6,12 @@ services:
     environment:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      # Maintenance DB only. Per-service databases are created by services/db/initdb.
       POSTGRES_DB: ${POSTGRES_DB}
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      # Per-service databases are declared once here; runs on first init only.
+      - ./services/db/initdb:/docker-entrypoint-initdb.d:ro
     ports:
       - "5432:5432"
     healthcheck:
@@ -34,11 +37,11 @@ services:
   web-client:
     build:
       context: ./web-client
-      dockerfile: Dockerfile.dev
+      dockerfile: Dockerfile
     container_name: web-client
     restart: unless-stopped
     ports:
-      - "5173:5173"
+      - "5173:80"
     depends_on:
       auth:
         condition: service_healthy
@@ -46,20 +49,37 @@ services:
   auth:
     build:
       context: ./services/auth
-      dockerfile: Dockerfile.dev
+      dockerfile: Dockerfile
     container_name: auth
     restart: unless-stopped
     ports:
       - "8080:8080"
     environment:
-      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB}
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres-db:5432/auth_db
       SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER}
       SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD}
+      REDIS_URL: redis://redis:6379
+      JWT_PRIVATE_KEY: ${JWT_PRIVATE_KEY}
+      JWT_PUBLIC_KEY: ${JWT_PUBLIC_KEY}
     depends_on:
       postgres-db:
         condition: service_healthy
+      redis:
+        condition: service_healthy
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://localhost:8080/actuator/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
       interval: 10s
       timeout: 5s
       retries: 5

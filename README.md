@@ -40,7 +40,7 @@ Five services, one frontend. See [`docs/architecture/microservice-design.md`](do
 | `genai` | Python / FastAPI | LLM-backed AI features |
 | `web-client` | React + TypeScript | UI |
 
-Single Postgres instance with one database per service. Auth at the gateway; JWT verified at every hop. OpenAPI-first contract in [`api/openapi.yaml`](api/openapi.yaml).
+Single Postgres instance with one database per service. JWTs are delivered to the browser as HttpOnly cookies (BFF / split-token); the gateway translates them into Bearer headers and JWT is verified at every hop. OpenAPI-first contract in [`api/openapi.yaml`](api/openapi.yaml).
 
 ## Repository Layout
 

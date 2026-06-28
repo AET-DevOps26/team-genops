@@ -3,7 +3,7 @@
   "private": true,
   "description": "Shared OpenAPI contract and codegen tooling. Not a runtime package.",
   "scripts": {
-    "lint": "redocly lint ../openapi.yaml",
+    "lint": "redocly lint --config ./redocly.yaml ../openapi.yaml",
     "generate": "./codegen.sh"
   },
   "devDependencies": {

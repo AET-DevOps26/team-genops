@@ -1,6 +1,6 @@
 SPEC         := ./openapi.yaml
 SERVICES     := ../services
-WEB_CLIENT   := ../web-client/src/api.ts
+WEB_CLIENT   := ../web-client/src/generated/openapi.ts
 GENAI_CLIENT := $(SERVICES)/genai/client
 
 .PHONY: generate lint check clean help
@@ -16,7 +16,8 @@ generate:
 	./scripts/codegen.sh
 
 lint:
-	npx --yes --prefix ./scripts @redocly/cli lint $(SPEC) --config ./scripts/redocly.yaml
+	@[ -d scripts/node_modules ] || npm ci --prefix scripts --silent
+	cd scripts && npm run lint
 
 check: generate
 	@git diff --exit-code -- \
