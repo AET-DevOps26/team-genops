@@ -20,7 +20,7 @@ The system is composed of five services in a single mono-repo:
 | `document` | Spring Boot | Document storage — Profile, CoverLetter | TBD |
 | `genai` | Python / FastAPI | GenAI generation — stateless LLM calls | 8000 |
 
-One shared PostgreSQL instance with schema-per-service isolation (each service has its own DB user with access only to its schema). `genai` has no database.
+One shared PostgreSQL instance with **database-per-service** isolation: each service owns its own database (e.g. `auth_db`), created once by `services/db/initdb`. A single dev superuser currently owns all databases; per-service DB users are a planned hardening, not yet implemented. Each service's tables are generated from its JPA `@Entity` classes (`ddl-auto=update`), not hand-written SQL. `genai` has no database.
 
 **Frontend:** React + Vite + TypeScript + Tailwind CSS (`web-client/`, port 5173)
 
@@ -29,6 +29,12 @@ One shared PostgreSQL instance with schema-per-service isolation (each service h
 All services are containerised and orchestrated locally with **Docker Compose** and deployed to **Kubernetes** (Helm or raw manifests).
 
 **Observability stack:** Prometheus (metrics: request count, latency, error rate) + Grafana (dashboards committed as `.json` files) with alert rules for service health.
+
+## Authentication
+
+- **Token transport — HttpOnly cookies (BFF / split-token).** On login/register the auth service sets two cookies — `jr_access` (the access JWT, `Path=/`) and `jr_refresh` (`Path=/api/v1/auth`), both `HttpOnly; Secure; SameSite=Strict`. Tokens are **never** returned in a response body and **never** readable by JS. The browser only ever talks to its own origin; the proxy (Vite in dev, the gateway in prod) forwards `/api` to auth. *Why:* keeping cookies first-party lets `SameSite=Strict` work without CORS, and tokens stay out of JS (XSS-safe).
+- **No CORS.** Because the browser reaches auth only same-origin via that proxy/gateway, cross-origin browser requests never happen, so the CORS config was inert and has been removed. *Why:* CORS is not the security boundary here — `SameSite=Strict` cookies + the gateway are. Reintroduce only if a real cross-origin browser client ever appears.
+- **JWT signing keys.** Auth signs tokens with RSA (RS256) and publishes its public key as a JWK Set at `/api/v1/auth/.well-known/jwks.json` so other services verify locally. If `JWT_PRIVATE_KEY`/`JWT_PUBLIC_KEY` are blank, auth generates an **ephemeral in-memory key pair at startup** — convenient for single-instance dev. *Why it matters:* ephemeral keys regenerate on every restart (invalidating existing tokens) and differ across replicas (a token signed by one pod fails on another), so **production / multi-replica MUST set explicit keys**.
 
 ## Service Ports (local)
 
@@ -152,7 +158,7 @@ This regenerates Java DTOs for Spring Boot services and TypeScript types for the
 │   ├── email/           # Spring Boot — Email integration
 │   ├── document/        # Spring Boot — Profile & document storage
 │   ├── genai/           # Python FastAPI — GenAI generation
-│   └── db/              # schema.sql — shared Postgres schema definitions
+│   └── db/              # initdb/ — per-service CREATE DATABASE scripts (schema itself is JPA-generated)
 ├── api/
 │   └── openapi.yaml     # Single source of truth for all REST contracts
 ├── infra/
