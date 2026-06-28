@@ -28,7 +28,7 @@ CREATE INDEX ON genai.chat_sessions (user_id);
 
 CREATE TABLE genai.chat_messages (
     id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    session_id UUID NOT NULL,
+    session_id UUID NOT NULL REFERENCES genai.chat_sessions(id) ON DELETE CASCADE,
     role       VARCHAR(20) NOT NULL CHECK (role IN ('user', 'assistant')),
     content    TEXT NOT NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()

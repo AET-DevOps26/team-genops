@@ -20,7 +20,7 @@ CREATE TABLE document.profiles (
 
 CREATE TABLE document.work_experiences (
     id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id     UUID NOT NULL,
+    user_id     UUID NOT NULL REFERENCES document.profiles(user_id) ON DELETE CASCADE,
     company     VARCHAR(255) NOT NULL,
     role        VARCHAR(255) NOT NULL,
     location    VARCHAR(255),
@@ -33,7 +33,7 @@ CREATE TABLE document.work_experiences (
 
 CREATE TABLE document.educations (
     id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id     UUID NOT NULL,
+    user_id     UUID NOT NULL REFERENCES document.profiles(user_id) ON DELETE CASCADE,
     institution VARCHAR(255) NOT NULL,
     degree      VARCHAR(255) NOT NULL,
     field       VARCHAR(255),
@@ -45,7 +45,7 @@ CREATE TABLE document.educations (
 
 CREATE TABLE document.skills (
     id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id    UUID NOT NULL,
+    user_id    UUID NOT NULL REFERENCES document.profiles(user_id) ON DELETE CASCADE,
     name       VARCHAR(100) NOT NULL,
     level      VARCHAR(50) NOT NULL CHECK (level IN ('beginner', 'intermediate', 'advanced', 'expert')),
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
@@ -53,7 +53,7 @@ CREATE TABLE document.skills (
 
 CREATE TABLE document.certifications (
     id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id     UUID NOT NULL,
+    user_id     UUID NOT NULL REFERENCES document.profiles(user_id) ON DELETE CASCADE,
     name        VARCHAR(255) NOT NULL,
     issuer      VARCHAR(255),
     issued_date DATE,
@@ -63,7 +63,7 @@ CREATE TABLE document.certifications (
 
 CREATE TABLE document.languages (
     id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id     UUID NOT NULL,
+    user_id     UUID NOT NULL REFERENCES document.profiles(user_id) ON DELETE CASCADE,
     name        VARCHAR(100) NOT NULL,
     proficiency VARCHAR(50) NOT NULL CHECK (proficiency IN ('basic', 'conversational', 'fluent', 'native')),
     created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
