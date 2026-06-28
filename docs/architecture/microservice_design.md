@@ -118,10 +118,17 @@ No persistence; client displays and discards. Same orchestrator-owns-destination
 
 ### 5.2 Authentication propagation
 
-- Gateway (Traefik / NGINX) verifies JWT signature on ingress.
+- **Browser edge (BFF / split-token):** the `auth` service sets HttpOnly cookies on
+  login/register — `jr_access` (access JWT, `Path=/`) and `jr_refresh` (`Path=/api/v1/auth`),
+  both `HttpOnly; Secure; SameSite=Strict`. Tokens never appear in a response body or in JS.
+- **Gateway (NGINX Gateway Fabric)** translates the `jr_access` cookie into an
+  `Authorization: Bearer <jwt>` header (stripping the cookie) and verifies the signature on
+  ingress. The `auth` service resolves the token from
+  the cookie *or* the header itself, so it is independently usable.
 - **Every service re-verifies** the JWT using `auth`'s public key (mounted as a Kubernetes Secret). Defense in depth.
-- Services **forward** the `Authorization: Bearer <jwt>` header on outgoing service-to-service calls.
+- Services **forward** the `Authorization: Bearer <jwt>` header on outgoing service-to-service calls. Cookies live only at the browser↔gateway edge — never between services.
 - `user_id` is **always extracted from the JWT claim**. Never accepted in request body, query string, or any other header. This is non-negotiable.
+- **CSRF:** the cookie edge is currently protected by `SameSite=Strict` only; a CSRF token for state-changing requests is a planned hardening.
 
 ### 5.3 OpenAPI-first
 
