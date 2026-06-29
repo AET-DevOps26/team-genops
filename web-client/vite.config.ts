@@ -16,10 +16,15 @@ export default defineConfig({
     // That keeps the HttpOnly session cookies same-site (SameSite=Strict works)
     // without CORS — mirroring how the gateway serves both in production.
     proxy: {
+      // More specific rule first — genai service on port 8000
+      '/api/v1/chat': {
+        target: process.env.VITE_GENAI_TARGET ?? 'http://localhost:8000',
+        changeOrigin: true,
+      },
+      // Catch-all — auth service on port 8080
       '/api': {
         target: process.env.VITE_API_TARGET ?? 'http://localhost:8080',
         changeOrigin: true,
-        // Rewrite the cookie domain to the dev origin so the browser stores it.
         cookieDomainRewrite: '',
       },
     },
