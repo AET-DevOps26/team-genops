@@ -16,10 +16,10 @@ postgres:
   storageClassName: csi-rbd-sc
 
 ingress:
-  # TODO(confirm from Rancher UI / course docs):
-  host: jobready.stud.k8s.aet.cit.tum.de      # exact hostname under the wildcard
-  ingressClassName: nginx                      # the platform ingress class
-  clusterIssuer: ""                            # the PRODUCTION cert-manager issuer (NOT staging)
+  # Confirmed from an existing working ingress on the cluster (2026-06-30).
+  host: ge86yog-devops-genops.stud.k8s.aet.cit.tum.de   # unique subdomain (matches our namespace)
+  ingressClassName: nginx                                 # the platform ingress class
+  clusterIssuer: letsencrypt-prod                         # production cert-manager issuer (trusted)
   tls:
     enabled: true
     secretName: jobready-tls
