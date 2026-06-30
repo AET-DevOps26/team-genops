@@ -1,4 +1,7 @@
 global:
+  # Target namespace for every resource. Override per environment.
+  #   prod (TUM): ge86yog-devops-genops
+  #   dev  (AKS): jobready (created by the chart)
   namespace: jobready
 
   # The container registry prefix. Every image name is:
@@ -9,17 +12,38 @@ global:
   # Use "IfNotPresent" locally to avoid re-pulling, "Always" in CI/CD.
   imagePullPolicy: Always
 
+  # Names of existing dockerconfigjson Secrets used to pull PRIVATE GHCR images.
+  # Create one with:
+  #   kubectl create secret docker-registry ghcr-pull \
+  #     --docker-server=ghcr.io --docker-username=<gh-user> \
+  #     --docker-password=<PAT read:packages> -n <namespace>
+  # Then list it here:
+  #   imagePullSecrets:
+  #     - name: ghcr-pull
+  imagePullSecrets: []
+
+namespace:
+  # Whether THIS chart creates the Namespace object.
+  # Set false when deploying into a pre-existing namespace, or when your
+  # account cannot create namespaces (e.g. a TUM Rancher tenant namespace) —
+  # in that case pass `helm --namespace <ns>` instead.
+  create: false
+
 postgres:
   image: pgvector/pgvector
   tag: pg16
   storage: 5Gi
+
+  # StorageClass for the postgres PVC. "" uses the cluster default.
+  #   TUM (Rancher): csi-rbd-sc     AKS: managed-csi (or "" for default)
+  storageClassName: ""
 
   # Name of an existing Secret in the cluster that holds:
   #   POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_DB
   # Create it from your .env file before running helm install:
   #   kubectl create secret generic postgres-secret \
   #     --from-env-file=.env \
-  #     -n jobready
+  #     -n <namespace>
   existingSecret: postgres-secret
 
   resources:
@@ -30,15 +54,38 @@ postgres:
       memory: "512Mi"
       cpu: "500m"
 
+redis:
+  # Auth uses Redis for server-side sessions (split-token BFF). Required —
+  # without it, auth's /actuator/health reports DOWN and the pod never gets Ready.
+  enabled: true
+  image: redis
+  tag: 7-alpine
+
+  resources:
+    requests:
+      memory: "32Mi"
+      cpu: "25m"
+    limits:
+      memory: "128Mi"
+      cpu: "100m"
+
 auth:
   image: jobready-auth
   tag: latest
   replicas: 1
   port: 8080
 
-  # The frontend origin allowed by CORS.
-  # Override this with your real frontend URL when deploying to a real cluster.
-  corsAllowedOrigins: "http://jobready.local"
+  # Existing Secret holding the RSA signing keys:
+  #   JWT_PRIVATE_KEY  (PKCS#8 PEM, -----BEGIN PRIVATE KEY-----)
+  #   JWT_PUBLIC_KEY   (X.509 PEM,  -----BEGIN PUBLIC KEY-----)
+  # If left blank, auth self-generates an EPHEMERAL keypair at startup —
+  # tokens are invalidated on every restart and differ across replicas.
+  # Set this for stable sessions / >1 replica.
+  jwtSecret: auth-jwt
+
+  # Session cookies use Secure=true → browsers only send them over HTTPS.
+  # Keep "true" (both environments terminate TLS at the ingress).
+  cookieSecure: "true"
 
   resources:
     requests:
@@ -62,10 +109,44 @@ webClient:
       memory: "128Mi"
       cpu: "100m"
 
+gateway:
+  # In-cluster API gateway (Spring Cloud Gateway). When enabled, the Ingress
+  # routes everything to the gateway, which fans out: /api/** -> auth, /** -> web-client.
+  enabled: true
+  image: jobready-gateway
+  tag: latest
+  replicas: 1
+  port: 8081
+
+  resources:
+    requests:
+      memory: "256Mi"
+      cpu: "100m"
+    limits:
+      memory: "512Mi"
+      cpu: "500m"
+
 ingress:
   enabled: true
-  host: jobready.local          # Override with your real domain in production
-  ingressClassName: nginx       # Must match your installed Ingress Controller
+
+  # The public hostname. Override per environment:
+  #   prod: jobready.stud.k8s.aet.cit.tum.de
+  #   dev:  jobready-dev.<region>.cloudapp.azure.com
+  host: jobready.local
+
+  # Must match an installed IngressController.
+  #   TUM: confirm in Rancher UI    AKS: nginx (installed by Ansible)
+  ingressClassName: nginx
+
+  # cert-manager ClusterIssuer that auto-issues the TLS cert.
+  # "" disables cert-manager automation (you must supply tls.secretName yourself).
+  #   prod: the platform PRODUCTION issuer (NOT staging) — confirm the name
+  #   dev:  the Ansible-installed Let's Encrypt issuer
+  clusterIssuer: ""
+
+  # Extra annotations merged onto the Ingress.
+  annotations: {}
+
   tls:
-    enabled: false              # Set to true and provide a cert for HTTPS
-    secretName: jobready-tls    # Name of a TLS Secret (cert + key)
+    enabled: false           # set true once a host + issuer (or cert) is in place
+    secretName: jobready-tls
