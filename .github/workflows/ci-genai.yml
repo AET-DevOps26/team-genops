@@ -5,18 +5,38 @@ on:
     branches:
       - main
 
+permissions:
+  contents: read
+
 jobs:
   genai-ci:
-    name: Install Dependencies
+    name: Lint & Test
     runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: services/genai
+
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@v6
 
       - name: Set up Python 3.12
         uses: actions/setup-python@v6
         with:
           python-version: "3.12"
 
+      - name: Install uv
+        uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
+        with:
+          version: "0.11.18"
+          enable-cache: true
+          cache-dependency-glob: "services/genai/uv.lock"
+
       - name: Install dependencies
-        run: pip install -r requirements.txt
-        working-directory: services/genai
+        run: uv sync --locked --all-groups
+
+      - name: Lint (Ruff)
+        run: uv run --locked ruff check src/ tests/
+
+      - name: Test (pytest)
+        run: uv run --locked python -m pytest tests/

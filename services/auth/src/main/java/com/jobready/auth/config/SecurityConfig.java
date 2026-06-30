@@ -47,11 +47,28 @@ public class SecurityConfig {
     /**
      * Resolves the access token from the {@code jr_access} HttpOnly cookie, falling
      * back to the standard {@code Authorization: Bearer} header.
+     *
+     * Public endpoints (login, register, refresh, JWKS) are skipped entirely so that
+     * a stale or invalidated cookie never causes a 401 on those paths. Spring Security
+     * validates any resolved token before the controller runs; if we return a token for
+     * a permitAll endpoint and the JWT is invalid (e.g. key rotated on restart), the
+     * request is rejected before reaching the controller — hence the early-return null.
      */
+    private static final java.util.Set<String> PUBLIC_PATHS = java.util.Set.of(
+        AuthApi.PATH_LOGIN,
+        AuthApi.PATH_REGISTER,
+        AuthApi.PATH_REFRESH_TOKEN,
+        JwksController.PATH,
+        "/actuator/health"
+    );
+
     @Bean
     public BearerTokenResolver cookieOrHeaderTokenResolver() {
         DefaultBearerTokenResolver headerResolver = new DefaultBearerTokenResolver();
         return request -> {
+            if (PUBLIC_PATHS.contains(request.getRequestURI())) {
+                return null;
+            }
             String fromHeader = headerResolver.resolve(request);
             if (fromHeader != null) {
                 return fromHeader;

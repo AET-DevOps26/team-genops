@@ -1,0 +1,20 @@
+line-length = 200
+target-version = "py312"
+
+[lint]
+select = [
+    "E",
+    "F",
+    "B",
+    "UP",
+    "SIM",
+]
+ignore = []
+
+[lint.flake8-bugbear]
+extend-immutable-calls = ["fastapi.Depends"]
+
+[format]
+quote-style = "double"
+indent-style = "space"
+line-ending = "auto"
