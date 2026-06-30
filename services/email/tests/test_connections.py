@@ -56,9 +56,15 @@ def test_replayed_state_rejected():
 # --- callback integration (Gmail exchange + DB upsert mocked) ---
 
 
+def _mock_db():
+    # No-arg override so FastAPI doesn't introspect a wider signature (a bare
+    # MagicMock would expose *args/**kwargs and turn into spurious 422s).
+    return MagicMock()
+
+
 @pytest.fixture
 def client():
-    app.dependency_overrides[get_db] = MagicMock
+    app.dependency_overrides[get_db] = _mock_db
     c = TestClient(app)
     yield c
     app.dependency_overrides.clear()
