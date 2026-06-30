@@ -70,7 +70,9 @@ exist until CI runs.
 Proves invariants 2 + 3 by hand, where failures are easy to read.
 
 ```sh
-export KUBECONFIG=~/.kube/stud.yaml && kubectl config use-context stud
+export KUBECONFIG=~/.kube/config      # the kubeconfig that holds a working `stud` context
+kubectl config use-context stud       # target the prod cluster (NOT fact-checking/AKS)
+kubectl config current-context        # sanity: must print  stud
 NS=ge86yog-devops-genops
 
 # 1. Stable RSA JWT keys (else auth self-generates ephemeral keys that die on restart)
@@ -119,7 +121,11 @@ ansible-vault encrypt infra/ansible/inventories/prod/group_vars/vault.yml
 ```
 
 In **GitHub → Settings**:
-- **Secrets:** `RANCHER_KUBECONFIG` (full `stud.yaml`), `ANSIBLE_VAULT_PASSWORD`.
+- **Secrets:** `RANCHER_KUBECONFIG`, `ANSIBLE_VAULT_PASSWORD`. Generate a self-contained,
+  stud-only kubeconfig for the secret with:
+  ```sh
+  kubectl --kubeconfig ~/.kube/config --context stud config view --minify --flatten
+  ```
 - **Environments → `production`** → add yourself as a **Required reviewer**.
 
 Trigger: create a **GitHub Release** (tag `vX.Y.Z`). `build-images` builds semver images and
@@ -178,7 +184,8 @@ cd infra/ansible
 ansible-galaxy collection install -r requirements.yml   # needs ansible-core, helm, `pip install kubernetes`
 
 # prod (TUM already has ingress + cert-manager → bootstrap is a no-op)
-KUBECONFIG=~/.kube/stud.yaml \
+kubectl --kubeconfig ~/.kube/config config use-context stud      # once: make stud current
+KUBECONFIG=~/.kube/config \
   ansible-playbook -i inventories/prod/hosts.yml playbooks/deploy.yml --ask-vault-pass
 
 # dev (AKS): terraform first, then bootstrap + deploy with the outputs
