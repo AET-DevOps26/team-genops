@@ -1,0 +1,53 @@
+name: CD - Prod (Rancher)
+
+# Deploys to the TUM Rancher namespace. The `production` environment should be
+# configured with a required reviewer so each prod deploy needs manual approval.
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: "Image tag to deploy (e.g. sha-abc1234 or latest)"
+        required: true
+        default: latest
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: production   # gate: add a required reviewer in repo settings
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Write Rancher kubeconfig
+        run: echo "${{ secrets.RANCHER_KUBECONFIG }}" > "$RUNNER_TEMP/kubeconfig"
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+
+      - name: Install Ansible + collections
+        run: |
+          pip install ansible-core kubernetes
+          ansible-galaxy collection install -r infra/ansible/requirements.yml
+
+      - name: Set up Helm
+        uses: azure/setup-helm@v4
+        with:
+          version: v3.16.0
+
+      - name: Deploy to prod
+        working-directory: infra/ansible
+        env:
+          KUBECONFIG: ${{ runner.temp }}/kubeconfig
+        run: |
+          echo "${{ secrets.ANSIBLE_VAULT_PASSWORD }}" > vault-pass
+          TAG="${{ github.event.inputs.image_tag || github.event.release.tag_name }}"
+          TAG="${TAG:-latest}"; TAG="${TAG#v}"   # image semver tags have no leading 'v' (v1.2.3 -> 1.2.3)
+          ansible-playbook -i inventories/prod/hosts.yml playbooks/deploy.yml \
+            --vault-password-file vault-pass \
+            -e image_tag="$TAG"
+          rm -f vault-pass
