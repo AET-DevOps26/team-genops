@@ -19,15 +19,16 @@ from src.services.chat.utils.summarizer import maybe_summarize
 router = APIRouter(prefix="/api/v1/chat", tags=["Chat"])
 
 
-async def _background_summarize(session_id: str, message_count: int) -> None:
+async def _background_summarize(session_id: str, message_count: int, transcript: str) -> None:
     """
     Runs summarization in the background using its own DB connection.
-    message_count is captured at trigger time to ensure we summarize the exact window
-    that triggered the summarization, even if new messages arrive before this task runs.
+    message_count and transcript are captured at trigger time to ensure we summarize
+    the exact window that triggered the summarization, even if new messages arrive
+    before this task runs.
     """
     from src.db.pool import pool
     async with pool.connection() as conn:
-        await maybe_summarize(conn, session_id, message_count)
+        await maybe_summarize(conn, session_id, message_count, transcript)
 
 
 @router.post("/sessions", response_model=SessionResponse, status_code=201)
@@ -86,7 +87,11 @@ async def send_message(
     Summarization runs in the background — the user never waits for it.
     """
     response = await chat(conn, session_id, user_id, body.message)
-    # Capture message count now, before any concurrent messages can arrive
+    # Capture message count and transcript NOW, before any concurrent messages can arrive
+    from src.services.chat.utils.history import HISTORY_WINDOW, load_last_n_messages_as_text
     total = await count_messages(conn, session_id)
-    background_tasks.add_task(_background_summarize, session_id, total)
+    # Always capture the window transcript, even if we won't summarize yet
+    # (small overhead but ensures correctness)
+    transcript = await load_last_n_messages_as_text(conn, session_id, HISTORY_WINDOW)
+    background_tasks.add_task(_background_summarize, session_id, total, transcript)
     return MessageResponse(response=response)

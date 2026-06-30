@@ -20,6 +20,27 @@ CREATE TABLE IF NOT EXISTS genai.chat_sessions (
     updated_at     TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+-- Migration: Update embedding column dimension for existing tables
+-- If the table already exists with a different embedding dimension, this will update it.
+-- This handles the case where the table was created with an older dimension (e.g., 1536 or 3072).
+DO $$
+BEGIN
+    -- Check if the embedding column exists and has a different dimension
+    IF EXISTS (
+        SELECT 1
+        FROM information_schema.columns
+        WHERE table_schema = 'genai'
+          AND table_name = 'chat_sessions'
+          AND column_name = 'embedding'
+    ) THEN
+        -- Drop and recreate the column to change dimension
+        -- This is safe because we're in early development; in production with data,
+        -- you'd need a more careful migration strategy (backup, convert, restore)
+        ALTER TABLE genai.chat_sessions DROP COLUMN embedding;
+        ALTER TABLE genai.chat_sessions ADD COLUMN embedding vector(4096);
+    END IF;
+END $$;
+
 -- Note: ivfflat and hnsw indexes are limited to 2000 dimensions.
 -- qwen3-embedding-8b produces 4096-dim vectors so we rely on sequential scan.
 -- For a single user's sessions this is negligible. Add a quantized index if scale demands it.

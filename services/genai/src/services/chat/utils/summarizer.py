@@ -3,23 +3,29 @@ from psycopg import AsyncConnection
 from src.llm.client import llm
 from src.prompts.summarization import SUMMARIZATION_PROMPT
 from src.services.chat.utils.embeddings import embed_text
-from src.services.chat.utils.history import HISTORY_WINDOW, load_last_n_messages_as_text
+from src.services.chat.utils.history import HISTORY_WINDOW
 
 NO_SUMMARY = "NO_SUMMARY"
 
 
-async def maybe_summarize(conn: AsyncConnection, session_id: str, message_count: int) -> None:
+async def maybe_summarize(conn: AsyncConnection, session_id: str, message_count: int, transcript: str) -> None:
     """
     Triggered after every message save.
     Summarizes the last HISTORY_WINDOW messages at every 10th message boundary.
     If the LLM deems the segment worthless, nothing is written.
+
+    Args:
+        conn: Database connection
+        session_id: Chat session ID
+        message_count: Total message count at trigger time (immutable)
+        transcript: Pre-captured transcript of the last HISTORY_WINDOW messages (immutable)
     """
     if message_count % HISTORY_WINDOW != 0:
         return
 
-    # Capture the exact transcript at trigger time to prevent drift if new messages arrive
-    # before the summarization completes
-    conversation = await load_last_n_messages_as_text(conn, session_id, HISTORY_WINDOW)
+    # Use the pre-captured transcript instead of re-querying, so we summarize
+    # the exact window that was present when the task was dispatched
+    conversation = transcript
 
     chain = SUMMARIZATION_PROMPT | llm
     response = await chain.ainvoke({"conversation": conversation})
