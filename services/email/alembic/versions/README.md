@@ -4,7 +4,12 @@
 > Python was chosen because OAuth2 integration with Gmail and Outlook is significantly
 > easier with Python libraries (`google-auth-oauthlib`, `msal`) than in Java.
 
-Managed by **Alembic** (Python equivalent of Flyway). Migrations run on service startup.
+Migrations are plain **`.sql` files** in this directory, applied on service startup by a small
+version-tracked runner (`src/migrate.py`) — the repo standardised on raw SQL rather than Alembic
+Python revisions. On startup the runner ensures the `email` schema and an `email.schema_migrations`
+ledger exist, then applies every `*.sql` file not yet recorded, in filename order, each in its own
+transaction. Re-runs are idempotent: already-applied files are skipped. To add a migration, drop a new
+`NNN_description.sql` file here — no further wiring needed.
 
 ## Schema: `email`
 
@@ -52,29 +57,12 @@ Tracks which emails have already been processed to prevent duplicate application
 
 | File | Description |
 |---|---|
-| `001_create_email_schema.sql` | Creates `email` schema and `email_connections` table |
+| `001_create_email_schema.sql` | Creates `email` schema, `email_connections`, and `processed_emails` |
+| `002_extend_processed_emails.sql` | Adds fetched-content columns (`subject`, `sender`, `snippet`, `received_at`) |
 
-## NOTE: Alembic Setup Requirements
+## Token encryption at rest
 
-1. Add dependencies to `requirements.txt`:
-   ```
-   alembic
-   sqlalchemy
-   asyncpg
-   google-auth-oauthlib
-   msal
-   ```
-
-2. Initialise Alembic in the service root:
-   ```sh
-   alembic init alembic
-   ```
-
-3. Configure `alembic.ini` with the database URL:
-   ```ini
-   sqlalchemy.url = postgresql+asyncpg://${DB_USER}:${DB_PASSWORD}@${DB_HOST}/${DB_NAME}
-   ```
-
-4. Configure `alembic/env.py` to use the `email` schema.
-
-5. All SQLAlchemy models must use `__table_args__ = {"schema": "email"}`.
+`access_token` and `refresh_token` in `email_connections` are OAuth secrets. They are stored
+encrypted using `pgcrypto` — written as `armor(pgp_sym_encrypt(token, :key))` and read back with
+`pgp_sym_decrypt(dearmor(col), :key)`, keyed by `EMAIL_TOKEN_ENC_KEY`. Plaintext tokens never hit
+disk. See `src/db.py`.
