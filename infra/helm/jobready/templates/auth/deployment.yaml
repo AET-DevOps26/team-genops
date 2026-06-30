@@ -23,6 +23,10 @@ spec:
       labels:
         app: auth
     spec:
+      {{- with .Values.global.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
       initContainers:
         - name: wait-for-postgres
           image: postgres:16-alpine
@@ -40,6 +44,16 @@ spec:
                 secretKeyRef:
                   name: {{ .Values.postgres.existingSecret }}
                   key: POSTGRES_USER
+          # Limits are MANDATORY: the prod namespace has a ResourceQuota on
+          # limits.* and no LimitRange, so any container (incl. init) without
+          # them gets the whole pod rejected.
+          resources:
+            requests:
+              memory: "32Mi"
+              cpu: "25m"
+            limits:
+              memory: "64Mi"
+              cpu: "50m"
       containers:
         - name: auth
           # Build the full image reference from values:
@@ -66,15 +80,33 @@ spec:
                 secretKeyRef:
                   name: {{ .Values.postgres.existingSecret }}
                   key: POSTGRES_PASSWORD
-            - name: CORS_ALLOWED_ORIGINS
-              # Reads auth.corsAllowedOrigins from values.yaml.
-              # Override at deploy time:
-              #   helm install jobready . --set auth.corsAllowedOrigins=https://myapp.com
-              value: {{ .Values.auth.corsAllowedOrigins | quote }}
+            # Server-side session store (split-token BFF).
+            - name: REDIS_URL
+              value: redis://redis:6379
+            {{- if .Values.auth.jwtSecret }}
+            # Stable RSA signing keys from a Secret. Without these auth generates
+            # an ephemeral keypair at startup (tokens die on restart / per replica).
+            - name: JWT_PRIVATE_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.auth.jwtSecret }}
+                  key: JWT_PRIVATE_KEY
+            - name: JWT_PUBLIC_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.auth.jwtSecret }}
+                  key: JWT_PUBLIC_KEY
+            {{- end }}
+            # Secure cookies require HTTPS at the browser edge.
+            - name: AUTH_COOKIE_SECURE
+              value: {{ .Values.auth.cookieSecure | quote }}
             - name: SPRING_PROFILES_ACTIVE
               value: "kubernetes"
           resources:
             {{- toYaml .Values.auth.resources | nindent 12 }}
+          # auth exposes only the base health endpoint (the dedicated
+          # liveness/readiness probe groups aren't enabled), so the
+          # /actuator/health/{liveness,readiness} paths 404. Use /actuator/health.
           livenessProbe:
             httpGet:
               path: /actuator/health

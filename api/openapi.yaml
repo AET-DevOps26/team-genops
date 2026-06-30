@@ -28,6 +28,8 @@ tags:
     description: Authentication and session management
   - name: Email
     description: Gmail integration — connect/disconnect accounts and read fetched emails
+  - name: Chat
+    description: AI career-assistant chat — sessions and messages
 
 paths:
   /api/v1/auth/register:
@@ -197,6 +199,62 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
 
+  /api/v1/chat/sessions:
+    get:
+      tags: [Chat]
+      summary: List chat sessions
+      description: List all sessions for the authenticated user, newest first.
+      operationId: listChatSessions
+      security:
+        - CookieAuth: []
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Sessions retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SessionListResponse'
+        '401':
+          description: Missing or expired access token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    post:
+      tags: [Chat]
+      summary: Create a chat session
+      description: Creates a new chat session for the authenticated user.
+      operationId: createChatSession
+      security:
+        - CookieAuth: []
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateSessionRequest'
+      responses:
+        '201':
+          description: Session created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SessionResponse'
+        '401':
+          description: Missing or expired access token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          description: Validation error (e.g. invalid session_type)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
   /api/v1/email/connections/gmail/callback:
     get:
       tags: [Email]
@@ -268,6 +326,38 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
 
+  /api/v1/chat/sessions/{session_id}:
+    delete:
+      tags: [Chat]
+      summary: Delete a chat session
+      description: Deletes a session and all its messages via cascade. Returns 404 if not found or not owned by the user.
+      operationId: deleteChatSession
+      security:
+        - CookieAuth: []
+        - BearerAuth: []
+      parameters:
+        - name: session_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Session and all its messages deleted
+        '401':
+          description: Missing or expired access token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Session not found or not owned by user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
   /api/v1/email/messages:
     get:
       tags: [Email]
@@ -299,6 +389,90 @@ paths:
                 $ref: '#/components/schemas/EmailMessageList'
         '401':
           description: Missing or invalid access token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/v1/chat/sessions/{session_id}/messages:
+    get:
+      tags: [Chat]
+      summary: List session messages
+      description: Returns all messages for a session oldest-first. Verifies ownership.
+      operationId: listSessionMessages
+      security:
+        - CookieAuth: []
+        - BearerAuth: []
+      parameters:
+        - name: session_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Messages retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageListResponse'
+        '401':
+          description: Missing or expired access token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Session not found or not owned by user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    post:
+      tags: [Chat]
+      summary: Send a message
+      description: |
+        Sends a message to the AI career assistant and returns the response.
+        Conversation summarization runs in the background — the caller never waits for it.
+      operationId: sendMessage
+      security:
+        - CookieAuth: []
+        - BearerAuth: []
+      parameters:
+        - name: session_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MessageRequest'
+      responses:
+        '200':
+          description: AI response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+        '401':
+          description: Missing or expired access token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Session not found or not owned by user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          description: Validation error (e.g. message exceeds 8000 chars)
           content:
             application/json:
               schema:
@@ -451,3 +625,89 @@ components:
           type: integer
         offset:
           type: integer
+
+    # ---------------------------------------------------------------------------
+    # Chat
+    # ---------------------------------------------------------------------------
+
+    CreateSessionRequest:
+      type: object
+      properties:
+        session_type:
+          type: string
+          enum: [insight_chat, cover_letter_chat, fit_analysis_chat]
+          default: insight_chat
+          description: Type of chat session
+
+    SessionResponse:
+      type: object
+      required: [id, user_id, session_type, created_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        user_id:
+          type: string
+          format: uuid
+        session_type:
+          type: string
+          enum: [insight_chat, cover_letter_chat, fit_analysis_chat]
+        summary:
+          type: ['string', 'null']
+          description: AI-generated memory summary, set after enough messages accumulate
+        first_message:
+          type: ['string', 'null']
+          description: First user message in the session — used as the display title in the UI
+        created_at:
+          type: string
+          format: date-time
+
+    SessionListResponse:
+      type: object
+      required: [sessions]
+      properties:
+        sessions:
+          type: array
+          items:
+            $ref: '#/components/schemas/SessionResponse'
+
+    MessageItem:
+      type: object
+      required: [id, role, content, created_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        role:
+          type: string
+          enum: [user, assistant]
+        content:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+
+    MessageListResponse:
+      type: object
+      required: [messages]
+      properties:
+        messages:
+          type: array
+          items:
+            $ref: '#/components/schemas/MessageItem'
+
+    MessageRequest:
+      type: object
+      required: [message]
+      properties:
+        message:
+          type: string
+          minLength: 1
+          maxLength: 8000
+
+    MessageResponse:
+      type: object
+      required: [response]
+      properties:
+        response:
+          type: string

@@ -8,6 +8,10 @@ metadata:
 spec:
   accessModes:
     - ReadWriteOnce
+  {{- if .Values.postgres.storageClassName }}
+  # Explicit StorageClass. Omit (set "") to use the cluster default.
+  storageClassName: {{ .Values.postgres.storageClassName | quote }}
+  {{- end }}
   resources:
     requests:
       # .Values.postgres.storage resolves to "5Gi" from values.yaml

@@ -8,6 +8,10 @@ metadata:
     {{- include "jobready.labels" . | nindent 4 }}
 spec:
   replicas: 1
+  # Single replica on a ReadWriteOnce PVC: kill the old pod before starting the
+  # new one, otherwise the rolling update deadlocks on a Multi-Attach error.
+  strategy:
+    type: Recreate
   selector:
     matchLabels:
       app: postgres
@@ -16,6 +20,10 @@ spec:
       labels:
         app: postgres
     spec:
+      {{- with .Values.global.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
       containers:
         - name: postgres
           image: {{ .Values.postgres.image }}:{{ .Values.postgres.tag }}
@@ -39,13 +47,18 @@ spec:
                 secretKeyRef:
                   name: {{ .Values.postgres.existingSecret }}
                   key: POSTGRES_DB
+            # The PVC is mounted directly at the data dir, but an ext4 volume
+            # carries a lost+found dir, so initdb refuses ("exists but is not
+            # empty"). Point PGDATA at a subdirectory of the mount instead.
+            - name: PGDATA
+              value: /var/lib/postgresql/data/pgdata
           volumeMounts:
             - name: postgres-storage
               mountPath: /var/lib/postgresql/data
           resources:
-            # toYaml converts the Go map in values.yaml to proper YAML.
-            # nindent 12 indents it to match this nesting level.
-            # The `-` after {{ strips the preceding newline so YAML is valid.
+            # toYaml converts the Go map in values.yaml to proper YAML;
+            # nindent 12 indents it to match this nesting level. The leading
+            # dash strips the preceding newline so the YAML stays valid.
             {{- toYaml .Values.postgres.resources | nindent 12 }}
           livenessProbe:
             exec:

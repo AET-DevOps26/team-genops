@@ -1,6 +1,8 @@
+{{- if .Values.namespace.create }}
 apiVersion: v1
 kind: Namespace
 metadata:
   name: {{ .Values.global.namespace }}
   labels:
     {{- include "jobready.labels" . | nindent 4 }}
+{{- end }}

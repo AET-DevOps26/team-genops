@@ -113,5 +113,31 @@ services:
       timeout: 5s
       retries: 5
 
+  genai:
+    build:
+      context: ./services/genai
+      dockerfile: Dockerfile
+    container_name: genai
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres-db:5432/${POSTGRES_DB}
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY}
+      OPENROUTER_MODEL: ${OPENROUTER_MODEL:-openai/gpt-oss-120b}
+      OPENROUTER_EMBEDDING_MODEL: ${OPENROUTER_EMBEDDING_MODEL:-qwen/qwen3-embedding-8b}
+      AUTH_JWKS_URL: http://auth:8080/api/v1/auth/.well-known/jwks.json
+      DOCUMENT_SERVICE_URL: http://document:8080
+    depends_on:
+      postgres-db:
+        condition: service_healthy
+      auth:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8000/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
 volumes:
   postgres_data:

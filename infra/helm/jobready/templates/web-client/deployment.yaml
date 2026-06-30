@@ -21,6 +21,10 @@ spec:
       labels:
         app: web-client
     spec:
+      {{- with .Values.global.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
       containers:
         - name: web-client
           image: {{ .Values.global.imageRegistry }}/{{ .Values.webClient.image }}:{{ .Values.webClient.tag }}
