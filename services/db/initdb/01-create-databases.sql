@@ -10,7 +10,9 @@ CREATE DATABASE auth_db;
 
 CREATE DATABASE email_db;
 
-CREATE DATABASE application_db;
+-- application uses schema-per-service isolation inside the shared POSTGRES_DB
+-- (hibernate.default_schema=application + create_namespaces), so it needs no
+-- dedicated database here. See CLAUDE.md > Architecture.
 
 -- Future services — uncomment when their service is added:
 -- CREATE DATABASE document_db;

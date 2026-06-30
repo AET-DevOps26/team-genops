@@ -12,6 +12,7 @@ deployment would move this to the shared Redis instance.
 """
 from __future__ import annotations
 
+import threading
 import time
 import uuid
 
@@ -25,6 +26,8 @@ _ALGO = "HS256"
 
 # nonce -> expiry epoch seconds; pruned lazily on each consume.
 _consumed: dict[str, float] = {}
+# Guards the prune + check + set so concurrent callbacks can't both consume one nonce.
+_consumed_lock = threading.Lock()
 
 
 def issue_state(user_id: str) -> str:
@@ -60,9 +63,10 @@ def verify_state(state: str) -> str:
         raise bad_request("Malformed OAuth state")
 
     now = time.time()
-    _prune(now)
-    if nonce in _consumed:
-        raise bad_request("OAuth state has already been used")
-    _consumed[nonce] = payload.get("exp", now + _settings.state_ttl_seconds)
+    with _consumed_lock:
+        _prune(now)
+        if nonce in _consumed:
+            raise bad_request("OAuth state has already been used")
+        _consumed[nonce] = payload.get("exp", now + _settings.state_ttl_seconds)
 
     return str(user_id)

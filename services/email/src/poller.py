@@ -68,6 +68,9 @@ def poll_once(db: Session) -> int:
         try:
             total += _poll_connection(db, conn)
         except Exception:  # noqa: BLE001 — one bad connection must not stop the rest
+            # Reset the shared session so a failed transaction does not poison the
+            # remaining connections in this poll pass.
+            db.rollback()
             logger.exception("Polling failed for user %s", conn.user_id)
     return total
 
