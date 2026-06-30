@@ -1,0 +1,16 @@
+env_name: prod
+
+# Kubeconfig for the TUM Rancher cluster (context `stud`).
+kubeconfig: "{{ lookup('ansible.builtin.env', 'KUBECONFIG') | default('~/.kube/stud.yaml', true) }}"
+
+namespace: ge86yog-devops-genops
+create_namespace: false
+
+# Prod (TUM) already provides ingress-nginx + cert-manager — do NOT install them.
+install_platform: false
+
+release_name: jobready
+chart_path: "{{ playbook_dir }}/../../helm/jobready"
+values_file: "{{ chart_path }}/values-prod.yaml"
+image_tag: "latest"                    # override: -e image_tag=sha-<short>
+ingress_host: ""                       # empty → ingress.host comes from values-prod.yaml

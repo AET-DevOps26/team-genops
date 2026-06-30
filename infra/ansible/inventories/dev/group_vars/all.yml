@@ -1,0 +1,22 @@
+env_name: dev
+
+# Kubeconfig for the AKS cluster (written from `terraform output kube_config` by CD,
+# or point KUBECONFIG at it locally).
+kubeconfig: "{{ lookup('ansible.builtin.env', 'KUBECONFIG') | default('~/.kube/aks-jobready-dev', true) }}"
+
+namespace: jobready
+create_namespace: true
+
+# Dev starts from a bare cluster, so Ansible installs the platform add-ons.
+install_platform: true
+
+# From `terraform output` — the reserved static IP and the RG that holds it.
+ingress_ip: "0.0.0.0"                  # override: -e ingress_ip=<terraform output ingress_ip>
+azure_lb_resource_group: "rg-jobready-dev"
+acme_email: "team-genops@example.com"  # used by the Let's Encrypt ClusterIssuer
+
+release_name: jobready
+chart_path: "{{ playbook_dir }}/../../helm/jobready"
+values_file: "{{ chart_path }}/values-dev.yaml"
+image_tag: "latest"                    # override: -e image_tag=sha-<short>
+ingress_host: ""                       # override: -e ingress_host=<terraform output ingress_fqdn>
