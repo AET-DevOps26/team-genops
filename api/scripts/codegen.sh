@@ -20,7 +20,7 @@ npx @redocly/cli lint "$SPEC"
 declare -A SPRING_SERVICES=(
   [auth]="Auth"
   # [profile]="Profile"
-  # [application]="Applications"
+  [application]="Applications"
   # [email]="Email"
   # [document]="Documents"
 )

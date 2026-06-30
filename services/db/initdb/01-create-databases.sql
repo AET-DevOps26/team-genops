@@ -10,6 +10,7 @@ CREATE DATABASE auth_db;
 
 CREATE DATABASE email_db;
 
+CREATE DATABASE application_db;
+
 -- Future services — uncomment when their service is added:
--- CREATE DATABASE application_db;
 -- CREATE DATABASE document_db;

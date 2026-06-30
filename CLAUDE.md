@@ -15,7 +15,7 @@ The system is composed of five services in a single mono-repo:
 | Service | Language | Bounded Context | Port |
 |---|---|---|---|
 | `auth` | Spring Boot | Identity — credentials, JWT issuance | 8080 |
-| `application` | Spring Boot | Job application tracking + recommendations | TBD |
+| `application` | Spring Boot | Job application tracking + recommendations | 8082 |
 | `document` | Spring Boot | Document storage — Profile, CoverLetter | TBD |
 | `email` | Python / FastAPI | Email integration (Gmail/Outlook adapter) | 8001 |
 | `genai` | Python / FastAPI | GenAI generation — stateless LLM calls | 8000 |
@@ -45,6 +45,7 @@ All services are containerised and orchestrated locally with **Docker Compose** 
 | web-client | http://localhost:5173                 |
 | auth       | http://localhost:8080                 |
 | auth Swagger | http://localhost:8080/swagger-ui.html |
+| application | http://localhost:8082                 |
 | email      | http://localhost:8001                 |
 | postgres   | localhost:5432                        |
 | pgadmin    | http://localhost:5050 (dev only)      |
