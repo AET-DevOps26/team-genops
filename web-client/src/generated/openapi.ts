@@ -112,6 +112,93 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/email/connections/gmail/authorize": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Start the Gmail OAuth2 consent flow
+         * @description Returns a Google consent URL the client should redirect the user to. The URL carries a
+         *     signed, short-lived `state` token bound to the authenticated user (`sub` claim) and a
+         *     single-use nonce; the callback verifies it to prevent CSRF/replay and account-binding attacks.
+         */
+        post: operations["authorizeGmail"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/email/connections/gmail/callback": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Gmail OAuth2 redirect callback
+         * @description Google redirects here with `code` and `state`. The service verifies the `state` signature
+         *     and nonce (rejecting forged/expired/replayed values), derives the user from the verified
+         *     payload, exchanges the code for tokens, stores the connection, and redirects the browser
+         *     back to the frontend. This endpoint is reached by the browser, not called service-to-service,
+         *     so it is unauthenticated — the signed `state` is the trust anchor.
+         */
+        get: operations["gmailOAuthCallback"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/email/connections": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get the current user's email connection status */
+        get: operations["getEmailConnection"];
+        put?: never;
+        post?: never;
+        /**
+         * Disconnect the current user's email account
+         * @description Deletes the stored OAuth connection for the authenticated user.
+         */
+        delete: operations["deleteEmailConnection"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/email/messages": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List stored emails for the current user
+         * @description Returns the emails fetched by the background poller for the authenticated user, newest first.
+         */
+        get: operations["listEmailMessages"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -154,6 +241,47 @@ export interface components {
             details?: {
                 [key: string]: unknown;
             };
+        };
+        GmailAuthorizeResponse: {
+            /**
+             * Format: uri
+             * @description Google consent URL the client should redirect the user to
+             * @example https://accounts.google.com/o/oauth2/v2/auth?client_id=...&state=...
+             */
+            authorization_url: string;
+        };
+        EmailConnectionStatus: {
+            /** @description Whether the user has a stored email connection */
+            connected: boolean;
+            /**
+             * @description Present only when connected
+             * @enum {string}
+             */
+            provider?: "gmail";
+            /**
+             * Format: email
+             * @description The connected mailbox address — present only when connected
+             */
+            email_address?: string;
+            /**
+             * Format: date-time
+             * @description When the connection was first established — present only when connected
+             */
+            connected_at?: string;
+        };
+        EmailMessage: {
+            /** @description Provider-side unique message identifier */
+            message_id: string;
+            subject?: string | null;
+            sender?: string | null;
+            snippet?: string | null;
+            /** Format: date-time */
+            received_at?: string | null;
+        };
+        EmailMessageList: {
+            items: components["schemas"]["EmailMessage"][];
+            limit: number;
+            offset: number;
         };
     };
     responses: never;
@@ -330,6 +458,155 @@ export interface operations {
                 };
             };
             /** @description Missing or expired access token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    authorizeGmail: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Consent URL generated */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GmailAuthorizeResponse"];
+                };
+            };
+            /** @description Missing or invalid access token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    gmailOAuthCallback: {
+        parameters: {
+            query: {
+                code: string;
+                state: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Connection stored; browser redirected back to the frontend */
+            302: {
+                headers: {
+                    /** @description Frontend URL the user is returned to */
+                    Location?: string;
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Missing/invalid code or state, or token exchange failed */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    getEmailConnection: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Connection status */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EmailConnectionStatus"];
+                };
+            };
+            /** @description Missing or invalid access token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    deleteEmailConnection: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Connection deleted (idempotent — 204 even if none existed) */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Missing or invalid access token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    listEmailMessages: {
+        parameters: {
+            query?: {
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Stored emails */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EmailMessageList"];
+                };
+            };
+            /** @description Missing or invalid access token */
             401: {
                 headers: {
                     [name: string]: unknown;

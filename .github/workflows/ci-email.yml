@@ -1,0 +1,30 @@
+name: CI - Email
+
+on:
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  email-ci:
+    name: Lint and Test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+        working-directory: services/email
+
+      - name: Lint
+        run: ruff check .
+        working-directory: services/email
+
+      - name: Test
+        run: pytest
+        working-directory: services/email

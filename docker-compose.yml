@@ -72,6 +72,35 @@ services:
       timeout: 5s
       retries: 5
 
+  email:
+    build:
+      context: ./services/email
+      dockerfile: Dockerfile
+    container_name: email
+    restart: unless-stopped
+    ports:
+      - "8001:8001"
+    environment:
+      DB_URL: postgresql+psycopg2://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres-db:5432/email_db
+      AUTH_JWKS_URL: http://auth:8080/api/v1/auth/.well-known/jwks.json
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET}
+      GOOGLE_REDIRECT_URI: ${GOOGLE_REDIRECT_URI}
+      EMAIL_TOKEN_ENC_KEY: ${EMAIL_TOKEN_ENC_KEY}
+      STATE_SIGNING_KEY: ${EMAIL_TOKEN_ENC_KEY}
+      EMAIL_POLL_INTERVAL_SECONDS: ${EMAIL_POLL_INTERVAL_SECONDS:-300}
+    depends_on:
+      postgres-db:
+        condition: service_healthy
+      auth:
+        condition: service_healthy
+    healthcheck:
+      # python:slim has no wget/curl — probe with the interpreter instead.
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8001/health').status==200 else 1)"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   redis:
     image: redis:7-alpine
     container_name: redis

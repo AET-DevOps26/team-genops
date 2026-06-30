@@ -26,6 +26,8 @@ security:
 tags:
   - name: Auth
     description: Authentication and session management
+  - name: Email
+    description: Gmail integration — connect/disconnect accounts and read fetched emails
 
 paths:
   /api/v1/auth/register:
@@ -172,6 +174,136 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
 
+  /api/v1/email/connections/gmail/authorize:
+    post:
+      tags: [Email]
+      summary: Start the Gmail OAuth2 consent flow
+      description: |
+        Returns a Google consent URL the client should redirect the user to. The URL carries a
+        signed, short-lived `state` token bound to the authenticated user (`sub` claim) and a
+        single-use nonce; the callback verifies it to prevent CSRF/replay and account-binding attacks.
+      operationId: authorizeGmail
+      responses:
+        '200':
+          description: Consent URL generated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GmailAuthorizeResponse'
+        '401':
+          description: Missing or invalid access token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/v1/email/connections/gmail/callback:
+    get:
+      tags: [Email]
+      summary: Gmail OAuth2 redirect callback
+      description: |
+        Google redirects here with `code` and `state`. The service verifies the `state` signature
+        and nonce (rejecting forged/expired/replayed values), derives the user from the verified
+        payload, exchanges the code for tokens, stores the connection, and redirects the browser
+        back to the frontend. This endpoint is reached by the browser, not called service-to-service,
+        so it is unauthenticated — the signed `state` is the trust anchor.
+      operationId: gmailOAuthCallback
+      security: []
+      parameters:
+        - name: code
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: state
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        '302':
+          description: Connection stored; browser redirected back to the frontend
+          headers:
+            Location:
+              description: Frontend URL the user is returned to
+              schema:
+                type: string
+        '400':
+          description: Missing/invalid code or state, or token exchange failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/v1/email/connections:
+    get:
+      tags: [Email]
+      summary: Get the current user's email connection status
+      operationId: getEmailConnection
+      responses:
+        '200':
+          description: Connection status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EmailConnectionStatus'
+        '401':
+          description: Missing or invalid access token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    delete:
+      tags: [Email]
+      summary: Disconnect the current user's email account
+      description: Deletes the stored OAuth connection for the authenticated user.
+      operationId: deleteEmailConnection
+      responses:
+        '204':
+          description: Connection deleted (idempotent — 204 even if none existed)
+        '401':
+          description: Missing or invalid access token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/v1/email/messages:
+    get:
+      tags: [Email]
+      summary: List stored emails for the current user
+      description: Returns the emails fetched by the background poller for the authenticated user, newest first.
+      operationId: listEmailMessages
+      parameters:
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - name: offset
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+      responses:
+        '200':
+          description: Stored emails
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EmailMessageList'
+        '401':
+          description: Missing or invalid access token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
 components:
   securitySchemes:
     BearerAuth:
@@ -258,3 +390,63 @@ components:
           type: object
           additionalProperties: true
           description: Optional field-level validation errors or additional context
+
+    GmailAuthorizeResponse:
+      type: object
+      required: [authorization_url]
+      properties:
+        authorization_url:
+          type: string
+          format: uri
+          description: Google consent URL the client should redirect the user to
+          example: https://accounts.google.com/o/oauth2/v2/auth?client_id=...&state=...
+
+    EmailConnectionStatus:
+      type: object
+      required: [connected]
+      properties:
+        connected:
+          type: boolean
+          description: Whether the user has a stored email connection
+        provider:
+          type: string
+          enum: [gmail]
+          description: Present only when connected
+        email_address:
+          type: string
+          format: email
+          description: The connected mailbox address — present only when connected
+        connected_at:
+          type: string
+          format: date-time
+          description: When the connection was first established — present only when connected
+
+    EmailMessage:
+      type: object
+      required: [message_id]
+      properties:
+        message_id:
+          type: string
+          description: Provider-side unique message identifier
+        subject:
+          type: [string, 'null']
+        sender:
+          type: [string, 'null']
+        snippet:
+          type: [string, 'null']
+        received_at:
+          type: [string, 'null']
+          format: date-time
+
+    EmailMessageList:
+      type: object
+      required: [items, limit, offset]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/EmailMessage'
+        limit:
+          type: integer
+        offset:
+          type: integer
