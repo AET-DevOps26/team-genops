@@ -1,0 +1,30 @@
+from contextlib import asynccontextmanager
+
+from fastapi import FastAPI
+from prometheus_fastapi_instrumentator import Instrumentator
+
+from src.db.pool import close_db, init_db
+from src.routers.chat import router as chat_router
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    await init_db()
+    yield
+    await close_db()
+
+
+app = FastAPI(
+    title="JobReady GenAI Service",
+    version="0.1.0",
+    lifespan=lifespan,
+)
+
+Instrumentator().instrument(app).expose(app)
+
+app.include_router(chat_router)
+
+
+@app.get("/health")
+async def health():
+    return {"status": "ok"}

@@ -61,28 +61,40 @@ def _poll_connection(db: Session, conn: Connection) -> int:
     return stored
 
 
-def poll_once(db: Session) -> int:
+def _poll_connection_isolated(conn: Connection) -> int:
+    """Poll one connection in its own session so a failure can't affect the others.
+
+    Each connection gets a dedicated session/transaction: a commit failure (constraint,
+    serialization, lost connection) poisons only this session, which is then rolled back
+    and discarded — the next connection starts from a clean one. Returns count stored, or
+    0 if the connection failed.
+    """
+    db = SessionLocal()
+    try:
+        return _poll_connection(db, conn)
+    except Exception:  # noqa: BLE001 — one bad connection must not stop the rest
+        logger.exception("Polling failed for user %s", conn.user_id)
+        db.rollback()
+        return 0
+    finally:
+        db.close()
+
+
+def poll_once() -> int:
     """Run one poll pass over all connections. Returns total messages stored."""
-    total = 0
-    for conn in list_connections(db):
-        try:
-            total += _poll_connection(db, conn)
-        except Exception:  # noqa: BLE001 — one bad connection must not stop the rest
-            # Reset the shared session so a failed transaction does not poison the
-            # remaining connections in this poll pass.
-            db.rollback()
-            logger.exception("Polling failed for user %s", conn.user_id)
-    return total
+    listing = SessionLocal()
+    try:
+        connections = list_connections(listing)
+    finally:
+        listing.close()
+
+    return sum(_poll_connection_isolated(conn) for conn in connections)
 
 
 def _job() -> None:
-    db = SessionLocal()
-    try:
-        stored = poll_once(db)
-        if stored:
-            logger.info("Poller stored %d new email(s)", stored)
-    finally:
-        db.close()
+    stored = poll_once()
+    if stored:
+        logger.info("Poller stored %d new email(s)", stored)
 
 
 def start_poller() -> None:

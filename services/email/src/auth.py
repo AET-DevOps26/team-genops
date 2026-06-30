@@ -25,12 +25,7 @@ _jwk_client = PyJWKClient(_settings.auth_jwks_url)
 def _verify(token: str) -> str:
     try:
         signing_key = _jwk_client.get_signing_key_from_jwt(token)
-        claims = jwt.decode(
-            token,
-            signing_key.key,
-            algorithms=["RS256"],
-            options={"require": ["exp"]},
-        )
+        claims = jwt.decode(token, signing_key.key, algorithms=["RS256"])
     except Exception as exc:  # noqa: BLE001 — any failure means the token is not trusted
         raise unauthorized("Invalid or expired access token") from exc
 

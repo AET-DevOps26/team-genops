@@ -1,0 +1,28 @@
+# Secret values consumed by playbooks/deploy.yml.
+#
+# Copy this into each environment's inventory and ENCRYPT it:
+#   cp group_vars/vault.example.yml inventories/dev/group_vars/vault.yml
+#   ansible-vault encrypt inventories/dev/group_vars/vault.yml
+#   (repeat for inventories/prod/group_vars/vault.yml)
+#
+# Never commit the unencrypted file. Generate the JWT keys with:
+#   openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:2048 -out private.pem
+#   openssl rsa -in private.pem -pubout -out public.pem
+
+vault_postgres_user: jobready
+vault_postgres_password: change-me
+vault_postgres_db: jobready
+
+# GitHub username + a PAT with read:packages (for the ghcr-pull image-pull secret).
+vault_ghcr_user: your-github-username
+vault_ghcr_token: ghp_xxxxxxxxxxxxxxxxxxxx
+
+# RSA signing keys — PKCS#8 private (BEGIN PRIVATE KEY) + X.509 public (BEGIN PUBLIC KEY).
+vault_jwt_private_key: |
+  -----BEGIN PRIVATE KEY-----
+  ...paste private.pem...
+  -----END PRIVATE KEY-----
+vault_jwt_public_key: |
+  -----BEGIN PUBLIC KEY-----
+  ...paste public.pem...
+  -----END PUBLIC KEY-----

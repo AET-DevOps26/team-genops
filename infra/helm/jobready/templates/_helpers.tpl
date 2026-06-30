@@ -1,23 +1,22 @@
-# =============================================================================
-# _helpers.tpl — reusable template snippets (partials)
-# =============================================================================
-# Files that start with _ are NEVER rendered as Kubernetes manifests.
-# They exist purely to define named templates that other files can call.
-#
-# Why use helpers?
-#   Without helpers, every template file would repeat the same label block.
-#   If you want to add a new label everywhere, you'd edit 10 files.
-#   With a helper, you edit ONE place.
-#
-# HOW TO CALL A HELPER from another template:
-#   labels:
-#     {{- include "jobready.labels" . | nindent 4 }}
-#
-#   `include` = call the named template
-#   `.`       = pass the current context (so the template can read .Values etc.)
-#   `nindent 4` = add a newline then indent by 4 spaces (matches YAML structure)
-#   `{{- ... }}` = the `-` strips the leading whitespace/newline before the block
-# =============================================================================
+{{/*
+=============================================================================
+_helpers.tpl — reusable template snippets (partials)
+=============================================================================
+Files that start with _ are NEVER rendered as Kubernetes manifests.
+They exist purely to define named templates that other files can call.
+
+HOW TO CALL A HELPER from another template:
+  labels:
+    {{- include "jobready.labels" . | nindent 4 }}
+
+  include    = call the named template
+  .          = pass the current context (so the template can read .Values etc.)
+  nindent 4  = add a newline then indent by 4 spaces (matches YAML structure)
+
+NOTE: this header is a {{` / `}} template comment, not a # YAML comment, because
+Helm parses template delimiters even inside # lines.
+=============================================================================
+*/}}
 
 {{/*
 Common labels applied to every resource in the chart.

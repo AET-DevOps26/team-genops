@@ -5,7 +5,7 @@ import { fetchMe } from '~/services/auth/authSlice'
 import { ProtectedRoute } from '~/components/routing/ProtectedRoute'
 import { PublicOnlyRoute } from '~/components/routing/PublicOnlyRoute'
 import AuthPage from '~/pages/AuthPage'
-import BoardPage from '~/pages/BoardPage'
+import ChatPage from '~/pages/ChatPage'
 
 function App() {
   const dispatch = useAppDispatch()
@@ -22,7 +22,8 @@ function App() {
         <Route path="/login" element={<AuthPage />} />
       </Route>
       <Route element={<ProtectedRoute />}>
-        <Route path="/" element={<BoardPage />} />
+        <Route path="/" element={<Navigate to="/chat" replace />} />
+        <Route path="/chat" element={<ChatPage />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

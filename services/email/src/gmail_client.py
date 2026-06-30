@@ -6,8 +6,15 @@ DB/web concerns so they can be mocked in tests.
 """
 from __future__ import annotations
 
+import os
 from dataclasses import dataclass
 from datetime import datetime, timezone
+
+# Google frequently returns a scope set that differs (order/extras, e.g. an added
+# `openid`) from what was requested, which makes oauthlib raise "Scope has changed"
+# on token exchange. Relaxing the check is the documented workaround and is safe here
+# because we request a fixed, read-only scope set.
+os.environ.setdefault("OAUTHLIB_RELAX_TOKEN_SCOPE", "1")
 
 from google.auth.transport.requests import Request as GoogleRequest
 from google.oauth2.credentials import Credentials
@@ -31,7 +38,9 @@ SCOPES = [
 class ExchangedCredentials:
     email_address: str
     access_token: str
-    refresh_token: str
+    # Google omits the refresh token on re-consent when one was already granted; the
+    # callback handles the None case by asking the user to re-connect.
+    refresh_token: str | None
     token_expiry: datetime
 
 
@@ -58,7 +67,6 @@ def build_authorization_url(state: str) -> str:
     flow = _build_flow()
     url, _ = flow.authorization_url(
         access_type="offline",
-        include_granted_scopes="true",
         prompt="consent",
         state=state,
     )

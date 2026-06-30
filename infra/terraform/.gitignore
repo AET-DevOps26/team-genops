@@ -1,0 +1,30 @@
+# Local working cache — downloaded providers/modules. Rebuilt by `terraform init`.
+**/.terraform/*
+
+# State files may contain secrets; we use remote state (Azure Storage) anyway.
+*.tfstate
+*.tfstate.*
+
+# Crash logs
+crash.log
+crash.*.log
+
+# Variable files often hold secrets — commit specific ones explicitly if needed.
+*.tfvars
+*.tfvars.json
+
+# Saved plans
+*.tfplan
+
+# Override files
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
+# CLI config
+.terraformrc
+terraform.rc
+
+# IMPORTANT: .terraform.lock.hcl is intentionally NOT ignored — it pins provider
+# versions + checksums and MUST be committed for reproducible builds.

@@ -49,7 +49,6 @@ def register_error_handlers(app: FastAPI) -> None:
         return JSONResponse(
             status_code=exc.status_code,
             content=_body("HTTP_ERROR", str(exc.detail), None),
-            headers=exc.headers,
         )
 
     @app.exception_handler(RequestValidationError)

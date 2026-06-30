@@ -7,17 +7,22 @@ metadata:
   labels:
     {{- include "jobready.labels" . | nindent 4 }}
   annotations:
-    kubernetes.io/ingress.class: {{ .Values.ingress.ingressClassName }}
+    {{- if .Values.ingress.clusterIssuer }}
+    # cert-manager watches this annotation and auto-issues a cert into tls.secretName.
+    cert-manager.io/cluster-issuer: {{ .Values.ingress.clusterIssuer | quote }}
+    {{- end }}
     {{- if .Values.ingress.tls.enabled }}
     nginx.ingress.kubernetes.io/ssl-redirect: "true"
     {{- end }}
+    {{- with .Values.ingress.annotations }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
 spec:
+  ingressClassName: {{ .Values.ingress.ingressClassName }}
   {{- if .Values.ingress.tls.enabled }}
-  # TLS block — only rendered when ingress.tls.enabled = true.
-  # The Secret named here must contain tls.crt and tls.key.
-  # You can create it with cert-manager (recommended) or manually:
-  #   kubectl create secret tls jobready-tls \
-  #     --cert=path/to/cert.pem --key=path/to/key.pem -n jobready
+  # The Secret named here is populated by cert-manager (when clusterIssuer is set)
+  # or must be created manually:
+  #   kubectl create secret tls jobready-tls --cert=cert.pem --key=key.pem -n <ns>
   tls:
     - hosts:
         - {{ .Values.ingress.host | quote }}
@@ -27,6 +32,18 @@ spec:
     - host: {{ .Values.ingress.host | quote }}
       http:
         paths:
+          {{- if .Values.gateway.enabled }}
+          # Gateway mode: everything goes to the API gateway, which fans out
+          # internally (/api/** -> auth, /** -> web-client).
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: gateway
+                port:
+                  number: {{ .Values.gateway.port }}
+          {{- else }}
+          # Direct mode: the ingress splits traffic itself.
           - path: /api
             pathType: Prefix
             backend:
@@ -41,4 +58,5 @@ spec:
                 name: web-client
                 port:
                   number: {{ .Values.webClient.port }}
+          {{- end }}
 {{- end }}

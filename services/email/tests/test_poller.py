@@ -1,9 +1,34 @@
 """Poller tests — focus on dedupe across repeated polls (Gmail + DB mocked)."""
 from datetime import datetime, timedelta, timezone
-from types import SimpleNamespace
 
 from src import poller
 from src.db import Connection
+
+
+class FakeSession:
+    """Minimal stand-in for a SQLAlchemy Session (writes are mocked out)."""
+
+    def __init__(self) -> None:
+        self.rollbacks = 0
+
+    def rollback(self) -> None:
+        self.rollbacks += 1
+
+    def close(self) -> None:
+        pass
+
+
+def _use_fake_sessions(monkeypatch) -> list[FakeSession]:
+    """Patch poller.SessionLocal to hand out tracked FakeSessions. Returns the list."""
+    created: list[FakeSession] = []
+
+    def factory() -> FakeSession:
+        session = FakeSession()
+        created.append(session)
+        return session
+
+    monkeypatch.setattr(poller, "SessionLocal", factory)
+    return created
 
 
 def _connection() -> Connection:
@@ -49,9 +74,10 @@ def test_second_poll_stores_nothing(monkeypatch):
         return True
 
     monkeypatch.setattr(poller, "insert_processed_email", fake_insert)
+    _use_fake_sessions(monkeypatch)
 
-    first = poller.poll_once(db=None)
-    second = poller.poll_once(db=None)
+    first = poller.poll_once()
+    second = poller.poll_once()
 
     assert first == 2  # both new
     assert second == 0  # deduped
@@ -71,8 +97,9 @@ def test_expired_token_is_refreshed(monkeypatch):
 
     monkeypatch.setattr(poller.gmail_client, "refresh_access_token", fake_refresh)
     monkeypatch.setattr(poller, "update_tokens", lambda db, **kw: None)
+    _use_fake_sessions(monkeypatch)
 
-    poller.poll_once(db=None)
+    poller.poll_once()
     assert refreshed.get("called") is True
 
 
@@ -101,11 +128,10 @@ def test_one_failing_connection_does_not_stop_others(monkeypatch):
         return True
 
     monkeypatch.setattr(poller, "insert_processed_email", fake_insert)
+    sessions = _use_fake_sessions(monkeypatch)
 
-    # poll_once rolls back the shared session after a failing connection, so pass a stub
-    # that records the rollback rather than None.
-    rollbacks: list[bool] = []
-    db = SimpleNamespace(rollback=lambda: rollbacks.append(True))
-    total = poller.poll_once(db=db)
+    total = poller.poll_once()
     assert total == 1  # good connection still stored despite bad one raising
-    assert rollbacks == [True]  # the failed connection triggered exactly one rollback
+    # Each connection runs in its own session; exactly the bad one is rolled back, and
+    # the good connection (a separate session) is unaffected.
+    assert sum(s.rollbacks for s in sessions) == 1

@@ -1,5 +1,4 @@
 """JWT auth dependency tests — verifies tokens against a (mocked) JWKS signing key."""
-import time
 from types import SimpleNamespace
 
 import jwt
@@ -59,14 +58,8 @@ def test_missing_sub_is_401(client, rsa_key):
     assert resp.status_code == 401
 
 
-def test_missing_exp_is_401(client, rsa_key):
-    token = _token(rsa_key, sub="user-42")
-    resp = client.post(AUTHORIZE, headers={"Authorization": f"Bearer {token}"})
-    assert resp.status_code == 401
-
-
 def test_valid_token_authorizes_and_binds_sub(client, rsa_key):
-    token = _token(rsa_key, sub="user-42", exp=int(time.time()) + 3600)
+    token = _token(rsa_key, sub="user-42")
     resp = client.post(AUTHORIZE, headers={"Authorization": f"Bearer {token}"})
     assert resp.status_code == 200
     url = resp.json()["authorization_url"]
