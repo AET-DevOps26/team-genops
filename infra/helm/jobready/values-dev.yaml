@@ -1,0 +1,26 @@
+# Development overrides — Azure AKS (provisioned by Terraform, bootstrapped by Ansible).
+# Deploy with:  helm upgrade --install jobready infra/helm/jobready \
+#                 -n jobready -f infra/helm/jobready/values-dev.yaml
+global:
+  namespace: jobready
+  imagePullPolicy: Always
+  imagePullSecrets:
+    - name: ghcr-pull
+
+namespace:
+  # Ansible's deploy.yml creates the namespace BEFORE the secrets (which need it),
+  # so the chart must NOT also create it — otherwise Helm errors on a Namespace it
+  # doesn't own. (For a pure `helm install` without Ansible, use --create-namespace.)
+  create: false
+
+postgres:
+  storageClassName: managed-csi               # "" also works (AKS default)
+
+ingress:
+  # Set after `terraform apply`: <domain_name_label>.<region>.cloudapp.azure.com
+  host: jobready-dev.REGION.cloudapp.azure.com
+  ingressClassName: nginx                      # installed by Ansible (ingress-nginx)
+  clusterIssuer: letsencrypt-prod              # installed by Ansible (cert-manager)
+  tls:
+    enabled: true
+    secretName: jobready-tls

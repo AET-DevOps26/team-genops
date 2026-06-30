@@ -1,0 +1,25 @@
+# Production overrides — TUM Rancher cluster `stud`, namespace ge86yog-devops-genops.
+# Deploy with:  helm upgrade --install jobready infra/helm/jobready \
+#                 -n ge86yog-devops-genops -f infra/helm/jobready/values-prod.yaml
+# Image tags are pinned by CD at deploy time:  --set auth.tag=<sha> (etc.)
+global:
+  namespace: ge86yog-devops-genops
+  imagePullPolicy: Always
+  imagePullSecrets:
+    - name: ghcr-pull
+
+namespace:
+  # Tenant cannot create namespaces; it already exists. Use `helm -n <ns>`.
+  create: false
+
+postgres:
+  storageClassName: csi-rbd-sc
+
+ingress:
+  # TODO(confirm from Rancher UI / course docs):
+  host: jobready.stud.k8s.aet.cit.tum.de      # exact hostname under the wildcard
+  ingressClassName: nginx                      # the platform ingress class
+  clusterIssuer: ""                            # the PRODUCTION cert-manager issuer (NOT staging)
+  tls:
+    enabled: true
+    secretName: jobready-tls

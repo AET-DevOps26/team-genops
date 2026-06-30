@@ -1,0 +1,59 @@
+{{- if .Values.gateway.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gateway
+  namespace: {{ .Values.global.namespace }}
+  labels:
+    app: gateway
+    {{- include "jobready.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.gateway.replicas | int }}
+  selector:
+    matchLabels:
+      app: gateway
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  template:
+    metadata:
+      labels:
+        app: gateway
+    spec:
+      {{- with .Values.global.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: gateway
+          image: {{ .Values.global.imageRegistry }}/{{ .Values.gateway.image }}:{{ .Values.gateway.tag }}
+          imagePullPolicy: {{ .Values.global.imagePullPolicy }}
+          ports:
+            - containerPort: {{ .Values.gateway.port }}
+          env:
+            # Upstream service URLs (cluster DNS). Routes live in the gateway app config.
+            - name: AUTH_URI
+              value: http://auth:{{ .Values.auth.port }}
+            - name: WEB_CLIENT_URI
+              value: http://web-client:{{ .Values.webClient.port }}
+          resources:
+            {{- toYaml .Values.gateway.resources | nindent 12 }}
+          livenessProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: {{ .Values.gateway.port }}
+            initialDelaySeconds: 40
+            periodSeconds: 15
+            failureThreshold: 3
+            timeoutSeconds: 5
+          readinessProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: {{ .Values.gateway.port }}
+            initialDelaySeconds: 20
+            periodSeconds: 10
+            failureThreshold: 3
+            timeoutSeconds: 5
+{{- end }}

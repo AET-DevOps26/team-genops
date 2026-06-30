@@ -16,6 +16,10 @@ spec:
       labels:
         app: postgres
     spec:
+      {{- with .Values.global.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
       containers:
         - name: postgres
           image: {{ .Values.postgres.image }}:{{ .Values.postgres.tag }}
@@ -43,9 +47,9 @@ spec:
             - name: postgres-storage
               mountPath: /var/lib/postgresql/data
           resources:
-            # toYaml converts the Go map in values.yaml to proper YAML.
-            # nindent 12 indents it to match this nesting level.
-            # The `-` after {{ strips the preceding newline so YAML is valid.
+            # toYaml converts the Go map in values.yaml to proper YAML;
+            # nindent 12 indents it to match this nesting level. The leading
+            # dash strips the preceding newline so the YAML stays valid.
             {{- toYaml .Values.postgres.resources | nindent 12 }}
           livenessProbe:
             exec:
