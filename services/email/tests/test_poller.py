@@ -1,5 +1,6 @@
 """Poller tests — focus on dedupe across repeated polls (Gmail + DB mocked)."""
 from datetime import datetime, timedelta, timezone
+from types import SimpleNamespace
 
 from src import poller
 from src.db import Connection
@@ -101,5 +102,10 @@ def test_one_failing_connection_does_not_stop_others(monkeypatch):
 
     monkeypatch.setattr(poller, "insert_processed_email", fake_insert)
 
-    total = poller.poll_once(db=None)
+    # poll_once rolls back the shared session after a failing connection, so pass a stub
+    # that records the rollback rather than None.
+    rollbacks: list[bool] = []
+    db = SimpleNamespace(rollback=lambda: rollbacks.append(True))
+    total = poller.poll_once(db=db)
     assert total == 1  # good connection still stored despite bad one raising
+    assert rollbacks == [True]  # the failed connection triggered exactly one rollback
