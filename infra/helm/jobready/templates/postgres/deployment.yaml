@@ -8,6 +8,10 @@ metadata:
     {{- include "jobready.labels" . | nindent 4 }}
 spec:
   replicas: 1
+  # Single replica on a ReadWriteOnce PVC: kill the old pod before starting the
+  # new one, otherwise the rolling update deadlocks on a Multi-Attach error.
+  strategy:
+    type: Recreate
   selector:
     matchLabels:
       app: postgres
