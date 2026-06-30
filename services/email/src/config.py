@@ -55,10 +55,9 @@ def warn_on_dev_secrets(settings: Settings) -> None:
     ]
     if insecure:
         logger.warning(
-            "INSECURE: %s using the built-in dev default %r — set explicit env vars "
+            "INSECURE: %s using the built-in dev default — set explicit env vars "
             "before any non-local deployment.",
             ", ".join(insecure),
-            _DEV_SECRET,
         )
 
 

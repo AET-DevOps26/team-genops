@@ -58,7 +58,7 @@ def test_replayed_state_rejected():
 
 @pytest.fixture
 def client():
-    app.dependency_overrides[get_db] = lambda: MagicMock()
+    app.dependency_overrides[get_db] = MagicMock
     c = TestClient(app)
     yield c
     app.dependency_overrides.clear()
