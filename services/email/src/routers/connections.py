@@ -61,7 +61,10 @@ def get_status(
         return {"connected": False}
     return {
         "connected": True,
-        "provider": conn.provider,
+        # Only Gmail is implemented today; the OpenAPI enum is [gmail]. Return the
+        # constant rather than the raw DB value so the response can't drift from the
+        # published contract if other providers are added to the schema later.
+        "provider": gmail_client.PROVIDER,
         "email_address": conn.email_address,
         "connected_at": conn.created_at,
     }

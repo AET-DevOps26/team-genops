@@ -1,12 +1,20 @@
 """Application configuration, loaded from environment variables.
 
 All settings are read once at import time via pydantic-settings. Secrets (DB URL,
-Google client secret, the token-encryption key) come from the environment — never
-hard-coded — per the project's secret-handling rules.
+Google client secret, the token-encryption and state-signing keys) come from the
+environment in any real deployment. The placeholder defaults below exist only so the
+service boots for local dev; using them is flagged loudly at startup (see
+`warn_on_dev_secrets`) and must never reach production per the project's
+secret-handling rules.
 """
+import logging
 from functools import lru_cache
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+logger = logging.getLogger(__name__)
+
+_DEV_SECRET = "dev-only-change-me"
 
 
 class Settings(BaseSettings):
@@ -27,10 +35,10 @@ class Settings(BaseSettings):
     frontend_redirect_url: str = "http://localhost:5173"
 
     # Symmetric key used to encrypt OAuth tokens at rest via pgcrypto.
-    email_token_enc_key: str = "dev-only-change-me"
+    email_token_enc_key: str = _DEV_SECRET
 
     # Signing key for the OAuth `state` token (HMAC). Bound to the user + a nonce.
-    state_signing_key: str = "dev-only-change-me"
+    state_signing_key: str = _DEV_SECRET
     state_ttl_seconds: int = 600
 
     # Background poller.
@@ -38,6 +46,24 @@ class Settings(BaseSettings):
     gmail_max_results: int = 25
 
 
+def warn_on_dev_secrets(settings: Settings) -> None:
+    """Loudly flag any security-sensitive key still set to the dev placeholder."""
+    insecure = [
+        name
+        for name in ("email_token_enc_key", "state_signing_key")
+        if getattr(settings, name) == _DEV_SECRET
+    ]
+    if insecure:
+        logger.warning(
+            "INSECURE: %s using the built-in dev default %r — set explicit env vars "
+            "before any non-local deployment.",
+            ", ".join(insecure),
+            _DEV_SECRET,
+        )
+
+
 @lru_cache
 def get_settings() -> Settings:
-    return Settings()
+    settings = Settings()
+    warn_on_dev_secrets(settings)
+    return settings

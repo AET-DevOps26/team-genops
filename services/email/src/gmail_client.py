@@ -31,7 +31,9 @@ SCOPES = [
 class ExchangedCredentials:
     email_address: str
     access_token: str
-    refresh_token: str
+    # Google omits the refresh token on re-consent when one was already granted; the
+    # callback handles the None case by asking the user to re-connect.
+    refresh_token: str | None
     token_expiry: datetime
 
 
