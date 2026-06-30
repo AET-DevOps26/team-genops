@@ -44,10 +44,14 @@ def _prune(now: float) -> None:
             del _consumed[nonce]
 
 
-def verify_state(state: str) -> str:
-    """Validate a state token and return the bound user_id. Single-use.
+def validate_state(state: str) -> tuple[str, str, float]:
+    """Validate a state token without consuming it.
 
-    Raises ApiError(400) on a forged, expired, malformed, or replayed token.
+    Returns ``(user_id, nonce, exp)``. Raises ApiError(400) on a forged, expired,
+    malformed, or already-replayed token. The caller is responsible for calling
+    `consume_state` once the flow has actually succeeded — this lets a transient
+    failure (e.g. a failed code exchange) leave the nonce reusable instead of
+    burning it and forcing the user to restart from /authorize.
     """
     try:
         payload = jwt.decode(state, _settings.state_signing_key, algorithms=[_ALGO])
@@ -63,6 +67,22 @@ def verify_state(state: str) -> str:
     _prune(now)
     if nonce in _consumed:
         raise bad_request("OAuth state has already been used")
-    _consumed[nonce] = payload.get("exp", now + _settings.state_ttl_seconds)
 
-    return str(user_id)
+    exp = payload.get("exp", now + _settings.state_ttl_seconds)
+    return str(user_id), str(nonce), float(exp)
+
+
+def consume_state(nonce: str, exp: float) -> None:
+    """Mark a validated nonce as used so it can never be replayed."""
+    _consumed[nonce] = exp
+
+
+def verify_state(state: str) -> str:
+    """Validate and immediately consume a state token, returning the bound user_id.
+
+    Convenience for callers that have no fallible work between validation and
+    consumption. Single-use; raises ApiError(400) on an invalid or replayed token.
+    """
+    user_id, nonce, exp = validate_state(state)
+    consume_state(nonce, exp)
+    return user_id

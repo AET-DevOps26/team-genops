@@ -110,5 +110,49 @@ def test_callback_without_refresh_token_rejected(client, monkeypatch):
     upsert = MagicMock()
     monkeypatch.setattr(conn_router, "upsert_connection", upsert)
     resp = client.get(CALLBACK, params={"code": "abc", "state": state}, follow_redirects=False)
-    assert resp.status_code == 400
+    # Browser-facing failure: redirect back to the frontend with an error flag, not JSON.
+    assert resp.status_code == 302
+    assert "email_error=missing_refresh_token" in resp.headers["location"]
     upsert.assert_not_called()
+
+
+def test_callback_exchange_failure_redirects(client, monkeypatch):
+    state = state_mod.issue_state("user-777")
+
+    def boom(code):
+        raise RuntimeError("token endpoint down")
+
+    monkeypatch.setattr(conn_router.gmail_client, "exchange_code", boom)
+    upsert = MagicMock()
+    monkeypatch.setattr(conn_router, "upsert_connection", upsert)
+    resp = client.get(CALLBACK, params={"code": "abc", "state": state}, follow_redirects=False)
+    assert resp.status_code == 302
+    assert "email_error=exchange_failed" in resp.headers["location"]
+    upsert.assert_not_called()
+
+
+def test_callback_state_reusable_after_failed_exchange(client, monkeypatch):
+    # A transient exchange failure must NOT burn the single-use nonce, so the user can
+    # retry the same callback link without restarting the flow.
+    state = state_mod.issue_state("user-888")
+
+    calls = {"n": 0}
+
+    def flaky(code):
+        calls["n"] += 1
+        if calls["n"] == 1:
+            raise RuntimeError("transient")
+        return ExchangedCredentials(
+            email_address="ok@gmail.com",
+            access_token="at",
+            refresh_token="rt",
+            token_expiry=datetime.now(tz=timezone.utc),
+        )
+
+    monkeypatch.setattr(conn_router.gmail_client, "exchange_code", flaky)
+    monkeypatch.setattr(conn_router, "upsert_connection", MagicMock())
+
+    first = client.get(CALLBACK, params={"code": "abc", "state": state}, follow_redirects=False)
+    assert "email_error=exchange_failed" in first.headers["location"]
+    second = client.get(CALLBACK, params={"code": "abc", "state": state}, follow_redirects=False)
+    assert "email_connected=1" in second.headers["location"]  # same state still valid
