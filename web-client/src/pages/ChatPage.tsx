@@ -74,31 +74,39 @@ export default function ChatPage() {
     await deleteSession(id).unwrap()
     if (id !== activeSessionId) return
 
-    // Deleted the active session — switch to the next available one or create fresh
-    const remaining = (sessionsData?.sessions ?? []).filter((s) => s.id !== id)
-    if (remaining.length > 0) {
-      setMessages([])
-      setActiveSessionId(remaining[0].id)
-    } else {
-      setMessages([])
-      setActiveSessionId(null)
-      bootstrapped.current = false
-    }
+    // Deleted the active session — prevent bootstrap effect from reselecting stale data
+    // by resetting the bootstrap flag so it waits for fresh data after invalidation
+    bootstrapped.current = false
+    setMessages([])
+    setActiveSessionId(null)
+
+    // The bootstrap effect will run again after RTK Query invalidates and refetches sessions,
+    // selecting the first available session or creating a new one from fresh data
   }
 
   async function handleSend(message: string) {
     if (!activeSessionId) return
 
+    // Capture session id before async call to ensure late-arriving responses
+    // don't get appended to the wrong chat if user switches sessions mid-flight
+    const sessionId = activeSessionId
+
     setMessages((prev) => [...prev, { role: 'user', content: message }])
 
     try {
-      const result = await sendMessage({ sessionId: activeSessionId, message }).unwrap()
-      setMessages((prev) => [...prev, { role: 'assistant', content: result.response }])
+      const result = await sendMessage({ sessionId, message }).unwrap()
+      // Only append if user is still viewing the same session
+      if (activeSessionId === sessionId) {
+        setMessages((prev) => [...prev, { role: 'assistant', content: result.response }])
+      }
     } catch {
-      setMessages((prev) => [
-        ...prev,
-        { role: 'assistant', content: 'Something went wrong. Please try again.' },
-      ])
+      // Only append error if user is still viewing the same session
+      if (activeSessionId === sessionId) {
+        setMessages((prev) => [
+          ...prev,
+          { role: 'assistant', content: 'Something went wrong. Please try again.' },
+        ])
+      }
     }
   }
 

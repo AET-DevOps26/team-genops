@@ -14,13 +14,13 @@ async def load_history(conn: AsyncConnection, session_id: str) -> list:
     cur = await conn.execute(
         """
         SELECT role, content FROM (
-            SELECT role, content, created_at
+            SELECT role, content, created_at, id
             FROM genai.chat_messages
             WHERE session_id = %s
-            ORDER BY created_at DESC
+            ORDER BY created_at DESC, id DESC
             LIMIT %s
         ) recent
-        ORDER BY created_at ASC
+        ORDER BY created_at ASC, id ASC
         """,
         (session_id, HISTORY_WINDOW),
     )
@@ -65,13 +65,13 @@ async def load_last_n_messages_as_text(
     cur = await conn.execute(
         """
         SELECT role, content FROM (
-            SELECT role, content, created_at
+            SELECT role, content, created_at, id
             FROM genai.chat_messages
             WHERE session_id = %s
-            ORDER BY created_at DESC
+            ORDER BY created_at DESC, id DESC
             LIMIT %s
         ) recent
-        ORDER BY created_at ASC
+        ORDER BY created_at ASC, id ASC
         """,
         (session_id, n),
     )

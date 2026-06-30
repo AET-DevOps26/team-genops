@@ -39,6 +39,7 @@ const chatApi = api.injectEndpoints({
 
     getMessages: build.query<{ messages: MessageItem[] }, string>({
       query: (sessionId) => `/chat/sessions/${sessionId}/messages`,
+      providesTags: (_result, _error, sessionId) => [{ type: 'Messages', id: sessionId }],
     }),
 
     deleteSession: build.mutation<void, string>({
@@ -56,7 +57,10 @@ const chatApi = api.injectEndpoints({
         method: 'POST',
         body: { message },
       }),
-      invalidatesTags: ['Chat'],
+      invalidatesTags: (_result, _error, { sessionId }) => [
+        'Chat',
+        { type: 'Messages', id: sessionId },
+      ],
     }),
   }),
 })

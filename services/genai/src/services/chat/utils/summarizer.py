@@ -17,6 +17,8 @@ async def maybe_summarize(conn: AsyncConnection, session_id: str, message_count:
     if message_count % HISTORY_WINDOW != 0:
         return
 
+    # Capture the exact transcript at trigger time to prevent drift if new messages arrive
+    # before the summarization completes
     conversation = await load_last_n_messages_as_text(conn, session_id, HISTORY_WINDOW)
 
     chain = SUMMARIZATION_PROMPT | llm
