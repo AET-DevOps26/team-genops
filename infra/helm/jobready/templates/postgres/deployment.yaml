@@ -43,6 +43,11 @@ spec:
                 secretKeyRef:
                   name: {{ .Values.postgres.existingSecret }}
                   key: POSTGRES_DB
+            # The PVC is mounted directly at the data dir, but an ext4 volume
+            # carries a lost+found dir, so initdb refuses ("exists but is not
+            # empty"). Point PGDATA at a subdirectory of the mount instead.
+            - name: PGDATA
+              value: /var/lib/postgresql/data/pgdata
           volumeMounts:
             - name: postgres-storage
               mountPath: /var/lib/postgresql/data
