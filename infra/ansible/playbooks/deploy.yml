@@ -1,0 +1,90 @@
+# Creates the namespace secrets, then deploys the JobReady Helm chart.
+# Runs against both environments (selected by -i inventories/<env>).
+- name: Deploy JobReady
+  hosts: all
+  gather_facts: false
+  tasks:
+    - name: Ensure namespace exists (dev only)
+      kubernetes.core.k8s:
+        kubeconfig: "{{ kubeconfig }}"
+        state: present
+        definition:
+          apiVersion: v1
+          kind: Namespace
+          metadata:
+            name: "{{ namespace }}"
+      when: create_namespace | bool
+
+    - name: Create GHCR image-pull secret
+      kubernetes.core.k8s:
+        kubeconfig: "{{ kubeconfig }}"
+        state: present
+        definition:
+          apiVersion: v1
+          kind: Secret
+          type: kubernetes.io/dockerconfigjson
+          metadata:
+            name: ghcr-pull
+            namespace: "{{ namespace }}"
+          data:
+            .dockerconfigjson: >-
+              {{ {'auths': {'ghcr.io': {
+                'username': vault_ghcr_user,
+                'password': vault_ghcr_token,
+                'auth': (vault_ghcr_user ~ ':' ~ vault_ghcr_token) | b64encode
+              }}} | to_json | b64encode }}
+
+    - name: Create postgres secret
+      kubernetes.core.k8s:
+        kubeconfig: "{{ kubeconfig }}"
+        state: present
+        definition:
+          apiVersion: v1
+          kind: Secret
+          metadata:
+            name: postgres-secret
+            namespace: "{{ namespace }}"
+          stringData:
+            POSTGRES_USER: "{{ vault_postgres_user }}"
+            POSTGRES_PASSWORD: "{{ vault_postgres_password }}"
+            POSTGRES_DB: "{{ vault_postgres_db }}"
+
+    - name: Create auth JWT signing-key secret
+      kubernetes.core.k8s:
+        kubeconfig: "{{ kubeconfig }}"
+        state: present
+        definition:
+          apiVersion: v1
+          kind: Secret
+          metadata:
+            name: auth-jwt
+            namespace: "{{ namespace }}"
+          stringData:
+            JWT_PRIVATE_KEY: "{{ vault_jwt_private_key }}"
+            JWT_PUBLIC_KEY: "{{ vault_jwt_public_key }}"
+
+    # Pin image tags, and override the ingress host only when one is supplied
+    # (dev passes the Terraform-computed cloudapp FQDN; prod uses values-prod.yaml).
+    - name: Build Helm value overrides
+      ansible.builtin.set_fact:
+        helm_overrides: >-
+          {{
+            {'auth': {'tag': image_tag},
+             'webClient': {'tag': image_tag},
+             'gateway': {'tag': image_tag}}
+            | combine(
+                {'ingress': {'host': ingress_host}} if (ingress_host | default('')) | length > 0 else {},
+                recursive=true
+              )
+          }}
+
+    - name: Deploy JobReady chart
+      kubernetes.core.helm:
+        name: "{{ release_name }}"
+        chart_ref: "{{ chart_path }}"
+        release_namespace: "{{ namespace }}"
+        kubeconfig: "{{ kubeconfig }}"
+        values_files:
+          - "{{ values_file }}"
+        values: "{{ helm_overrides }}"
+        wait: true
