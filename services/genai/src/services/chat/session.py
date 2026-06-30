@@ -50,16 +50,23 @@ async def delete_session(conn: AsyncConnection, session_id: str, user_id: str) -
 
 
 async def get_messages(conn: AsyncConnection, session_id: str, user_id: str) -> list[dict]:
-    """Return all messages for a session, oldest first. Verifies ownership."""
+    """Return all messages for a session, oldest first. Returns None if not found/not owned."""
+    # Verify session exists and belongs to user (return None for both cases → 404)
+    cur = await conn.execute(
+        "SELECT 1 FROM genai.chat_sessions WHERE id = %s AND user_id = %s",
+        (session_id, user_id),
+    )
+    if not await cur.fetchone():
+        return None
+
     cur = await conn.execute(
         """
         SELECT m.id, m.role, m.content, m.created_at
         FROM genai.chat_messages m
-        JOIN genai.chat_sessions s ON s.id = m.session_id
-        WHERE m.session_id = %s AND s.user_id = %s
-        ORDER BY m.created_at ASC
+        WHERE m.session_id = %s
+        ORDER BY m.seq ASC
         """,
-        (session_id, user_id),
+        (session_id,),
     )
     rows = await cur.fetchall()
     return [
@@ -86,7 +93,7 @@ async def get_sessions(conn: AsyncConnection, user_id: str) -> list[dict]:
                 SELECT content
                 FROM genai.chat_messages
                 WHERE session_id = s.id AND role = 'user'
-                ORDER BY created_at ASC
+                ORDER BY seq ASC
                 LIMIT 1
             ) AS first_message
         FROM genai.chat_sessions s

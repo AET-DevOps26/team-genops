@@ -24,18 +24,15 @@ async def chat(
     First session ever → profile injected directly into system prompt.
     Subsequent sessions → profile available as a tool the agent calls on demand.
     """
-    # Verify session ownership before accessing history or saving messages
+    # Verify session ownership — return 404 for both missing and not-owned
+    # to avoid leaking session existence to other users
     cur = await conn.execute(
-        "SELECT user_id FROM genai.chat_sessions WHERE id = %s",
-        (session_id,),
+        "SELECT 1 FROM genai.chat_sessions WHERE id = %s AND user_id = %s",
+        (session_id, user_id),
     )
-    row = await cur.fetchone()
-    if not row:
+    if not await cur.fetchone():
         from fastapi import HTTPException, status
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Session not found")
-    if str(row[0]) != user_id:
-        from fastapi import HTTPException, status
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Session does not belong to user")
 
     task_context, cleaned_input = resolve_command(message)
     chat_history = await load_history(conn, session_id)

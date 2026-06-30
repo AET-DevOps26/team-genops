@@ -48,11 +48,27 @@ CREATE INDEX IF NOT EXISTS chat_sessions_user_id_idx ON genai.chat_sessions (use
 
 CREATE TABLE IF NOT EXISTS genai.chat_messages (
     id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    seq        BIGINT GENERATED ALWAYS AS IDENTITY,
     session_id UUID NOT NULL REFERENCES genai.chat_sessions(id) ON DELETE CASCADE,
     role       VARCHAR(20) NOT NULL CHECK (role IN ('user', 'assistant')),
     content    TEXT NOT NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
+-- Migration: add seq column to existing tables that lack it
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM information_schema.columns
+        WHERE table_schema = 'genai'
+          AND table_name = 'chat_messages'
+          AND column_name = 'seq'
+    ) THEN
+        ALTER TABLE genai.chat_messages
+            ADD COLUMN seq BIGINT GENERATED ALWAYS AS IDENTITY;
+    END IF;
+END $$;
 
 CREATE TABLE IF NOT EXISTS genai.user_memory (
     id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),

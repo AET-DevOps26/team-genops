@@ -71,6 +71,8 @@ async def list_session_messages(
 ):
     """Return all messages for a session (oldest first). Verifies ownership."""
     messages = await get_messages(conn, session_id, user_id)
+    if messages is None:
+        raise HTTPException(status_code=404, detail="Session not found")
     return MessageListResponse(messages=[MessageItem(**m) for m in messages])
 
 

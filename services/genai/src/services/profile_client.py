@@ -17,8 +17,7 @@ async def get_user_profile(user_id: str) -> str:
     Fetch and format the user's career profile from the document service.
     Returns a plain-text representation ready to inject into the LLM context.
     """
-    # TODO: remove stub once document service is implemented
-    if not settings.document_service_url or settings.document_service_url == "http://document:8080":
+    if not settings.profile_enabled:
         return _NOT_IMPLEMENTED
 
     async with httpx.AsyncClient() as client:

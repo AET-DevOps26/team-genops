@@ -21,8 +21,9 @@ class Settings(BaseSettings):
     # JWT — public key fetched from auth service to verify Bearer tokens
     auth_jwks_url: str = "http://auth:8080/api/v1/auth/.well-known/jwks.json"
 
-    # Document service (profile data) — stubbed for now
+    # Document service (profile data)
     document_service_url: str = "http://document:8080"
+    profile_enabled: bool = False
 
 
 settings = Settings()
