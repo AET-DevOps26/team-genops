@@ -101,5 +101,14 @@ def test_one_failing_connection_does_not_stop_others(monkeypatch):
 
     monkeypatch.setattr(poller, "insert_processed_email", fake_insert)
 
-    total = poller.poll_once(db=None)
+    class FakeSession:
+        def __init__(self):
+            self.rollbacks = 0
+
+        def rollback(self):
+            self.rollbacks += 1
+
+    db = FakeSession()
+    total = poller.poll_once(db)
     assert total == 1  # good connection still stored despite bad one raising
+    assert db.rollbacks == 1  # poisoned session rolled back after the bad connection
