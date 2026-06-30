@@ -8,6 +8,7 @@ import com.jobready.application.generated.modelDto.UpdateApplicationRequest;
 import com.jobready.application.service.ApplicationService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
 import org.springframework.web.bind.annotation.RestController;
@@ -50,6 +51,13 @@ public class ApplicationController implements ApplicationsApi {
     private UUID currentUserId() {
         JwtAuthenticationToken auth = (JwtAuthenticationToken)
             SecurityContextHolder.getContext().getAuthentication();
-        return UUID.fromString(auth.getToken().getSubject());
+        String subject = auth.getToken().getSubject();
+        try {
+            return UUID.fromString(subject);
+        } catch (IllegalArgumentException ex) {
+            // A validly-signed token whose `sub` isn't a UUID is an authentication problem,
+            // not a server error — surface it as 401 rather than letting it become a 500.
+            throw new BadCredentialsException("Token subject is not a valid user id");
+        }
     }
 }
