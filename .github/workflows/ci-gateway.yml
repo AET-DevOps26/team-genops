@@ -1,0 +1,30 @@
+name: CI - Gateway
+
+on:
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  gateway-ci:
+    name: Build & Test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Set up Java 21
+        uses: actions/setup-java@v5
+        with:
+          java-version: 21
+          distribution: temurin
+
+      - name: Cache Maven repository
+        uses: actions/cache@v6
+        with:
+          path: ~/.m2/repository
+          key: maven-${{ hashFiles('services/gateway/pom.xml') }}
+          restore-keys: maven-
+
+      - name: Build and test
+        run: ./mvnw verify
+        working-directory: services/gateway
