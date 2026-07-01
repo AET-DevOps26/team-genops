@@ -1,0 +1,18 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: genai
+  namespace: {{ .Values.global.namespace }}
+  labels:
+    app: genai
+    monitoring: "true"
+    {{- include "jobready.labels" . | nindent 4 }}
+spec:
+  type: ClusterIP
+  selector:
+    app: genai
+  ports:
+    - name: http
+      port: {{ .Values.genai.port }}
+      targetPort: {{ .Values.genai.port }}
+      protocol: TCP

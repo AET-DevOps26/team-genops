@@ -6,7 +6,17 @@ spring:
       server:
         webmvc:
           routes:
-            # API traffic -> auth service. More specific, so it must come first.
+            # GenAI service — must come before the generic /api/** route.
+            - id: genai
+              uri: ${GENAI_URI:http://genai:8000}
+              predicates:
+                - Path=/api/v1/chat/**
+            # Application service — must come before the generic /api/** route.
+            - id: application
+              uri: ${APPLICATION_URI:http://application:8080}
+              predicates:
+                - Path=/api/v1/applications/**
+            # Auth service — catches remaining /api/** traffic.
             - id: auth
               uri: ${AUTH_URI:http://auth:8080}
               predicates:

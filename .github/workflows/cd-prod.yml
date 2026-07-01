@@ -44,10 +44,10 @@ jobs:
         env:
           KUBECONFIG: ${{ runner.temp }}/kubeconfig
         run: |
+          trap 'rm -f vault-pass' EXIT
           echo "${{ secrets.ANSIBLE_VAULT_PASSWORD }}" > vault-pass
           TAG="${{ github.event.inputs.image_tag || github.event.release.tag_name }}"
           TAG="${TAG:-latest}"; TAG="${TAG#v}"   # image semver tags have no leading 'v' (v1.2.3 -> 1.2.3)
           ansible-playbook -i inventories/prod/hosts.yml playbooks/deploy.yml \
             --vault-password-file vault-pass \
             -e image_tag="$TAG"
-          rm -f vault-pass

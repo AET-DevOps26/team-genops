@@ -35,9 +35,13 @@ spec:
           env:
             # Upstream service URLs (cluster DNS). Routes live in the gateway app config.
             - name: AUTH_URI
-              value: http://auth:{{ .Values.auth.port }}
+              value: "http://auth:{{ .Values.auth.port }}"
+            - name: APPLICATION_URI
+              value: "http://application:{{ .Values.application.port }}"
+            - name: GENAI_URI
+              value: "http://genai:{{ .Values.genai.port }}"
             - name: WEB_CLIENT_URI
-              value: http://web-client:{{ .Values.webClient.port }}
+              value: "http://web-client:{{ .Values.webClient.port }}"
           resources:
             {{- toYaml .Values.gateway.resources | nindent 12 }}
           livenessProbe:
