@@ -13,7 +13,7 @@ variable "prefix" {
 variable "location" {
   description = "Azure region. The dev FQDN becomes <dns_label>.<location>.cloudapp.azure.com."
   type        = string
-  default     = "westeurope"
+  default     = "germanywestcentral"
 }
 
 variable "dns_label" {
