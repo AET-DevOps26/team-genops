@@ -1,16 +1,16 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: application
+  name: genai
   namespace: {{ .Values.global.namespace }}
   labels:
-    app: application
+    app: genai
     {{- include "jobready.labels" . | nindent 4 }}
 spec:
-  replicas: {{ .Values.application.replicas | int }}
+  replicas: {{ .Values.genai.replicas | int }}
   selector:
     matchLabels:
-      app: application
+      app: genai
   strategy:
     type: RollingUpdate
     rollingUpdate:
@@ -19,9 +19,13 @@ spec:
   template:
     metadata:
       labels:
-        app: application
+        app: genai
         monitoring: "true"
     spec:
+      {{- with .Values.global.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
       initContainers:
         - name: wait-for-postgres
           image: postgres:16-alpine
@@ -50,51 +54,53 @@ spec:
               memory: "64Mi"
               cpu: "50m"
       containers:
-        - name: application
-          image: {{ .Values.global.imageRegistry }}/{{ .Values.application.image }}:{{ .Values.application.tag }}
+        - name: genai
+          image: {{ .Values.global.imageRegistry }}/{{ .Values.genai.image }}:{{ .Values.genai.tag }}
           imagePullPolicy: {{ .Values.global.imagePullPolicy }}
           ports:
-            - containerPort: {{ .Values.application.port }}
+            - containerPort: {{ .Values.genai.port }}
           env:
+            - name: POSTGRES_USER
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.postgres.existingSecret }}
+                  key: POSTGRES_USER
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.postgres.existingSecret }}
+                  key: POSTGRES_PASSWORD
             - name: POSTGRES_DB
               valueFrom:
                 secretKeyRef:
                   name: {{ .Values.postgres.existingSecret }}
                   key: POSTGRES_DB
-            # Schema-per-service: every service shares the one Postgres database and is
-            # isolated by its own schema (the app sets hibernate.default_schema=application).
-            - name: SPRING_DATASOURCE_URL
-              value: jdbc:postgresql://postgres:5432/$(POSTGRES_DB)
-            - name: SPRING_DATASOURCE_USERNAME
-              valueFrom:
-                secretKeyRef:
-                  name: {{ .Values.postgres.existingSecret }}
-                  key: POSTGRES_USER
-            - name: SPRING_DATASOURCE_PASSWORD
-              valueFrom:
-                secretKeyRef:
-                  name: {{ .Values.postgres.existingSecret }}
-                  key: POSTGRES_PASSWORD
-            # This service only verifies JWTs — it fetches auth's public JWK Set in-cluster.
+            - name: DATABASE_URL
+              value: "postgresql://$(POSTGRES_USER):$(POSTGRES_PASSWORD)@postgres:5432/$(POSTGRES_DB)"
             - name: AUTH_JWKS_URL
-              value: http://auth:8080/api/v1/auth/.well-known/jwks.json
-            - name: SPRING_PROFILES_ACTIVE
-              value: "kubernetes"
+              value: "http://auth:{{ .Values.auth.port }}/api/v1/auth/.well-known/jwks.json"
+            {{- if .Values.genai.openrouterSecret }}
+            - name: OPENROUTER_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.genai.openrouterSecret }}
+                  key: OPENROUTER_API_KEY
+            {{- end }}
           resources:
-            {{- toYaml .Values.application.resources | nindent 12 }}
+            {{- toYaml .Values.genai.resources | nindent 12 }}
           livenessProbe:
             httpGet:
-              path: /actuator/health
-              port: {{ .Values.application.port }}
-            initialDelaySeconds: 60
+              path: /health
+              port: {{ .Values.genai.port }}
+            initialDelaySeconds: 15
             periodSeconds: 15
             failureThreshold: 3
             timeoutSeconds: 5
           readinessProbe:
             httpGet:
-              path: /actuator/health
-              port: {{ .Values.application.port }}
-            initialDelaySeconds: 30
+              path: /health
+              port: {{ .Values.genai.port }}
+            initialDelaySeconds: 10
             periodSeconds: 10
             failureThreshold: 3
             timeoutSeconds: 5

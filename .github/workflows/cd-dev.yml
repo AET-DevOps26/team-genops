@@ -17,7 +17,6 @@ jobs:
   deploy:
     if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
-    environment: dev
     steps:
       - uses: actions/checkout@v7
 
@@ -70,6 +69,7 @@ jobs:
         env:
           KUBECONFIG: ${{ runner.temp }}/kubeconfig
         run: |
+          trap 'rm -f vault-pass' EXIT
           echo "${{ secrets.ANSIBLE_VAULT_PASSWORD }}" > vault-pass
           SHA="${{ github.event.workflow_run.head_sha || github.sha }}"
           ansible-playbook -i inventories/dev/hosts.yml playbooks/bootstrap.yml \
@@ -80,4 +80,3 @@ jobs:
             --vault-password-file vault-pass \
             -e image_tag=sha-${SHA:0:7} \
             -e ingress_host=${{ steps.tf.outputs.fqdn }}
-          rm -f vault-pass

@@ -63,6 +63,19 @@
             JWT_PRIVATE_KEY: "{{ vault_jwt_private_key }}"
             JWT_PUBLIC_KEY: "{{ vault_jwt_public_key }}"
 
+    - name: Create genai secrets
+      kubernetes.core.k8s:
+        kubeconfig: "{{ kubeconfig }}"
+        state: present
+        definition:
+          apiVersion: v1
+          kind: Secret
+          metadata:
+            name: genai-secrets
+            namespace: "{{ namespace }}"
+          stringData:
+            OPENROUTER_API_KEY: "{{ vault_openrouter_api_key }}"
+
     # Pin image tags, and override the ingress host only when one is supplied
     # (dev passes the Terraform-computed cloudapp FQDN; prod uses values-prod.yaml).
     - name: Build Helm value overrides
@@ -70,6 +83,8 @@
         helm_overrides: >-
           {{
             {'auth': {'tag': image_tag},
+             'application': {'tag': image_tag},
+             'genai': {'tag': image_tag},
              'webClient': {'tag': image_tag},
              'gateway': {'tag': image_tag}}
             | combine(

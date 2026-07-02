@@ -17,6 +17,9 @@ vault_postgres_db: jobready
 vault_ghcr_user: your-github-username
 vault_ghcr_token: ghp_xxxxxxxxxxxxxxxxxxxx
 
+# OpenRouter API key for the genai service (LLM calls).
+vault_openrouter_api_key: sk-or-xxxxxxxxxxxxxxxxxxxx
+
 # RSA signing keys — PKCS#8 private (BEGIN PRIVATE KEY) + X.509 public (BEGIN PUBLIC KEY).
 vault_jwt_private_key: |
   -----BEGIN PRIVATE KEY-----

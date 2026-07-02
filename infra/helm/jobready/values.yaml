@@ -109,6 +109,25 @@ application:
       memory: "512Mi"
       cpu: "500m"
 
+genai:
+  image: jobready-genai
+  tag: latest
+  replicas: 1
+  port: 8000
+
+  # Existing Secret holding the OpenRouter API key:
+  #   OPENROUTER_API_KEY
+  # If left blank, genai will fail to start (the key is required).
+  openrouterSecret: genai-secrets
+
+  resources:
+    requests:
+      memory: "256Mi"
+      cpu: "100m"
+    limits:
+      memory: "512Mi"
+      cpu: "500m"
+
 webClient:
   image: jobready-web-client
   tag: latest
