@@ -13,7 +13,7 @@ variable "prefix" {
 variable "location" {
   description = "Azure region. The dev FQDN becomes <dns_label>.<location>.cloudapp.azure.com."
   type        = string
-  default     = "germanywestcentral"
+  default     = "austriaeast"
 }
 
 variable "dns_label" {
@@ -37,7 +37,7 @@ variable "node_count" {
 variable "node_vm_size" {
   description = "VM size for the default node pool."
   type        = string
-  default     = "Standard_D2s_v3"
+  default     = "Standard_DS2_v2"
 }
 
 variable "tags" {
