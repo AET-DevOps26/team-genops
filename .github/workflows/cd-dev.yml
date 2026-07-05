@@ -8,6 +8,11 @@ on:
     types: [completed]
     branches: [main]
   workflow_dispatch:
+    inputs:
+      image_tag:
+        description: "Image tag to deploy (defaults to latest, which build-images.yml always publishes from main)"
+        required: false
+        default: latest
 
 permissions:
   contents: read
@@ -72,12 +77,16 @@ jobs:
         run: |
           trap 'rm -f vault-pass' EXIT
           echo "${{ secrets.ANSIBLE_VAULT_PASSWORD }}" > vault-pass
-          SHA="${{ github.event.workflow_run.head_sha || github.sha }}"
+          if [ -n "${{ github.event.workflow_run.head_sha }}" ]; then
+            IMAGE_TAG="sha-$(echo ${{ github.event.workflow_run.head_sha }} | cut -c1-7)"
+          else
+            IMAGE_TAG="${{ inputs.image_tag }}"
+          fi
           ansible-playbook -i inventories/dev/hosts.yml playbooks/bootstrap.yml \
             --vault-password-file vault-pass \
             -e ingress_ip=${{ steps.tf.outputs.ingress_ip }} \
             -e azure_lb_resource_group=${{ steps.tf.outputs.rg }}
           ansible-playbook -i inventories/dev/hosts.yml playbooks/deploy.yml \
             --vault-password-file vault-pass \
-            -e image_tag=sha-${SHA:0:7} \
+            -e image_tag=${IMAGE_TAG} \
             -e ingress_host=${{ steps.tf.outputs.fqdn }}
