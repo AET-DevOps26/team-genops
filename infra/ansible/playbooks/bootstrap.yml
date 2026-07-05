@@ -27,6 +27,12 @@
               loadBalancerIP: "{{ ingress_ip }}"
               annotations:
                 service.beta.kubernetes.io/azure-load-balancer-resource-group: "{{ azure_lb_resource_group }}"
+                # The service ports carry appProtocol=http/https, so Azure builds an HTTP
+                # health probe. Its default path is "/", which ingress-nginx answers with
+                # 404 -> Azure marks every node unhealthy -> the LB black-holes all traffic.
+                # Point the probe at /healthz (ingress-nginx returns 200 there) so backends
+                # stay healthy. Without this the site hangs and ACME HTTP-01 never completes.
+                service.beta.kubernetes.io/azure-load-balancer-health-probe-request-path: /healthz
       when: install_platform | bool
 
     - name: Install cert-manager (with CRDs)

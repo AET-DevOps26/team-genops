@@ -13,7 +13,7 @@ install_platform: true
 # From `terraform output` — the reserved static IP and the RG that holds it.
 ingress_ip: "0.0.0.0"                  # override: -e ingress_ip=<terraform output ingress_ip>
 azure_lb_resource_group: "rg-jobready-dev"
-acme_email: "team-genops@example.com"  # used by the Let's Encrypt ClusterIssuer
+acme_email: "georgesfnasrallah@hotmail.com"  # used by the Let's Encrypt ClusterIssuer (must be a real domain; LE rejects example.com)
 
 release_name: jobready
 chart_path: "{{ playbook_dir }}/../../helm/jobready"
