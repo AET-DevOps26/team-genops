@@ -1,0 +1,16 @@
+[
+  {
+    "modelName": "openai/gpt-oss-120b",
+    "matchPattern": "(?i)^(.*/)?gpt-oss-120b$",
+    "unit": "TOKENS",
+    "inputPrice": 0.00000003,
+    "outputPrice": 0.00000015
+  },
+  {
+    "modelName": "qwen/qwen3-embedding-8b",
+    "matchPattern": "(?i)^(.*/)?qwen3-embedding-8b$",
+    "unit": "TOKENS",
+    "inputPrice": 0.00000001,
+    "outputPrice": 0
+  }
+]
