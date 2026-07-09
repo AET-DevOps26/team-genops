@@ -3,6 +3,7 @@ from langgraph.prebuilt import create_react_agent
 from psycopg import AsyncConnection
 
 from src.llm.client import llm
+from src.observability import trace_config
 from src.prompts.career_assistant.system.base import SYSTEM_PROMPT
 from src.prompts.career_assistant.system.commands import resolve_command
 from src.services.chat.session import is_first_user_session
@@ -55,7 +56,10 @@ async def chat(
     messages = [system_msg] + chat_history + [HumanMessage(content=cleaned_input)]
 
     agent = create_react_agent(llm, tools)
-    response = await agent.ainvoke({"messages": messages})
+    response = await agent.ainvoke(
+        {"messages": messages},
+        config=trace_config(user_id=user_id, session_id=session_id, tags=["chat"]),
+    )
 
     ai_content = response["messages"][-1].content
 
