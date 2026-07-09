@@ -1,0 +1,19 @@
+# Aggregate compose for the local monitoring stack.
+#
+# Each tool lives in its own folder as a self-contained fragment and is pulled in
+# here with `include:`. To add Prometheus/Grafana later, drop a
+# monitoring/<tool>/docker-compose.yml and add one line below — nothing else changes.
+#
+# Merge with the root project so services share its network, and opt in with the
+# `monitoring` profile (a plain `docker compose up` starts none of these):
+#
+#   docker compose -f docker-compose.yml \
+#                  -f monitoring/docker-compose.yml \
+#                  --profile monitoring up
+
+# Paths are relative to the project directory (the repo root — where the run
+# command is invoked from), not to this file.
+include:
+  - monitoring/langfuse/docker-compose.yml
+  # - monitoring/prometheus/docker-compose.yml   # future
+  # - monitoring/grafana/docker-compose.yml      # future
