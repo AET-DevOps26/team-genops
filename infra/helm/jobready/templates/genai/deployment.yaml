@@ -86,6 +86,25 @@ spec:
                   name: {{ .Values.genai.openrouterSecret }}
                   key: OPENROUTER_API_KEY
             {{- end }}
+            {{- if .Values.genai.langfuseSecret }}
+            # LLM observability. Point at Langfuse Cloud (or a self-hosted URL).
+            # Omit genai.langfuseSecret to disable tracing — genai then no-ops.
+            - name: LANGFUSE_HOST
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.genai.langfuseSecret }}
+                  key: LANGFUSE_HOST
+            - name: LANGFUSE_PUBLIC_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.genai.langfuseSecret }}
+                  key: LANGFUSE_PUBLIC_KEY
+            - name: LANGFUSE_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.genai.langfuseSecret }}
+                  key: LANGFUSE_SECRET_KEY
+            {{- end }}
           resources:
             {{- toYaml .Values.genai.resources | nindent 12 }}
           livenessProbe:
