@@ -109,23 +109,18 @@
       ansible.builtin.set_fact:
         helm_overrides:
           auth:
-            image:
-              tag: "{{ image_tag }}"
+            tag: "{{ image_tag }}"
           application:
-            image:
-              tag: "{{ image_tag }}"
+            tag: "{{ image_tag }}"
           gateway:
-            image:
-              tag: "{{ image_tag }}"
+            tag: "{{ image_tag }}"
           webClient:
-            image:
-              tag: "{{ image_tag }}"
+            tag: "{{ image_tag }}"
           genai:
-            image:
-              tag: "{{ image_tag }}"
+            tag: "{{ image_tag }}"
           document:
-            image:
-              tag: "{{ image_tag }}"
+            tag: "{{ image_tag }}"
+
     - name: Add Ingress host override when provided
       ansible.builtin.set_fact:
         helm_overrides: "{{ helm_overrides | combine({'ingress': {'host': ingress_host}}) }}"
