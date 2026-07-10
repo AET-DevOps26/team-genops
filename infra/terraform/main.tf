@@ -16,7 +16,7 @@ resource "azurerm_kubernetes_cluster" "aks" {
   dns_prefix          = var.prefix
   kubernetes_version  = var.kubernetes_version
 
-  # Explicit node resource group name (otherwise Azure auto-names it MC_...).
+  # Explicit node resource group name
   node_resource_group = "rg-${var.prefix}-nodes"
 
   default_node_pool {
@@ -32,9 +32,8 @@ resource "azurerm_kubernetes_cluster" "aks" {
   tags = var.tags
 }
 
-# Reserved, STABLE public IP for the ingress. Lives in the main RG (NOT the
-# node RG that gets deleted with the cluster) and is protected from destroy,
-# so the dev URL + issued cert survive a cluster rebuild.
+# Reserved, STABLE public IP for the ingress. Lives in the main Resource Group 
+#(NOT the node RG that gets deleted with the cluster) and is protected from destroy.
 # domain_name_label gives a free, stable FQDN: <label>.<region>.cloudapp.azure.com
 resource "azurerm_public_ip" "ingress" {
   name                = "pip-${var.prefix}-ingress"

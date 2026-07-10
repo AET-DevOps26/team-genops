@@ -1,0 +1,335 @@
+{{- if .Values.networkPolicy.enabled }}
+{{- /*
+=============================================================================
+networkpolicy.yaml — pod-to-pod traffic isolation (default-deny + allow-list)
+=============================================================================
+Rendered only when networkPolicy.enabled=true (prod). The model is:
+
+  1. default-deny-all   — nothing may talk to anything (Ingress + Egress)
+  2. allow-dns          — every pod may resolve names via kube-dns
+  3. per-service allows — the minimum flows the app actually needs
+
+A NetworkPolicy whose podSelector matches no pod is a harmless no-op, so the
+genai/email rules below are dormant until those services join the chart.
+
+Two knobs guard the two ways a wrong policy can cause an OUTAGE:
+  - ingressNamespace: the ingress controller's namespace. Wrong value → the
+    gateway is unreachable from outside.
+  - probeCidr: the node CIDR for kubelet health probes. If the CNI enforces
+    policy on probe traffic and this is unset, readiness fails and pods die.
+See values.yaml for the full rationale. Rollback: --set networkPolicy.enabled=false
+=============================================================================
+*/}}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-all
+  namespace: {{ .Values.global.namespace }}
+  labels:
+    {{- include "jobready.labels" . | nindent 4 }}
+spec:
+  # Empty podSelector = every pod in the namespace. With both policy types and
+  # no rules, this denies all ingress and egress until another policy allows it.
+  podSelector: {}
+  policyTypes:
+    - Ingress
+    - Egress
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-dns
+  namespace: {{ .Values.global.namespace }}
+  labels:
+    {{- include "jobready.labels" . | nindent 4 }}
+spec:
+  # DNS must work for every pod, or cluster-DNS service names never resolve.
+  podSelector: {}
+  policyTypes:
+    - Egress
+  egress:
+    - to:
+        # kube-dns lives in kube-system; allow to any namespace but only on :53.
+        - namespaceSelector: {}
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: gateway
+  namespace: {{ .Values.global.namespace }}
+  labels:
+    {{- include "jobready.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      app: gateway
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    # External traffic arrives via the ingress controller only.
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: {{ .Values.networkPolicy.ingressNamespace }}
+      ports:
+        - protocol: TCP
+          port: {{ .Values.gateway.port }}
+    {{- if .Values.networkPolicy.probeCidr }}
+    # kubelet health probes (node IP).
+    - from:
+        - ipBlock:
+            cidr: {{ .Values.networkPolicy.probeCidr }}
+      ports:
+        - protocol: TCP
+          port: {{ .Values.gateway.port }}
+    {{- end }}
+  egress:
+    # Proxy /api/** to auth AND fetch the JWKS public key for edge validation
+    # (both go to auth:{{ .Values.auth.port }} — same destination, one rule).
+    - to:
+        - podSelector:
+            matchLabels:
+              app: auth
+      ports:
+        - protocol: TCP
+          port: {{ .Values.auth.port }}
+    # Proxy /** (SPA shell + static assets) to the web-client.
+    - to:
+        - podSelector:
+            matchLabels:
+              app: web-client
+      ports:
+        - protocol: TCP
+          port: {{ .Values.webClient.port }}
+    # Proxy /api/v1/chat/** to genai (dormant until genai joins the chart).
+    - to:
+        - podSelector:
+            matchLabels:
+              app: genai
+      ports:
+        - protocol: TCP
+          port: 8000
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: auth
+  namespace: {{ .Values.global.namespace }}
+  labels:
+    {{- include "jobready.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      app: auth
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    # Callers of auth: the gateway (proxy + JWKS) and any service that fetches
+    # the JWKS to verify tokens (defense in depth). genai/email are dormant.
+    - from:
+        - podSelector:
+            matchLabels:
+              app: gateway
+        - podSelector:
+            matchLabels:
+              app: application
+        - podSelector:
+            matchLabels:
+              app: genai
+        - podSelector:
+            matchLabels:
+              app: email
+      ports:
+        - protocol: TCP
+          port: {{ .Values.auth.port }}
+    {{- if .Values.networkPolicy.probeCidr }}
+    - from:
+        - ipBlock:
+            cidr: {{ .Values.networkPolicy.probeCidr }}
+      ports:
+        - protocol: TCP
+          port: {{ .Values.auth.port }}
+    {{- end }}
+  egress:
+    - to:
+        - podSelector:
+            matchLabels:
+              app: postgres
+      ports:
+        - protocol: TCP
+          port: 5432
+    - to:
+        - podSelector:
+            matchLabels:
+              app: redis
+      ports:
+        - protocol: TCP
+          port: 6379
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: application
+  namespace: {{ .Values.global.namespace }}
+  labels:
+    {{- include "jobready.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      app: application
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app: gateway
+      ports:
+        - protocol: TCP
+          port: {{ .Values.application.port }}
+    {{- if .Values.networkPolicy.probeCidr }}
+    - from:
+        - ipBlock:
+            cidr: {{ .Values.networkPolicy.probeCidr }}
+      ports:
+        - protocol: TCP
+          port: {{ .Values.application.port }}
+    {{- end }}
+  egress:
+    - to:
+        - podSelector:
+            matchLabels:
+              app: postgres
+      ports:
+        - protocol: TCP
+          port: 5432
+    # Fetch auth's JWKS to verify tokens locally (defense in depth).
+    - to:
+        - podSelector:
+            matchLabels:
+              app: auth
+      ports:
+        - protocol: TCP
+          port: {{ .Values.auth.port }}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: web-client
+  namespace: {{ .Values.global.namespace }}
+  labels:
+    {{- include "jobready.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      app: web-client
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    # Only the gateway proxies to the SPA host in-cluster.
+    - from:
+        - podSelector:
+            matchLabels:
+              app: gateway
+      ports:
+        - protocol: TCP
+          port: {{ .Values.webClient.port }}
+    {{- if .Values.networkPolicy.probeCidr }}
+    - from:
+        - ipBlock:
+            cidr: {{ .Values.networkPolicy.probeCidr }}
+      ports:
+        - protocol: TCP
+          port: {{ .Values.webClient.port }}
+    {{- end }}
+  egress:
+    # nginx forwards /api to the gateway (compose parity; in-cluster the gateway
+    # owns /api before it reaches the SPA, so this is a harmless allowance).
+    - to:
+        - podSelector:
+            matchLabels:
+              app: gateway
+      ports:
+        - protocol: TCP
+          port: {{ .Values.gateway.port }}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: postgres
+  namespace: {{ .Values.global.namespace }}
+  labels:
+    {{- include "jobready.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      app: postgres
+  policyTypes:
+    - Ingress
+  ingress:
+    # Only the services that own a schema may reach the database.
+    - from:
+        - podSelector:
+            matchLabels:
+              app: auth
+        - podSelector:
+            matchLabels:
+              app: application
+        - podSelector:
+            matchLabels:
+              app: genai
+        - podSelector:
+            matchLabels:
+              app: email
+      ports:
+        - protocol: TCP
+          port: 5432
+    {{- if .Values.networkPolicy.probeCidr }}
+    - from:
+        - ipBlock:
+            cidr: {{ .Values.networkPolicy.probeCidr }}
+      ports:
+        - protocol: TCP
+          port: 5432
+    {{- end }}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: redis
+  namespace: {{ .Values.global.namespace }}
+  labels:
+    {{- include "jobready.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      app: redis
+  policyTypes:
+    - Ingress
+  ingress:
+    # Only auth uses Redis (server-side sessions for the split-token BFF).
+    - from:
+        - podSelector:
+            matchLabels:
+              app: auth
+      ports:
+        - protocol: TCP
+          port: 6379
+    {{- if .Values.networkPolicy.probeCidr }}
+    - from:
+        - ipBlock:
+            cidr: {{ .Values.networkPolicy.probeCidr }}
+      ports:
+        - protocol: TCP
+          port: 6379
+    {{- end }}
+{{- end }}

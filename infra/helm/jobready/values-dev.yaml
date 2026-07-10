@@ -8,9 +8,7 @@ global:
     - name: ghcr-pull
 
 namespace:
-  # Ansible's deploy.yml creates the namespace BEFORE the secrets (which need it),
-  # so the chart must NOT also create it — otherwise Helm errors on a Namespace it
-  # doesn't own. (For a pure `helm install` without Ansible, use --create-namespace.)
+  # Ansible's deploy.yml creates the namespace BEFORE the secrets.
   create: false
 
 postgres:

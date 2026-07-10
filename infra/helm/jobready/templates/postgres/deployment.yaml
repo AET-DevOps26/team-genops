@@ -34,7 +34,6 @@ spec:
             - name: POSTGRES_USER
               valueFrom:
                 secretKeyRef:
-                  # .Values.postgres.existingSecret = "postgres-secret"
                   name: {{ .Values.postgres.existingSecret }}
                   key: POSTGRES_USER
             - name: POSTGRES_PASSWORD
