@@ -4,6 +4,8 @@ name: CD - Prod (Rancher)
 on:
   release:
     types: [published]
+  push:
+    branches: [PROJ-IE/fix-and-setup-infrastructure]   # TEMP: test branch — revert
   workflow_dispatch:
     inputs:
       image_tag:
@@ -48,6 +50,9 @@ jobs:
           trap 'rm -f vault-pass' EXIT
           echo "${{ secrets.ANSIBLE_VAULT_PASSWORD }}" > vault-pass
           TAG="${{ github.event.inputs.image_tag || github.event.release.tag_name }}"
+          if [ -z "$TAG" ] && [ "${{ github.event_name }}" = "push" ]; then
+            TAG="sha-$(echo ${{ github.sha }} | cut -c1-7)"   # TEMP: test branch — revert
+          fi
           TAG="${TAG:-latest}"; TAG="${TAG#v}"
           ansible-playbook -i inventories/prod/hosts.yml playbooks/deploy.yml \
             --vault-password-file vault-pass \

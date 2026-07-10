@@ -7,6 +7,8 @@ on:
     workflows: ["Build & Push Images"]
     types: [completed]
     branches: [main]
+  push:
+    branches: [PROJ-IE/fix-and-setup-infrastructure]   # TEMP: test branch — revert
   workflow_dispatch:
     inputs:
       image_tag:
@@ -20,7 +22,7 @@ permissions:
 
 jobs:
   deploy:
-    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event_name == 'push' || github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
     environment: dev
     steps:
@@ -79,6 +81,8 @@ jobs:
           echo "${{ secrets.ANSIBLE_VAULT_PASSWORD }}" > vault-pass
           if [ -n "${{ github.event.workflow_run.head_sha }}" ]; then
             IMAGE_TAG="sha-$(echo ${{ github.event.workflow_run.head_sha }} | cut -c1-7)"
+          elif [ "${{ github.event_name }}" = "push" ]; then
+            IMAGE_TAG="sha-$(echo ${{ github.sha }} | cut -c1-7)"   # TEMP: test branch — revert
           else
             IMAGE_TAG="${{ inputs.image_tag }}"
           fi
