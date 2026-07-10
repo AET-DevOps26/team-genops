@@ -126,13 +126,53 @@
         helm_overrides: "{{ helm_overrides | combine({'ingress': {'host': ingress_host}}) }}"
       when: (ingress_host | default('')) | length > 0
 
+    # Wrapped so a --wait timeout dumps the ACTUAL pod failure instead of the
+    # opaque "context deadline exceeded". The rescue prints status + events for
+    # every not-Running pod, then re-raises so CD still fails.
     - name: Deploy JobReady chart
-      kubernetes.core.helm:
-        name: "{{ release_name }}"
-        chart_ref: "{{ chart_path }}"
-        release_namespace: "{{ namespace }}"
-        kubeconfig: "{{ kubeconfig }}"
-        values_files:
-          - "{{ values_file }}"
-        values: "{{ helm_overrides }}"
-        wait: true
+      block:
+        - name: Run Helm upgrade
+          kubernetes.core.helm:
+            name: "{{ release_name }}"
+            chart_ref: "{{ chart_path }}"
+            release_namespace: "{{ namespace }}"
+            kubeconfig: "{{ kubeconfig }}"
+            values_files:
+              - "{{ values_file }}"
+            values: "{{ helm_overrides }}"
+            wait: true
+            wait_timeout: "8m0s"
+
+      rescue:
+        - name: Get pod status
+          ansible.builtin.command:
+            cmd: kubectl --kubeconfig {{ kubeconfig }} -n {{ namespace }} get pods -o wide
+          changed_when: false
+          failed_when: false
+          register: _pods
+
+        - name: Show pod status
+          ansible.builtin.debug:
+            var: _pods.stdout_lines
+
+        - name: Describe not-Running pods (image, events, probe failures)
+          ansible.builtin.shell:
+            cmd: >-
+              set -o pipefail;
+              pods=$(kubectl --kubeconfig {{ kubeconfig }} -n {{ namespace }}
+                get pods --field-selector=status.phase!=Running -o name);
+              [ -z "$pods" ] && echo "(all pods Running — likely a failing readiness probe)" && exit 0;
+              kubectl --kubeconfig {{ kubeconfig }} -n {{ namespace }} describe $pods
+          changed_when: false
+          failed_when: false
+          register: _describe
+
+        - name: Show describe output
+          ansible.builtin.debug:
+            var: _describe.stdout_lines
+
+        - name: Re-raise the deploy failure
+          ansible.builtin.fail:
+            msg: >-
+              Helm deploy did not converge within 8m0s — see pod status and
+              describe output above for the real cause.
