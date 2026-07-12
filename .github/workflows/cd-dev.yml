@@ -20,6 +20,14 @@ permissions:
   contents: read
   id-token: write   # Azure OIDC login
 
+# One dev operation at a time: a second trigger QUEUES until the running one
+# finishes (never cancelled). Shared group with cluster-dev so a stop/start
+# can't fire mid-deploy. Also prevents parallel `terraform apply` → no more
+# stale state-lock incidents from overlapping runs.
+concurrency:
+  group: deploy-dev
+  cancel-in-progress: false
+
 jobs:
   deploy:
     if: ${{ github.event_name == 'workflow_dispatch' || github.event_name == 'push' || github.event.workflow_run.conclusion == 'success' }}

@@ -25,6 +25,12 @@ permissions:
   contents: read
   id-token: write   # Azure OIDC login
 
+# Same group as CD - Dev: a stop/start queues behind a running deploy (and
+# vice versa) instead of yanking VMs out from under Terraform/Ansible.
+concurrency:
+  group: deploy-dev
+  cancel-in-progress: false
+
 jobs:
   switch:
     runs-on: ubuntu-latest
@@ -39,8 +45,10 @@ jobs:
 
       - uses: actions/checkout@v7
 
-      # Same script team members run locally: ./scripts/cluster.sh stop|start|status
+      # Same script team members run locally (env vars required — see script header).
       - name: Stop or start the cluster
         env:
           SUBSCRIPTION: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+          RG: ${{ secrets.DEV_CLUSTER_RG }}
+          CLUSTER: ${{ secrets.DEV_CLUSTER_NAME }}
         run: ./scripts/cluster.sh "${{ github.event.inputs.action || 'stop' }}"   # schedule → stop

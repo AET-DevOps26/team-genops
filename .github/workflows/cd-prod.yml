@@ -16,6 +16,13 @@ on:
 permissions:
   contents: read
 
+# One prod operation at a time: a second trigger QUEUES until the running one
+# finishes (never cancelled). Shared group with destroy-prod so a teardown can
+# never overlap a release deploy.
+concurrency:
+  group: deploy-prod
+  cancel-in-progress: false
+
 jobs:
   deploy:
     runs-on: ubuntu-latest

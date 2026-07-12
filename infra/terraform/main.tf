@@ -27,7 +27,8 @@ resource "azurerm_kubernetes_cluster" "aks" {
     # Lets Azure change vm_size (and similar recreate-forcing pool settings)
     # by rotating through a temporary pool instead of destroying the cluster:
     # temp pool up → workloads drained over → system pool rebuilt → temp deleted.
-    temporary_name_for_rotation = "systemtmp_jobready"
+    # NOTE: pool names must match ^[a-z][a-z0-9]{0,11}$ (≤12 chars, no _ or -).
+    temporary_name_for_rotation = "systemtmp"
   }
 
   identity {

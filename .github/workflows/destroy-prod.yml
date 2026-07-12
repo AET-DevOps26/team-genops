@@ -21,6 +21,12 @@ on:
 permissions:
   contents: read
 
+# Same group as CD - Prod: a teardown queues behind a running release deploy
+# (and vice versa) — the two can never interleave.
+concurrency:
+  group: deploy-prod
+  cancel-in-progress: false
+
 jobs:
   destroy:
     runs-on: ubuntu-latest
