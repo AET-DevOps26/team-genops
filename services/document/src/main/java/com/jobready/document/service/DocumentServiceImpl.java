@@ -31,6 +31,7 @@ import com.jobready.document.repository.ResumeRepository;
 import com.jobready.document.repository.SkillRepository;
 import com.jobready.document.repository.WorkExperienceRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -72,9 +73,20 @@ public class DocumentServiceImpl implements DocumentService {
                 .stream().map(this::toDto).toList());
     }
 
+    // Deliberately NOT @Transactional: a unique-constraint violation would mark a wrapping
+    // transaction rollback-only and doom the retry. Each repository call transacts on its own.
     @Override
-    @Transactional
     public Profile upsertProfile(UUID userId, ProfileRequest request) {
+        try {
+            return applyProfileUpsert(userId, request);
+        } catch (DataIntegrityViolationException ex) {
+            // Two concurrent first-time upserts raced on the `user_id` unique constraint.
+            // The winner's row exists now, so the retry deterministically takes the update path.
+            return applyProfileUpsert(userId, request);
+        }
+    }
+
+    private Profile applyProfileUpsert(UUID userId, ProfileRequest request) {
         ProfileEntity profile = profileRepository.findByUserId(userId)
             .orElseGet(() -> {
                 ProfileEntity created = new ProfileEntity();

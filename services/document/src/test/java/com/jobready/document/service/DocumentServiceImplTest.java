@@ -30,6 +30,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.dao.DataIntegrityViolationException;
 
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
@@ -41,6 +42,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -122,6 +124,25 @@ class DocumentServiceImplTest {
 
         assertThat(existing.getFirstName()).isEqualTo("Janet");
         verify(profileRepository).saveAndFlush(existing);
+    }
+
+    @Test
+    void upsertProfile_retriesAsUpdateWhenConcurrentCreateWinsTheRace() {
+        // First attempt: no row yet, insert loses the race on the user_id unique constraint.
+        // Retry: the winner's row is visible now and gets updated instead.
+        ProfileEntity winner = profile(userId);
+        when(profileRepository.findByUserId(userId))
+            .thenReturn(Optional.empty())
+            .thenReturn(Optional.of(winner));
+        when(profileRepository.saveAndFlush(any(ProfileEntity.class)))
+            .thenThrow(new DataIntegrityViolationException("duplicate key: profiles_user_id_key"))
+            .thenAnswer(inv -> inv.getArgument(0));
+
+        Profile result = service.upsertProfile(userId, new ProfileRequest("Janet", "Doe"));
+
+        assertThat(result.getFirstName()).isEqualTo("Janet");
+        assertThat(winner.getFirstName()).isEqualTo("Janet");
+        verify(profileRepository, times(2)).saveAndFlush(any(ProfileEntity.class));
     }
 
     // ------------------------------------------------------------------

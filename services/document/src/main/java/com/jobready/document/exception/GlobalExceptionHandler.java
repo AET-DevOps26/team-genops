@@ -3,11 +3,13 @@ package com.jobready.document.exception;
 import com.jobready.document.generated.modelDto.Error;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -34,6 +36,28 @@ public class GlobalExceptionHandler {
     public ResponseEntity<Error> handleBadCredentials(BadCredentialsException ex) {
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
             .body(new Error().code("UNAUTHORIZED").message(ex.getMessage()));
+    }
+
+    /**
+     * Malformed JSON or an invalid enum value in the request body. Spring's default 400 has its
+     * own body shape — every error must carry the unified {@code {code, message, details}} schema.
+     */
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public ResponseEntity<Error> handleUnreadable(HttpMessageNotReadableException ex) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+            .body(new Error().code("MALFORMED_REQUEST")
+            .message("Request body is malformed or contains an invalid value"));
+    }
+
+    /** A non-UUID path or query parameter (e.g. {@code /profile/skills/{id}}) — same reason. */
+    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+    public ResponseEntity<Error> handleTypeMismatch(MethodArgumentTypeMismatchException ex) {
+        Map<String, Object> details = new LinkedHashMap<>();
+        details.put("parameter", ex.getName());
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+            .body(new Error().code("INVALID_PARAMETER")
+            .message("Request parameter has an invalid format")
+            .details(details));
     }
 
     /**

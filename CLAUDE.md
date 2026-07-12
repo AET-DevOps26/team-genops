@@ -16,7 +16,7 @@ The system is composed of five services in a single mono-repo:
 |---|---|---|---|
 | `auth` | Spring Boot | Identity — credentials, JWT issuance | 8080 |
 | `application` | Spring Boot | Job application tracking + recommendations | 8082 |
-| `document` | Spring Boot | Document storage — Profile, CoverLetter | 8080 (in-cluster) |
+| `document` | Spring Boot | Candidate profile + generated documents (cover letters, resumes) | 8083 |
 | `email` | Python / FastAPI | Email integration (Gmail/Outlook adapter) | 8001 |
 | `genai` | Python / FastAPI | GenAI generation — LLM chat agent (persists chat sessions, RAG, user memory) | 8000 |
 
@@ -48,6 +48,7 @@ All services are containerised and orchestrated locally with **Docker Compose** 
 | auth       | http://localhost:8080                 |
 | auth Swagger | http://localhost:8080/swagger-ui.html |
 | application | http://localhost:8082                 |
+| document   | http://localhost:8083                 |
 | email      | http://localhost:8001                 |
 | genai      | http://localhost:8000                 |
 | postgres   | localhost:5432                        |
@@ -217,7 +218,7 @@ Service implementation status:
 - `genai` — ✅ functional (Python/FastAPI): LangGraph chat agent with sessions, pgvector RAG over past sessions, background summarization, JWKS auth, Langfuse tracing. Delivers cover-letter/resume/fit via chat commands. Gaps: cloud-only LLM (OpenRouter — no local model yet), thin tests.
 - `web-client` — ✅ auth + chat pages working (React + Vite + RTK Query). Product UIs (profile, application board) still thin. No client tests yet.
 - `gateway` — ✅ Spring Cloud Gateway (JWT auth + routing), in compose/Helm.
-- `document` — ⛔ schema-only (no controllers/entrypoint yet).
+- `document` — ✅ functional (Spring Boot): profile aggregate + sub-resource CRUD (work experiences, educations, skills, languages), generated-document storage (cover letters/resumes per application), Flyway schema (`ddl-auto=validate`), verify-only JWT (owner from `sub`); port 8083 local.
 - **Monitoring** — ⛔ Prometheus/Grafana metrics pending (only `genai` emits metrics today); LLM observability via Langfuse is in place.
 
 PostgreSQL schemas designed and migration files written for all services:
@@ -227,4 +228,4 @@ PostgreSQL schemas designed and migration files written for all services:
 - `email` — raw `.sql` migrations at `alembic/versions/`, applied on startup by `src/migrate.py`
 - `genai` — Alembic migration at `alembic/versions/`
 
-`docker-compose.yml` runs `postgres` + `pgadmin` (dev) + `redis` + `web-client` + `auth` + `application` + `genai` (`email` currently commented out; `gateway`/`document` not yet added). A Helm chart at `infra/helm/jobready/` deploys the system to Kubernetes — Azure AKS (auto on merge to main) and TUM Rancher (release-gated). LLM observability is in place via **Langfuse** — self-hosted locally under `monitoring/langfuse/` (opt-in `monitoring` compose profile) and Langfuse Cloud for deployed envs (wired through the Helm chart + Ansible vault). Prometheus/Grafana metrics config (dashboards/alerts) is still pending — see the readiness plan.
+`docker-compose.yml` runs `postgres` + `pgadmin` (dev) + `redis` + `web-client` + `auth` + `application` + `document` + `genai` (`email` currently commented out; `gateway` not yet added). A Helm chart at `infra/helm/jobready/` deploys the system to Kubernetes — Azure AKS (auto on merge to main) and TUM Rancher (release-gated). LLM observability is in place via **Langfuse** — self-hosted locally under `monitoring/langfuse/` (opt-in `monitoring` compose profile) and Langfuse Cloud for deployed envs (wired through the Helm chart + Ansible vault). Prometheus/Grafana metrics config (dashboards/alerts) is still pending — see the readiness plan.
