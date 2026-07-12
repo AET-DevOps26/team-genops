@@ -1,0 +1,60 @@
+name: Destroy - Prod (Rancher)
+
+# Manual-only teardown of the prod namespace contents (helm release + secrets),
+# for a clean redeploy. Gated twice: the `production` environment approval AND
+# a typed confirmation that must match the namespace.
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: "Type the namespace (ge86yog-devops-genops) to confirm"
+        required: true
+      wipe_data:
+        description: "Also delete the postgres PVC (ALL DB DATA IS LOST)"
+        type: boolean
+        default: false
+      wipe_tls:
+        description: "Also delete the TLS secret (forces Let's Encrypt re-issue — rate limited)"
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  destroy:
+    runs-on: ubuntu-latest
+    environment: production
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Write Rancher kubeconfig
+        run: echo "${{ secrets.RANCHER_KUBECONFIG }}" > "$RUNNER_TEMP/kubeconfig"
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+
+      - name: Install Ansible + collections
+        run: |
+          pip install ansible-core kubernetes
+          ansible-galaxy collection install -r infra/ansible/requirements.yml
+
+      - name: Set up Helm
+        uses: azure/setup-helm@v4
+        with:
+          version: v3.16.0
+
+      - name: Destroy prod
+        working-directory: infra/ansible
+        env:
+          KUBECONFIG: ${{ runner.temp }}/kubeconfig
+        run: |
+          trap 'rm -f vault-pass' EXIT
+          echo "${{ secrets.ANSIBLE_VAULT_PASSWORD_PROD }}" > vault-pass
+          ansible-playbook -i inventories/prod/hosts.yml playbooks/destroy.yml \
+            --vault-password-file vault-pass \
+            -e destroy_confirm="${{ github.event.inputs.confirm }}" \
+            -e wipe_data=${{ github.event.inputs.wipe_data }} \
+            -e wipe_tls=${{ github.event.inputs.wipe_tls }}

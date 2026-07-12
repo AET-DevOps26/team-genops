@@ -5,6 +5,10 @@ metadata:
   namespace: {{ .Values.global.namespace }}
   labels:
     {{- include "jobready.labels" . | nindent 4 }}
+  annotations:
+    # Survive `helm uninstall` — deleting the database is an explicit, separate
+    # decision (playbooks/destroy.yml -e wipe_data=true), never a side effect.
+    helm.sh/resource-policy: keep
 spec:
   accessModes:
     - ReadWriteOnce
