@@ -1,0 +1,46 @@
+name: Cluster - Dev (stop/start)
+
+# Cost switch for the dev AKS cluster. `stop` deallocates the node VMs — the
+# expensive part (~90% of the bill) drops to zero while everything cheap and
+# stateful survives: cluster config, deployed workloads, the postgres disk,
+# the reserved ingress IP + DNS name, TLS certs. `start` brings the same
+# cluster back in ~2-3 minutes; no redeploy needed, pods resume as they were.
+#
+# Rhythm: stop it when nobody is testing (evenings/weekends), start on demand.
+# Full teardown/rebuild is NOT needed for cost control — stopping is enough.
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: "stop = deallocate node VMs (save money) | start = resume"
+        type: choice
+        required: true
+        options: [stop, start]
+  # Safety net: auto-stop every night at 22:00 UTC so a forgotten cluster
+  # never bills overnight. Stopping an already-stopped cluster is a no-op.
+  schedule:
+    - cron: '0 22 * * *'
+
+permissions:
+  contents: read
+  id-token: write   # Azure OIDC login
+
+jobs:
+  switch:
+    runs-on: ubuntu-latest
+    environment: dev
+    steps:
+      - name: Azure login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - uses: actions/checkout@v7
+
+      # Same script team members run locally: ./scripts/cluster.sh stop|start|status
+      - name: Stop or start the cluster
+        env:
+          SUBSCRIPTION: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+        run: ./scripts/cluster.sh "${{ github.event.inputs.action || 'stop' }}"   # schedule → stop

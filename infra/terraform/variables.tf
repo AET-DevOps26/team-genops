@@ -33,13 +33,18 @@ variable "kubernetes_version" {
 variable "node_count" {
   description = "Number of nodes in the default pool."
   type        = number
-  default     = 2
+  default     = 1
 }
 
 variable "node_vm_size" {
+  # Burstable AMD, 2 vCPU / 8 GiB — ~60% cheaper than Standard_DS2_v2 with MORE
+  # memory. Verified deployable on the team subscription in austriaeast
+  # (standardBasv2Family quota: 10 vCPU; the SKU's only restriction is
+  # availability zones, which we don't use). Combine with the
+  # "Cluster - Dev (stop/start)" workflow to zero compute cost when idle.
   description = "VM size for the default node pool."
   type        = string
-  default     = "Standard_DS2_v2"
+  default     = "Standard_B2as_v2"
 }
 
 variable "tags" {
