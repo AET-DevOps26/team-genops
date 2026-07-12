@@ -22,6 +22,43 @@ infra/
 
 ---
 
+# Team secrets — Azure Key Vault
+
+Shared secrets (DB passwords, JWT keys, GHCR tokens, …) live in a team **Azure Key Vault**,
+readable from any machine after `az login` — no key files to copy around.
+
+| | |
+|---|---|
+| Vault | `kv-jobready-dev` — <https://kv-jobready-dev.vault.azure.net/> |
+| Location | resource group `rg-jobready-dev`, subscription `185fd5c7-…` ("Azure for Students") |
+| Access model | **Vault access policies** (per-person, granted in the Portal) |
+| Managed by | **hand (Portal) — deliberately NOT Terraform**, so `terraform destroy`/cluster rebuilds can never take the secrets with it |
+
+### Get access (once per person)
+
+Ask a teammate who already has access: Portal → `kv-jobready-dev` → **Access policies →
++ Create** → Secret permissions **Get, List, Set** → select your `@tum.de` account.
+(CLI access works with just the policy; seeing the vault in the Portal additionally needs a
+reader/contributor role on `rg-jobready-dev`.)
+
+### Use it (any machine)
+
+```sh
+az login                                                  # once per machine
+az keyvault secret list --vault-name kv-jobready-dev -o table
+az keyvault secret show --vault-name kv-jobready-dev --name <name> --query value -o tsv
+az keyvault secret set  --vault-name kv-jobready-dev --name <name> --value '<value>'
+```
+
+Multi-line values (PEM keys) go in via file: `az keyvault secret set … --file private.pem`.
+
+**Conventions:** kebab-case names, prefixed by consumer — e.g. `prod-postgres-password`,
+`prod-jwt-private-key`, `ghcr-pull-token`. The vault is the source of truth for humans;
+deploy-time secrets still flow through the encrypted Ansible vault / GitHub secrets — when
+you rotate a value here, update those too.
+
+---
+
 # Bringing the pipeline up
 
 A working deploy reduces to making three invariants true, then automating them:
