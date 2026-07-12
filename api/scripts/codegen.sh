@@ -22,7 +22,7 @@ declare -A SPRING_SERVICES=(
   # [profile]="Profile"
   [application]="Applications"
   # [email]="Email"
-  # [document]="Documents"
+  [document]="Documents"
 )
 
 for svc in "${!SPRING_SERVICES[@]}"; do
