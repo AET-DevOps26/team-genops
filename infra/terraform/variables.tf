@@ -19,7 +19,9 @@ variable "location" {
 variable "dns_label" {
   description = "DNS name label for the reserved ingress IP -> stable cloudapp.azure.com hostname."
   type        = string
-  default     = "jobready-dev"
+  # "jobready-dev" is permanently held by the public IP in the old, disabled
+  # subscription (read-only = nobody can delete it to free the label).
+  default     = "jobready-development"
 }
 
 variable "kubernetes_version" {
