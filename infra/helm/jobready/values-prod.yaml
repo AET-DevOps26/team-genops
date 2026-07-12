@@ -5,8 +5,6 @@
 global:
   namespace: ge86yog-devops-genops
   imagePullPolicy: Always
-  imagePullSecrets:
-    - name: ghcr-pull
 
 namespace:
   # Tenant cannot create namespaces; it already exists. Use `helm -n <ns>`.

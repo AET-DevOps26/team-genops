@@ -12,7 +12,8 @@ global:
   # Use "IfNotPresent" locally to avoid re-pulling, "Always" in CI/CD.
   imagePullPolicy: Always
 
-  # Names of existing dockerconfigjson Secrets used to pull PRIVATE GHCR images.
+  # GHCR packages are currently PUBLIC, so no pull secret is configured anywhere.
+  # If they ever go private again: names of existing dockerconfigjson Secrets.
   # Create one with:
   #   kubectl create secret docker-registry ghcr-pull \
   #     --docker-server=ghcr.io --docker-username=<gh-user> \

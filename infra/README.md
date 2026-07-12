@@ -64,7 +64,7 @@ you rotate a value here, update those too.
 A working deploy reduces to making three invariants true, then automating them:
 
 1. **Images exist** in GHCR (the CI job).
-2. **The cluster can pull them and has its secrets** (`ghcr-pull`, `postgres-secret`, `auth-jwt`).
+2. **The cluster has its secrets** (`postgres-secret`, `auth-jwt`) — images are public, no pull secret needed.
 3. **Something applies the chart** (you by hand first; then Ansible via CD).
 
 Do it in order. Prove prod by hand before trusting automation; dev/AKS comes last.
@@ -116,7 +116,7 @@ NS=ge86yog-devops-genops
 openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:2048 -out private.pem   # PKCS#8
 openssl rsa -in private.pem -pubout -out public.pem                             # X.509
 
-# 2. The three secrets (names match values.yaml)
+# 2. The two secrets (names match values.yaml; images are public — no pull secret)
 kubectl create secret generic postgres-secret -n $NS \
   --from-literal=POSTGRES_USER=jobready \
   --from-literal=POSTGRES_PASSWORD='<choose-a-password>' \
@@ -124,11 +124,6 @@ kubectl create secret generic postgres-secret -n $NS \
 
 kubectl create secret generic auth-jwt -n $NS \
   --from-file=JWT_PRIVATE_KEY=private.pem --from-file=JWT_PUBLIC_KEY=public.pem
-
-kubectl create secret docker-registry ghcr-pull -n $NS \
-  --docker-server=ghcr.io \
-  --docker-username=<github-user> \
-  --docker-password=<PAT-with-read:packages>     # classic PAT, scope: read:packages
 
 # 3. Deploy (values-prod.yaml filled in Phase A)
 helm upgrade --install jobready infra/helm/jobready -n $NS -f infra/helm/jobready/values-prod.yaml
@@ -139,7 +134,7 @@ kubectl get ingress,certificate -n $NS   # certificate should reach READY=True
 # open https://<your host> → app loads, green padlock, login works
 ```
 
-`ghcr-pull` is required (images are private); `auth-jwt` gives stable keys. If the
+`auth-jwt` gives stable keys. If the
 `certificate` stays `READY=False`, the `clusterIssuer` name (Phase A) is wrong. **The green
 padlock + working login is the real success signal** — Secure cookies need trusted TLS.
 
@@ -152,13 +147,13 @@ Make Ansible do Phase C reproducibly.
 ```sh
 # 1. Encrypt the prod vault (same values you used by hand)
 cp infra/ansible/group_vars/vault.example.yml infra/ansible/inventories/prod/group_vars/vault.yml
-#   edit: postgres creds, ghcr user/token, paste private.pem/public.pem into the JWT fields
+#   edit: postgres creds, paste private.pem/public.pem into the JWT fields
 ansible-vault encrypt infra/ansible/inventories/prod/group_vars/vault.yml
 #   commit the ENCRYPTED file
 ```
 
 In **GitHub → Settings**:
-- **Secrets:** `RANCHER_KUBECONFIG`, `ANSIBLE_VAULT_PASSWORD`. Generate a self-contained,
+- **Secrets:** `RANCHER_KUBECONFIG`, `ANSIBLE_VAULT_PASSWORD_DEV`, `ANSIBLE_VAULT_PASSWORD_PROD`. Generate a self-contained,
   stud-only kubeconfig for the secret with:
   ```sh
   kubectl --kubeconfig ~/.kube/config --context stud config view --minify --flatten
@@ -260,6 +255,7 @@ KUBECONFIG=<aks-kubeconfig> ansible-playbook -i inventories/dev/hosts.yml playbo
 | `production` | required reviewer (approval gate) |
 | `dev` | none |
 
-> Images are **private** on GHCR → the `ghcr-pull` secret must exist in each namespace
-> (Ansible creates it from the vault; by hand in Phase C). Or make the packages public to
-> drop the pull secret entirely.
+> Images are **public** on GHCR → no pull secret anywhere. If the packages ever go
+> private again: recreate the `ghcr-pull` dockerconfigjson secret in each namespace and
+> re-add `global.imagePullSecrets` in the values files (knob documented in
+> `helm/jobready/values.yaml`).

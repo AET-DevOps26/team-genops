@@ -31,28 +31,10 @@
             name: "{{ namespace }}"
       when: create_namespace | bool
 
-    - name: Build GHCR credentials
-      ansible.builtin.set_fact:
-        ghcr_credentials:
-          auths:
-            ghcr.io:
-              username: "{{ vault_ghcr_user }}"
-              password: "{{ vault_ghcr_token }}"
-              auth: "{{ (vault_ghcr_user ~ ':' ~ vault_ghcr_token) | b64encode }}"
-
-    - name: Create GHCR image-pull secret
-      kubernetes.core.k8s:
-        kubeconfig: "{{ kubeconfig }}"
-        state: present
-        definition:
-          apiVersion: v1
-          kind: Secret
-          type: kubernetes.io/dockerconfigjson
-          metadata:
-            name: ghcr-pull
-            namespace: "{{ namespace }}"
-          data:
-            .dockerconfigjson: "{{ ghcr_credentials | to_json | b64encode }}"
+    # GHCR images are PUBLIC — no image-pull secret needed. If the packages ever
+    # go private again, restore the ghcr-pull dockerconfigjson secret here and
+    # re-add global.imagePullSecrets in the values files (knob documented in
+    # helm/jobready/values.yaml).
 
     - name: Create postgres secret
       kubernetes.core.k8s:
