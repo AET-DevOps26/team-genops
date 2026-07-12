@@ -3,19 +3,32 @@
 # start resumes the same cluster with all workloads/disks/IP intact.
 #
 # Usage:
-#   ./scripts/cluster.sh stop|start|status
+#   RG=<resource-group> CLUSTER=<aks-name> SUBSCRIPTION=<sub-id> \
+#     ./scripts/cluster.sh stop|start|status
 #
-# Prereqs: az login (any team member with Contributor on the subscription).
-# Overrides via env: RG, CLUSTER, SUBSCRIPTION.
+# Set the three env vars 
+# export RG=$<value>
+# export CLUSTER=$<value>
+# export SUBSCRIPTION=$<value
+#
+# All three env vars are required — ask a teammate or check the team Key Vault
+# for the values. Prereq: az login with an account that has Contributor.
 set -euo pipefail
 
 ACTION="${1:-}"
-RG="${RG:-rg-jobready-dev}"
-CLUSTER="${CLUSTER:-aks-jobready-dev}"
-SUBSCRIPTION="${SUBSCRIPTION:-01a8cd8b-b0c9-4f88-8ef2-1222441bd9d4}"   # team dev sub
 
 if [[ "$ACTION" != "stop" && "$ACTION" != "start" && "$ACTION" != "status" ]]; then
-  echo "usage: $0 stop|start|status" >&2
+  echo "usage: RG=... CLUSTER=... SUBSCRIPTION=... $0 stop|start|status" >&2
+  exit 2
+fi
+
+missing=()
+[[ -z "${RG:-}" ]] && missing+=(RG)
+[[ -z "${CLUSTER:-}" ]] && missing+=(CLUSTER)
+[[ -z "${SUBSCRIPTION:-}" ]] && missing+=(SUBSCRIPTION)
+if (( ${#missing[@]} )); then
+  echo "error: missing required env var(s): ${missing[*]}" >&2
+  echo "hint: values live in the team Key Vault / ask a teammate" >&2
   exit 2
 fi
 
