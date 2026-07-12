@@ -60,6 +60,29 @@ spec:
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
+  name: allow-acme-solver
+  namespace: {{ .Values.global.namespace }}
+  labels:
+    {{- include "jobready.labels" . | nindent 4 }}
+spec:
+  # cert-manager's transient HTTP-01 solver pods must accept the Let's Encrypt
+  # validation request (arrives via the ingress controller) AND cert-manager's
+  # own self-check. Under default-deny they'd get no traffic → certificates
+  # stay Pending forever and the ingress serves the controller's fake cert.
+  # The solver only serves a one-time challenge token, so open ingress is safe.
+  podSelector:
+    matchLabels:
+      acme.cert-manager.io/http01-solver: "true"
+  policyTypes:
+    - Ingress
+  ingress:
+    - ports:
+        - protocol: TCP
+          port: 8089
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
   name: gateway
   namespace: {{ .Values.global.namespace }}
   labels:
