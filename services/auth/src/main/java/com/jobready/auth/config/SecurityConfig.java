@@ -34,7 +34,7 @@ public class SecurityConfig {
                     AuthApi.PATH_LOGIN,
                     AuthApi.PATH_REFRESH_TOKEN,
                     JwksController.PATH,
-                    "/actuator/health"
+                    "/actuator/health/**"
                 ).permitAll()
                 .anyRequest().authenticated()
             )
@@ -66,7 +66,8 @@ public class SecurityConfig {
     public BearerTokenResolver cookieOrHeaderTokenResolver() {
         DefaultBearerTokenResolver headerResolver = new DefaultBearerTokenResolver();
         return request -> {
-            if (PUBLIC_PATHS.contains(request.getRequestURI())) {
+            if (PUBLIC_PATHS.contains(request.getRequestURI())
+                    || request.getRequestURI().startsWith("/actuator/health/")) {
                 return null;
             }
             String fromHeader = headerResolver.resolve(request);
