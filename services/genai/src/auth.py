@@ -89,3 +89,13 @@ async def get_current_user_id(request: Request) -> str:
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Invalid or expired token"
             ) from first_error
+
+
+async def get_access_token(request: Request) -> str:
+    """
+    FastAPI dependency — verifies the JWT and returns the RAW token so it can be
+    forwarded to downstream services (e.g. the document service) as the user.
+    Downstream services re-verify it themselves (defense in depth).
+    """
+    await get_current_user_id(request)
+    return _extract_token(request)

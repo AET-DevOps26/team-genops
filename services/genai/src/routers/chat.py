@@ -1,7 +1,7 @@
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from psycopg import AsyncConnection
 
-from src.auth import get_current_user_id
+from src.auth import get_access_token, get_current_user_id
 from src.db.pool import get_conn
 from src.models.schemas import (
     CreateSessionRequest,
@@ -83,12 +83,13 @@ async def send_message(
     background_tasks: BackgroundTasks,
     conn: AsyncConnection = Depends(get_conn),
     user_id: str = Depends(get_current_user_id),
+    token: str = Depends(get_access_token),
 ):
     """
     Send a message to the career assistant and get a response.
     Summarization runs in the background — the user never waits for it.
     """
-    response = await chat(conn, session_id, user_id, body.message)
+    response = await chat(conn, session_id, user_id, body.message, token)
     # Capture message count and transcript NOW, before any concurrent messages can arrive
     from src.services.chat.utils.history import HISTORY_WINDOW, load_last_n_messages_as_text
     total = await count_messages(conn, session_id)
