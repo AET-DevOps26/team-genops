@@ -436,11 +436,33 @@ paths:
     get:
       tags: [Applications]
       summary: List the current user's job applications
-      description: Returns the authenticated user's applications, newest first.
+      description: |
+        Returns the authenticated user's applications, newest first. Optionally filtered by
+        stage and paginated; `total` always reflects the full filtered count.
       operationId: listApplications
       security:
         - CookieAuth: []
         - BearerAuth: []
+      parameters:
+        - name: stage
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/ApplicationStage'
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+        - name: offset
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
       responses:
         '200':
           description: The user's applications
@@ -450,6 +472,148 @@ paths:
                 $ref: '#/components/schemas/ApplicationList'
         '401':
           description: Missing or invalid access token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/v1/applications/summary:
+    get:
+      tags: [Applications]
+      summary: Per-stage application counts
+      description: |
+        Returns how many of the authenticated user's applications are in each stage, plus the
+        total — lets the dashboard render its pipeline without fetching every row.
+      operationId: getApplicationSummary
+      security:
+        - CookieAuth: []
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Stage counts
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApplicationSummary'
+        '401':
+          description: Missing or invalid access token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/v1/applications/{id}/recommendations:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    get:
+      tags: [Applications]
+      summary: List recommendations for an application
+      description: |
+        Returns stored next-best-action recommendations for one application owned by the
+        authenticated user, newest first.
+      operationId: listRecommendations
+      security:
+        - CookieAuth: []
+        - BearerAuth: []
+      responses:
+        '200':
+          description: The application's recommendations
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RecommendationList'
+        '401':
+          description: Missing or invalid access token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: No such application for this user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    post:
+      tags: [Applications]
+      summary: Add a recommendation to an application
+      description: |
+        Stores a next-best-action recommendation on an application owned by the authenticated
+        user. Persistence only — generating recommendations is out of scope for this service.
+      operationId: createRecommendation
+      security:
+        - CookieAuth: []
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateRecommendationRequest'
+      responses:
+        '201':
+          description: Recommendation created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Recommendation'
+        '401':
+          description: Missing or invalid access token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: No such application for this user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/v1/applications/{id}/recommendations/{recommendationId}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: recommendationId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    delete:
+      tags: [Applications]
+      summary: Delete a recommendation
+      description: Deletes one recommendation from an application owned by the authenticated user.
+      operationId: deleteRecommendation
+      security:
+        - CookieAuth: []
+        - BearerAuth: []
+      responses:
+        '204':
+          description: Recommendation deleted
+        '401':
+          description: Missing or invalid access token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: No such application or recommendation for this user
           content:
             application/json:
               schema:
@@ -809,6 +973,10 @@ components:
           description: Free-text job description pasted by the user
         job_url:
           type: [string, 'null']
+        company_website:
+          type: [string, 'null']
+        linkedin_url:
+          type: [string, 'null']
         stage:
           $ref: '#/components/schemas/ApplicationStage'
         notes:
@@ -837,6 +1005,12 @@ components:
         job_url:
           type: string
           maxLength: 512
+        company_website:
+          type: string
+          maxLength: 512
+        linkedin_url:
+          type: string
+          maxLength: 512
         notes:
           type: string
 
@@ -857,6 +1031,12 @@ components:
         job_url:
           type: string
           maxLength: 512
+        company_website:
+          type: string
+          maxLength: 512
+        linkedin_url:
+          type: string
+          maxLength: 512
         stage:
           $ref: '#/components/schemas/ApplicationStage'
         notes:
@@ -864,12 +1044,79 @@ components:
 
     ApplicationList:
       type: object
-      required: [items]
+      required: [items, total]
       properties:
         items:
           type: array
           items:
             $ref: '#/components/schemas/JobApplication'
+        total:
+          type: integer
+          format: int64
+          description: Total matching applications (across all pages, after stage filtering)
+
+    ApplicationSummary:
+      type: object
+      required: [applied, follow_up, interview, offer, closed, total]
+      properties:
+        applied:
+          type: integer
+          format: int64
+        follow_up:
+          type: integer
+          format: int64
+        interview:
+          type: integer
+          format: int64
+        offer:
+          type: integer
+          format: int64
+        closed:
+          type: integer
+          format: int64
+        total:
+          type: integer
+          format: int64
+
+    Recommendation:
+      type: object
+      required: [id, application_id, insight, recommended_action, created_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        application_id:
+          type: string
+          format: uuid
+        insight:
+          type: string
+          description: The observation the recommendation is based on
+        recommended_action:
+          type: string
+          description: The suggested next best action
+        created_at:
+          type: string
+          format: date-time
+
+    CreateRecommendationRequest:
+      type: object
+      required: [insight, recommended_action]
+      properties:
+        insight:
+          type: string
+          minLength: 1
+        recommended_action:
+          type: string
+          minLength: 1
+
+    RecommendationList:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Recommendation'
 
     # ---------------------------------------------------------------------------
     # Chat

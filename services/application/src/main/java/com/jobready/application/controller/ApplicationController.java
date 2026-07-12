@@ -2,8 +2,13 @@ package com.jobready.application.controller;
 
 import com.jobready.application.generated.api.ApplicationsApi;
 import com.jobready.application.generated.modelDto.ApplicationList;
+import com.jobready.application.generated.modelDto.ApplicationStage;
+import com.jobready.application.generated.modelDto.ApplicationSummary;
 import com.jobready.application.generated.modelDto.CreateApplicationRequest;
+import com.jobready.application.generated.modelDto.CreateRecommendationRequest;
 import com.jobready.application.generated.modelDto.JobApplication;
+import com.jobready.application.generated.modelDto.Recommendation;
+import com.jobready.application.generated.modelDto.RecommendationList;
 import com.jobready.application.generated.modelDto.UpdateApplicationRequest;
 import com.jobready.application.service.ApplicationService;
 import lombok.RequiredArgsConstructor;
@@ -27,8 +32,8 @@ public class ApplicationController implements ApplicationsApi {
     }
 
     @Override
-    public ResponseEntity<ApplicationList> listApplications() {
-        return ResponseEntity.ok(new ApplicationList().items(applicationService.list(currentUserId())));
+    public ResponseEntity<ApplicationList> listApplications(ApplicationStage stage, Integer limit, Integer offset) {
+        return ResponseEntity.ok(applicationService.list(currentUserId(), stage, limit, offset));
     }
 
     @Override
@@ -44,6 +49,28 @@ public class ApplicationController implements ApplicationsApi {
     @Override
     public ResponseEntity<Void> deleteApplication(UUID id) {
         applicationService.delete(currentUserId(), id);
+        return ResponseEntity.noContent().build();
+    }
+
+    @Override
+    public ResponseEntity<ApplicationSummary> getApplicationSummary() {
+        return ResponseEntity.ok(applicationService.summary(currentUserId()));
+    }
+
+    @Override
+    public ResponseEntity<Recommendation> createRecommendation(UUID id, CreateRecommendationRequest createRecommendationRequest) {
+        return ResponseEntity.status(201)
+            .body(applicationService.addRecommendation(currentUserId(), id, createRecommendationRequest));
+    }
+
+    @Override
+    public ResponseEntity<RecommendationList> listRecommendations(UUID id) {
+        return ResponseEntity.ok(applicationService.listRecommendations(currentUserId(), id));
+    }
+
+    @Override
+    public ResponseEntity<Void> deleteRecommendation(UUID id, UUID recommendationId) {
+        applicationService.deleteRecommendation(currentUserId(), id, recommendationId);
         return ResponseEntity.noContent().build();
     }
 

@@ -20,10 +20,8 @@ import java.util.UUID;
 /**
  * A job application owned by a single user. Mapped to {@code application.applications}.
  *
- * <p>Note: the {@code application.fit_analyses} table from the Flyway reference migration is
- * intentionally <strong>not</strong> mapped here — fit analysis is out of scope for this service.
- * Because {@code ddl-auto=update} creates tables from entities, only {@code applications} is created
- * at runtime, so the Flyway SQL no longer reflects the live schema 1:1.</p>
+ * <p>Note: the live schema comes from {@code ddl-auto=update}; the SQL under
+ * {@code db/migration/} is unexecuted reference documentation kept in sync by hand.</p>
  */
 @Entity
 @Table(schema = "application", name = "applications")
@@ -50,6 +48,12 @@ public class Application {
 
     @Column(name = "job_url", length = 512)
     private String jobUrl;
+
+    @Column(name = "company_website", length = 512)
+    private String companyWebsite;
+
+    @Column(name = "linkedin_url", length = 512)
+    private String linkedinUrl;
 
     @Convert(converter = StageConverter.class)
     @Column(nullable = false, length = 50)
