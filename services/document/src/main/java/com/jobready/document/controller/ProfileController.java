@@ -132,6 +132,11 @@ public class ProfileController implements DocumentsApi {
         JwtAuthenticationToken auth = (JwtAuthenticationToken)
             SecurityContextHolder.getContext().getAuthentication();
         String subject = auth.getToken().getSubject();
+        // `sub` is optional per the JWT spec, and UUID.fromString(null) throws NPE, not
+        // IllegalArgumentException — guard explicitly so a sub-less token can't become a 500.
+        if (subject == null) {
+            throw new BadCredentialsException("Token has no subject");
+        }
         try {
             return UUID.fromString(subject);
         } catch (IllegalArgumentException ex) {

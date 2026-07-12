@@ -9,6 +9,8 @@ jobs:
   document-ci:
     name: Build & Test
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
 
     services:
       postgres:
