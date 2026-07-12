@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
-import { useAppDispatch, useAppSelector } from '~/store/hooks'
-import { logout } from '~/services/auth/authSlice'
+import { useLocation } from 'react-router-dom'
+import { useAppSelector } from '~/store/hooks'
 import { SessionList } from '~/components/chat/SessionList'
 import { MessageBubble } from '~/components/chat/MessageBubble'
 import { ChatInput } from '~/components/chat/ChatInput'
@@ -18,8 +18,10 @@ export default function ChatPage() {
   const [messages, setMessages] = useState<Message[]>([])
   const bottomRef = useRef<HTMLDivElement>(null)
   const bootstrapped = useRef(false)
-  const dispatch = useAppDispatch()
   const user = useAppSelector((s) => s.auth.user)
+  // An application page can hand off a prepared command (e.g. "/cover_letter …
+  // application id: <uuid>") via router state — it lands in the input, the user sends it.
+  const prefill = (useLocation().state as { prefill?: string } | null)?.prefill
 
   const { data: sessionsData, isLoading: sessionsLoading } = useGetSessionsQuery()
   const activeSession = sessionsData?.sessions.find((s) => s.id === activeSessionId)
@@ -111,7 +113,7 @@ export default function ChatPage() {
   }
 
   return (
-    <div className="flex h-screen bg-ink text-fg">
+    <div className="flex h-full bg-ink text-fg">
       <SessionList
         sessions={sessionsData?.sessions ?? []}
         activeId={activeSessionId}
@@ -124,31 +126,12 @@ export default function ChatPage() {
       <div className="flex flex-col flex-1 min-w-0">
         {/* Header */}
         <div className="flex items-center gap-3 px-6 py-4 border-b border-line">
-          {/* Brand */}
-          <div className="flex items-center gap-2 mr-auto">
-            <span className="grid h-7 w-7 place-items-center rounded-md bg-offer/15 text-offer">
-              <svg width="15" height="15" viewBox="0 0 16 16" fill="none" aria-hidden>
-                <rect x="1.5" y="1.5" width="4" height="13" rx="1" stroke="currentColor" strokeWidth="1.4" />
-                <rect x="10.5" y="1.5" width="4" height="8" rx="1" stroke="currentColor" strokeWidth="1.4" />
-              </svg>
-            </span>
-            <span className="font-display text-[15px] font-semibold tracking-tight text-fg">
-              JobReady
-            </span>
-            <span className="text-faint mx-1">·</span>
-            <h1 className="text-sm font-medium text-dim truncate max-w-xs">
-              {activeSession?.first_message ?? 'New conversation'}
-            </h1>
-          </div>
+          <h1 className="text-sm font-medium text-dim truncate max-w-md mr-auto">
+            {activeSession?.first_message ?? 'New conversation'}
+          </h1>
           {user?.email && (
             <span className="tag text-faint hidden md:block">{user.email}</span>
           )}
-          <button
-            onClick={() => dispatch(logout())}
-            className="tag text-faint hover:text-dim transition-colors"
-          >
-            Sign out
-          </button>
         </div>
 
         {/* Messages */}
@@ -195,7 +178,7 @@ export default function ChatPage() {
           <div ref={bottomRef} />
         </div>
 
-        <ChatInput onSend={handleSend} disabled={!activeSessionId || sending} />
+        <ChatInput onSend={handleSend} disabled={!activeSessionId || sending} prefill={prefill} />
       </div>
     </div>
   )
