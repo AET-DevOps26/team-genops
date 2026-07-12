@@ -18,7 +18,7 @@ import jakarta.annotation.Generated;
  * CreateApplicationRequest
  */
 
-@Generated(value = "org.openapitools.codegen.languages.SpringCodegen", comments = "Generator version: 7.23.0")
+@Generated(value = "org.openapitools.codegen.languages.SpringCodegen", comments = "Generator version: 7.22.0")
 public class CreateApplicationRequest {
 
   private String company;
@@ -28,6 +28,10 @@ public class CreateApplicationRequest {
   private @Nullable String jobDescription;
 
   private @Nullable String jobUrl;
+
+  private @Nullable String companyWebsite;
+
+  private @Nullable String linkedinUrl;
 
   private @Nullable String notes;
 
@@ -127,6 +131,48 @@ public class CreateApplicationRequest {
     this.jobUrl = jobUrl;
   }
 
+  public CreateApplicationRequest companyWebsite(@Nullable String companyWebsite) {
+    this.companyWebsite = companyWebsite;
+    return this;
+  }
+
+  /**
+   * Get companyWebsite
+   * @return companyWebsite
+   */
+  @Size(max = 512) 
+  @Schema(name = "company_website", requiredMode = Schema.RequiredMode.NOT_REQUIRED)
+  @JsonProperty("company_website")
+  public @Nullable String getCompanyWebsite() {
+    return companyWebsite;
+  }
+
+  @JsonProperty("company_website")
+  public void setCompanyWebsite(@Nullable String companyWebsite) {
+    this.companyWebsite = companyWebsite;
+  }
+
+  public CreateApplicationRequest linkedinUrl(@Nullable String linkedinUrl) {
+    this.linkedinUrl = linkedinUrl;
+    return this;
+  }
+
+  /**
+   * Get linkedinUrl
+   * @return linkedinUrl
+   */
+  @Size(max = 512) 
+  @Schema(name = "linkedin_url", requiredMode = Schema.RequiredMode.NOT_REQUIRED)
+  @JsonProperty("linkedin_url")
+  public @Nullable String getLinkedinUrl() {
+    return linkedinUrl;
+  }
+
+  @JsonProperty("linkedin_url")
+  public void setLinkedinUrl(@Nullable String linkedinUrl) {
+    this.linkedinUrl = linkedinUrl;
+  }
+
   public CreateApplicationRequest notes(@Nullable String notes) {
     this.notes = notes;
     return this;
@@ -161,12 +207,14 @@ public class CreateApplicationRequest {
         Objects.equals(this.jobTitle, createApplicationRequest.jobTitle) &&
         Objects.equals(this.jobDescription, createApplicationRequest.jobDescription) &&
         Objects.equals(this.jobUrl, createApplicationRequest.jobUrl) &&
+        Objects.equals(this.companyWebsite, createApplicationRequest.companyWebsite) &&
+        Objects.equals(this.linkedinUrl, createApplicationRequest.linkedinUrl) &&
         Objects.equals(this.notes, createApplicationRequest.notes);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(company, jobTitle, jobDescription, jobUrl, notes);
+    return Objects.hash(company, jobTitle, jobDescription, jobUrl, companyWebsite, linkedinUrl, notes);
   }
 
   @Override
@@ -177,6 +225,8 @@ public class CreateApplicationRequest {
     sb.append("    jobTitle: ").append(toIndentedString(jobTitle)).append("\n");
     sb.append("    jobDescription: ").append(toIndentedString(jobDescription)).append("\n");
     sb.append("    jobUrl: ").append(toIndentedString(jobUrl)).append("\n");
+    sb.append("    companyWebsite: ").append(toIndentedString(companyWebsite)).append("\n");
+    sb.append("    linkedinUrl: ").append(toIndentedString(linkedinUrl)).append("\n");
     sb.append("    notes: ").append(toIndentedString(notes)).append("\n");
     sb.append("}");
     return sb.toString();

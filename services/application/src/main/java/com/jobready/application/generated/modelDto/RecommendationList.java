@@ -4,7 +4,7 @@ import java.net.URI;
 import java.util.Objects;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonCreator;
-import com.jobready.application.generated.modelDto.JobApplication;
+import com.jobready.application.generated.modelDto.Recommendation;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -19,35 +19,32 @@ import java.util.*;
 import jakarta.annotation.Generated;
 
 /**
- * ApplicationList
+ * RecommendationList
  */
 
 @Generated(value = "org.openapitools.codegen.languages.SpringCodegen", comments = "Generator version: 7.22.0")
-public class ApplicationList {
+public class RecommendationList {
 
   @Valid
-  private List<@Valid JobApplication> items = new ArrayList<>();
+  private List<@Valid Recommendation> items = new ArrayList<>();
 
-  private Long total;
-
-  public ApplicationList() {
+  public RecommendationList() {
     super();
   }
 
   /**
    * Constructor with only required parameters
    */
-  public ApplicationList(List<@Valid JobApplication> items, Long total) {
+  public RecommendationList(List<@Valid Recommendation> items) {
     this.items = items;
-    this.total = total;
   }
 
-  public ApplicationList items(List<@Valid JobApplication> items) {
+  public RecommendationList items(List<@Valid Recommendation> items) {
     this.items = items;
     return this;
   }
 
-  public ApplicationList addItemsItem(JobApplication itemsItem) {
+  public RecommendationList addItemsItem(Recommendation itemsItem) {
     if (this.items == null) {
       this.items = new ArrayList<>();
     }
@@ -62,34 +59,13 @@ public class ApplicationList {
   @NotNull @Valid 
   @Schema(name = "items", requiredMode = Schema.RequiredMode.REQUIRED)
   @JsonProperty("items")
-  public List<@Valid JobApplication> getItems() {
+  public List<@Valid Recommendation> getItems() {
     return items;
   }
 
   @JsonProperty("items")
-  public void setItems(List<@Valid JobApplication> items) {
+  public void setItems(List<@Valid Recommendation> items) {
     this.items = items;
-  }
-
-  public ApplicationList total(Long total) {
-    this.total = total;
-    return this;
-  }
-
-  /**
-   * Total matching applications (across all pages, after stage filtering)
-   * @return total
-   */
-  @NotNull 
-  @Schema(name = "total", description = "Total matching applications (across all pages, after stage filtering)", requiredMode = Schema.RequiredMode.REQUIRED)
-  @JsonProperty("total")
-  public Long getTotal() {
-    return total;
-  }
-
-  @JsonProperty("total")
-  public void setTotal(Long total) {
-    this.total = total;
   }
 
   @Override
@@ -100,22 +76,20 @@ public class ApplicationList {
     if (o == null || getClass() != o.getClass()) {
       return false;
     }
-    ApplicationList applicationList = (ApplicationList) o;
-    return Objects.equals(this.items, applicationList.items) &&
-        Objects.equals(this.total, applicationList.total);
+    RecommendationList recommendationList = (RecommendationList) o;
+    return Objects.equals(this.items, recommendationList.items);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(items, total);
+    return Objects.hash(items);
   }
 
   @Override
   public String toString() {
     StringBuilder sb = new StringBuilder();
-    sb.append("class ApplicationList {\n");
+    sb.append("class RecommendationList {\n");
     sb.append("    items: ").append(toIndentedString(items)).append("\n");
-    sb.append("    total: ").append(toIndentedString(total)).append("\n");
     sb.append("}");
     return sb.toString();
   }

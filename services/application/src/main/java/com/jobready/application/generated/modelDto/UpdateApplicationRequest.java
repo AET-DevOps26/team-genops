@@ -20,7 +20,7 @@ import jakarta.annotation.Generated;
  * UpdateApplicationRequest
  */
 
-@Generated(value = "org.openapitools.codegen.languages.SpringCodegen", comments = "Generator version: 7.23.0")
+@Generated(value = "org.openapitools.codegen.languages.SpringCodegen", comments = "Generator version: 7.22.0")
 public class UpdateApplicationRequest {
 
   private String company;
@@ -30,6 +30,10 @@ public class UpdateApplicationRequest {
   private @Nullable String jobDescription;
 
   private @Nullable String jobUrl;
+
+  private @Nullable String companyWebsite;
+
+  private @Nullable String linkedinUrl;
 
   private ApplicationStage stage;
 
@@ -132,6 +136,48 @@ public class UpdateApplicationRequest {
     this.jobUrl = jobUrl;
   }
 
+  public UpdateApplicationRequest companyWebsite(@Nullable String companyWebsite) {
+    this.companyWebsite = companyWebsite;
+    return this;
+  }
+
+  /**
+   * Get companyWebsite
+   * @return companyWebsite
+   */
+  @Size(max = 512) 
+  @Schema(name = "company_website", requiredMode = Schema.RequiredMode.NOT_REQUIRED)
+  @JsonProperty("company_website")
+  public @Nullable String getCompanyWebsite() {
+    return companyWebsite;
+  }
+
+  @JsonProperty("company_website")
+  public void setCompanyWebsite(@Nullable String companyWebsite) {
+    this.companyWebsite = companyWebsite;
+  }
+
+  public UpdateApplicationRequest linkedinUrl(@Nullable String linkedinUrl) {
+    this.linkedinUrl = linkedinUrl;
+    return this;
+  }
+
+  /**
+   * Get linkedinUrl
+   * @return linkedinUrl
+   */
+  @Size(max = 512) 
+  @Schema(name = "linkedin_url", requiredMode = Schema.RequiredMode.NOT_REQUIRED)
+  @JsonProperty("linkedin_url")
+  public @Nullable String getLinkedinUrl() {
+    return linkedinUrl;
+  }
+
+  @JsonProperty("linkedin_url")
+  public void setLinkedinUrl(@Nullable String linkedinUrl) {
+    this.linkedinUrl = linkedinUrl;
+  }
+
   public UpdateApplicationRequest stage(ApplicationStage stage) {
     this.stage = stage;
     return this;
@@ -187,13 +233,15 @@ public class UpdateApplicationRequest {
         Objects.equals(this.jobTitle, updateApplicationRequest.jobTitle) &&
         Objects.equals(this.jobDescription, updateApplicationRequest.jobDescription) &&
         Objects.equals(this.jobUrl, updateApplicationRequest.jobUrl) &&
+        Objects.equals(this.companyWebsite, updateApplicationRequest.companyWebsite) &&
+        Objects.equals(this.linkedinUrl, updateApplicationRequest.linkedinUrl) &&
         Objects.equals(this.stage, updateApplicationRequest.stage) &&
         Objects.equals(this.notes, updateApplicationRequest.notes);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(company, jobTitle, jobDescription, jobUrl, stage, notes);
+    return Objects.hash(company, jobTitle, jobDescription, jobUrl, companyWebsite, linkedinUrl, stage, notes);
   }
 
   @Override
@@ -204,6 +252,8 @@ public class UpdateApplicationRequest {
     sb.append("    jobTitle: ").append(toIndentedString(jobTitle)).append("\n");
     sb.append("    jobDescription: ").append(toIndentedString(jobDescription)).append("\n");
     sb.append("    jobUrl: ").append(toIndentedString(jobUrl)).append("\n");
+    sb.append("    companyWebsite: ").append(toIndentedString(companyWebsite)).append("\n");
+    sb.append("    linkedinUrl: ").append(toIndentedString(linkedinUrl)).append("\n");
     sb.append("    stage: ").append(toIndentedString(stage)).append("\n");
     sb.append("    notes: ").append(toIndentedString(notes)).append("\n");
     sb.append("}");

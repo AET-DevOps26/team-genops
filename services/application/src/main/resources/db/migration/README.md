@@ -1,6 +1,9 @@
 # Application Service — Database Schema
 
-Managed by **Flyway**. Migrations run automatically on service startup.
+> **Reference only — no Flyway.** This service creates its live schema from the `@Entity`
+> classes via Hibernate `ddl-auto=update` (+ `create_namespaces=true`). The SQL here is
+> unexecuted documentation kept in sync with the entities by hand. If the service ever moves
+> to Flyway, see the note at the bottom.
 
 ## Schema: `application`
 
@@ -14,24 +17,29 @@ Tracks every job application and its current stage.
 | `company` | VARCHAR(255) | Not null |
 | `job_title` | VARCHAR(255) | Not null |
 | `job_description` | TEXT | Pasted by user — read by genai for generation |
-| `job_url` | VARCHAR(512) | Optional |
+| `job_url` | VARCHAR(512) | Optional — link to the job posting |
+| `company_website` | VARCHAR(512) | Optional |
+| `linkedin_url` | VARCHAR(512) | Optional |
 | `stage` | VARCHAR(50) | `applied`, `follow_up`, `interview`, `offer`, `closed` |
 | `notes` | TEXT | Optional user notes |
 | `applied_at` | TIMESTAMPTZ | Set on insert |
 | `updated_at` | TIMESTAMPTZ | Updated on stage change |
 
-### `application.fit_analyses`
-Stores AI-generated fit analysis results per application.
+### `application.recommendations`
+Stored next-best-action items per application (persistence only — this service never
+generates them itself).
 
 | Column | Type | Notes |
 |---|---|---|
 | `id` | UUID | Primary key, auto-generated |
 | `user_id` | UUID | Owner |
-| `application_id` | UUID | References `applications.id` (no FK — microservices rule) |
-| `strengths` | TEXT | AI-identified strengths for this role |
-| `gaps` | TEXT | AI-identified gaps for this role |
-| `summary` | TEXT | Overall fit summary |
+| `application_id` | UUID | Parent application (same schema) |
+| `insight` | TEXT | The observation the recommendation is based on |
+| `recommended_action` | TEXT | The suggested next best action |
 | `created_at` | TIMESTAMPTZ | Set on insert |
+
+> ddl-auto does not create the FK/cascade shown in the reference SQL; the service layer
+> deletes an application's recommendations explicitly when the application is deleted.
 
 ## Stage Lifecycle
 
@@ -50,18 +58,18 @@ applied → follow_up → interview → offer → closed
 ## Key Relationships
 
 - `job_description` is read by the **genai service** via REST to generate cover letters, resumes, and fit analyses
-- `fit_analyses.application_id` references `applications.id` within the same schema — no cross-schema FK constraints
 - `user_id` is never accepted from the request body — always extracted from the JWT `sub` claim
 
 ## Migration Files
 
 | File | Description |
 |---|---|
-| `V1__create_application_schema.sql` | Creates `application` schema, `applications` and `fit_analyses` tables |
+| `V1__create_application_schema.sql` | Reference SQL: `application` schema, `applications` and `recommendations` tables |
 
-## NOTE: Flyway Execution Requirements
+## NOTE: If Moving to Flyway Later
 
-Placing migrations in this directory is not sufficient by itself. The following configuration is required from the service owner:
+Placing migrations in this directory is not sufficient by itself. The following configuration
+would be required:
 
 1. Add the `flyway-core` and `flyway-database-postgresql` dependencies to `pom.xml`.
 2. Enable Flyway and configure the `application` schema in `application.properties`:
@@ -78,5 +86,3 @@ Placing migrations in this directory is not sufficient by itself. The following 
    spring.jpa.hibernate.ddl-auto=validate
    spring.jpa.properties.hibernate.default_schema=application
    ```
-
-4. All JPA entities must use `@Table(schema = "application", name = "table_name")`.

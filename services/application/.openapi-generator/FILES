@@ -2,7 +2,11 @@ src/main/java/com/jobready/application/generated/api/ApiUtil.java
 src/main/java/com/jobready/application/generated/api/ApplicationsApi.java
 src/main/java/com/jobready/application/generated/modelDto/ApplicationList.java
 src/main/java/com/jobready/application/generated/modelDto/ApplicationStage.java
+src/main/java/com/jobready/application/generated/modelDto/ApplicationSummary.java
 src/main/java/com/jobready/application/generated/modelDto/CreateApplicationRequest.java
+src/main/java/com/jobready/application/generated/modelDto/CreateRecommendationRequest.java
 src/main/java/com/jobready/application/generated/modelDto/Error.java
 src/main/java/com/jobready/application/generated/modelDto/JobApplication.java
+src/main/java/com/jobready/application/generated/modelDto/Recommendation.java
+src/main/java/com/jobready/application/generated/modelDto/RecommendationList.java
 src/main/java/com/jobready/application/generated/modelDto/UpdateApplicationRequest.java
