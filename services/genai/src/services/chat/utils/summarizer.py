@@ -1,6 +1,7 @@
 from psycopg import AsyncConnection
 
 from src.llm.client import llm
+from src.observability import trace_config
 from src.prompts.summarization import SUMMARIZATION_PROMPT
 from src.services.chat.utils.embeddings import embed_text
 from src.services.chat.utils.history import HISTORY_WINDOW
@@ -28,7 +29,10 @@ async def maybe_summarize(conn: AsyncConnection, session_id: str, message_count:
     conversation = transcript
 
     chain = SUMMARIZATION_PROMPT | llm
-    response = await chain.ainvoke({"conversation": conversation})
+    response = await chain.ainvoke(
+        {"conversation": conversation},
+        config=trace_config(session_id=session_id, tags=["summarization"]),
+    )
     new_summary = response.content.strip()
 
     if new_summary == NO_SUMMARY:

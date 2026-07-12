@@ -1,19 +1,20 @@
 """
 JWT verification for incoming requests.
-The gateway translates the jr_access cookie into an Authorization: Bearer header.
-We verify the token using the auth service's public key (JWKS).
+The browser sends the access token as the HttpOnly `jr_access` cookie; internal
+callers may instead send an `Authorization: Bearer` header. We accept either and
+verify the token using the auth service's public key (JWKS).
 """
 
 import time
 
 import httpx
-from fastapi import Depends, HTTPException, status
-from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from fastapi import HTTPException, Request, status
 from jose import JWTError, jwt
 
 from src.config import settings
 
-_bearer = HTTPBearer()
+# Name of the HttpOnly access-token cookie set by the auth service at the browser edge.
+_ACCESS_COOKIE = "jr_access"
 _jwks_cache: dict | None = None
 _jwks_cache_time: float = 0
 _JWKS_CACHE_TTL = 300  # 5 minutes
@@ -37,15 +38,34 @@ async def _get_jwks(force_refresh: bool = False) -> dict:
     return _jwks_cache
 
 
-async def get_current_user_id(
-    credentials: HTTPAuthorizationCredentials = Depends(_bearer),
-) -> str:
+def _extract_token(request: Request) -> str:
     """
-    FastAPI dependency — verifies the Bearer JWT and returns the user_id (sub claim).
+    Resolve the access token from the `jr_access` cookie (the form the browser sends),
+    falling back to the standard `Authorization: Bearer` header (the form internal
+    callers use). Raises 401 if neither is present.
+    """
+    cookie_token = request.cookies.get(_ACCESS_COOKIE)
+    if cookie_token:
+        return cookie_token
+
+    auth_header = request.headers.get("Authorization", "")
+    scheme, _, param = auth_header.partition(" ")
+    if scheme.lower() == "bearer" and param:
+        return param
+
+    raise HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Not authenticated",
+    )
+
+
+async def get_current_user_id(request: Request) -> str:
+    """
+    FastAPI dependency — verifies the JWT and returns the user_id (sub claim).
     Raises 401 if the token is missing, invalid, or expired.
     Retries once with a fresh JWKS fetch if verification fails (handles key rotation).
     """
-    token = credentials.credentials
+    token = _extract_token(request)
     try:
         jwks = await _get_jwks()
         payload = jwt.decode(token, jwks, algorithms=["RS256"])

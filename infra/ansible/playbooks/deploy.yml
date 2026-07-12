@@ -75,6 +75,13 @@
             namespace: "{{ namespace }}"
           stringData:
             OPENROUTER_API_KEY: "{{ vault_openrouter_api_key }}"
+            # Langfuse (LLM observability) → Langfuse Cloud. Optional: until
+            # vault_langfuse_public_key / _secret_key are set in the vault these
+            # are empty, so genai detects no keys and disables tracing (no-op).
+            # Populate them (both dev and prod vaults) to turn tracing on.
+            LANGFUSE_HOST: "{{ vault_langfuse_host | default('https://cloud.langfuse.com') }}"
+            LANGFUSE_PUBLIC_KEY: "{{ vault_langfuse_public_key | default('') }}"
+            LANGFUSE_SECRET_KEY: "{{ vault_langfuse_secret_key | default('') }}"
 
     # Pin image tags, and override the ingress host only when one is supplied
     # (dev passes the Terraform-computed cloudapp FQDN; prod uses values-prod.yaml).

@@ -120,6 +120,18 @@ genai:
   # If left blank, genai will fail to start (the key is required).
   openrouterSecret: genai-secrets
 
+  # Optional Secret enabling Langfuse tracing (LLM observability). Leave blank to
+  # disable — genai then runs without tracing (no-op). For the deployed env we
+  # point at Langfuse Cloud rather than self-hosting the stateful stack.
+  # The Secret must hold: LANGFUSE_HOST, LANGFUSE_PUBLIC_KEY, LANGFUSE_SECRET_KEY.
+  # Create it from your Langfuse Cloud project keys:
+  #   kubectl create secret generic genai-langfuse \
+  #     --from-literal=LANGFUSE_HOST=https://cloud.langfuse.com \
+  #     --from-literal=LANGFUSE_PUBLIC_KEY=pk-lf-... \
+  #     --from-literal=LANGFUSE_SECRET_KEY=sk-lf-... \
+  #     -n <namespace>
+  langfuseSecret: ""
+
   resources:
     requests:
       memory: "256Mi"
