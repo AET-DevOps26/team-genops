@@ -38,6 +38,8 @@ spec:
               value: "http://auth:{{ .Values.auth.port }}"
             - name: APPLICATION_URI
               value: "http://application:{{ .Values.application.port }}"
+            - name: DOCUMENT_URI
+              value: "http://document:{{ .Values.document.port }}"
             - name: GENAI_URI
               value: "http://genai:{{ .Values.genai.port }}"
             - name: WEB_CLIENT_URI

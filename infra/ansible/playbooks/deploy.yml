@@ -91,6 +91,7 @@
           {{
             {'auth': {'tag': image_tag},
              'application': {'tag': image_tag},
+             'document': {'tag': image_tag},
              'genai': {'tag': image_tag},
              'webClient': {'tag': image_tag},
              'gateway': {'tag': image_tag}}
