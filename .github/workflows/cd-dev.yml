@@ -78,7 +78,7 @@ jobs:
           KUBECONFIG: ${{ runner.temp }}/kubeconfig
         run: |
           trap 'rm -f vault-pass' EXIT
-          echo "${{ secrets.ANSIBLE_VAULT_PASSWORD }}" > vault-pass
+          echo "${{ secrets.ANSIBLE_VAULT_PASSWORD_DEV }}" > vault-pass
           if [ -n "${{ github.event.workflow_run.head_sha }}" ]; then
             IMAGE_TAG="sha-$(echo ${{ github.event.workflow_run.head_sha }} | cut -c1-7)"
           elif [ "${{ github.event_name }}" = "push" ]; then
