@@ -45,18 +45,17 @@ jobs:
 
       # A stopped AKS cluster rejects EVERY operation except start (Terraform
       # apply included), and the nightly cost cron stops it at 22:00 UTC — so
-      # any deploy must wake the cluster first. Absent is fine: Terraform
-      # creates it on first run. `start` on a running cluster is a no-op.
+      # any deploy must wake the cluster first. The script auto-discovers the
+      # cluster by its Terraform tags, so no RG/name secrets are needed.
+      # Absent is fine: Terraform creates it on first run.
       - name: Wake cluster if stopped
         env:
           SUBSCRIPTION: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-          RG: ${{ secrets.DEV_CLUSTER_RG }}
-          CLUSTER: ${{ secrets.DEV_CLUSTER_NAME }}
         run: |
-          if az aks show -g "$RG" -n "$CLUSTER" --subscription "$SUBSCRIPTION" -o none 2>/dev/null; then
+          if ./scripts/cluster.sh status | grep -q "Stopped"; then
             ./scripts/cluster.sh start
           else
-            echo "Cluster does not exist yet — Terraform will create it."
+            echo "Cluster running or not created yet — nothing to wake."
           fi
 
       - uses: hashicorp/setup-terraform@v3

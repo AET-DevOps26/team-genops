@@ -6,30 +6,44 @@
 #   RG=<resource-group> CLUSTER=<aks-name> SUBSCRIPTION=<sub-id> \
 #     ./scripts/cluster.sh stop|start|status
 #
-# Set the three env vars first (plain quoted literals — no ${} around values):
-#   export RG="<resource-group>"
-#   export CLUSTER="<aks-cluster-name>"
-#   export SUBSCRIPTION="<subscription-id>"
+# SUBSCRIPTION is required (plain quoted literal — no ${} around the value):
+#   export SUBSCRIPTION="<subscription-id>"        # team Key Vault / teammate
 #
-# All three env vars are required — ask a teammate or check the team Key Vault
-# for the values. Prereq: az login with an account that has Contributor.
+# RG and CLUSTER are optional: when unset, the cluster is auto-discovered by
+# its Terraform tags (project=jobready, env=dev). Export them only to target
+# a different cluster. Prereq: az login with an account that has Contributor.
 set -euo pipefail
 
 ACTION="${1:-}"
 
 if [[ "$ACTION" != "stop" && "$ACTION" != "start" && "$ACTION" != "status" ]]; then
-  echo "usage: RG=... CLUSTER=... SUBSCRIPTION=... $0 stop|start|status" >&2
+  echo "usage: SUBSCRIPTION=... [RG=... CLUSTER=...] $0 stop|start|status" >&2
   exit 2
 fi
 
-missing=()
-[[ -z "${RG:-}" ]] && missing+=(RG)
-[[ -z "${CLUSTER:-}" ]] && missing+=(CLUSTER)
-[[ -z "${SUBSCRIPTION:-}" ]] && missing+=(SUBSCRIPTION)
-if (( ${#missing[@]} )); then
-  echo "error: missing required env var(s): ${missing[*]}" >&2
-  echo "hint: values live in the team Key Vault / ask a teammate" >&2
+if [[ -z "${SUBSCRIPTION:-}" ]]; then
+  echo "error: SUBSCRIPTION env var is required" >&2
+  echo "hint: the value lives in the team Key Vault / ask a teammate" >&2
   exit 2
+fi
+
+if [[ -z "${RG:-}" || -z "${CLUSTER:-}" ]]; then
+  echo "RG/CLUSTER not set — discovering by tags (project=jobready, env=dev)..."
+  FOUND=$(az aks list --subscription "$SUBSCRIPTION" \
+    --query "[?tags.project=='jobready' && tags.env=='dev'].[resourceGroup,name]" -o tsv)
+  if [[ -z "$FOUND" ]]; then
+    echo "Cluster does not exist — nothing to do."
+    # start on a non-existent cluster is an error; stop/status are no-ops.
+    [[ "$ACTION" == "start" ]] && exit 1 || exit 0
+  fi
+  if [[ $(wc -l <<<"$FOUND") -ne 1 ]]; then
+    echo "error: multiple clusters match the tags — set RG and CLUSTER explicitly:" >&2
+    echo "$FOUND" >&2
+    exit 2
+  fi
+  RG=$(cut -f1 <<<"$FOUND")
+  CLUSTER=$(cut -f2 <<<"$FOUND")
+  echo "Found cluster '$CLUSTER' in resource group '$RG'."
 fi
 
 # NOTE: az only accepts flags AFTER the full command (az aks show --subscription ...),
