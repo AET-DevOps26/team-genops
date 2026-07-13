@@ -2,7 +2,10 @@ from langchain_core.messages import AIMessage, HumanMessage
 from psycopg import AsyncConnection
 
 
-HISTORY_WINDOW = 10  # number of most recent messages passed to the LLM
+# How many recent messages are replayed verbatim to the LLM. Anything older is covered by
+# the session's rolling summary (see summarizer), which the chain injects into the prompt —
+# so falling out of this window compresses context rather than losing it.
+HISTORY_WINDOW = 15
 
 
 async def load_history(conn: AsyncConnection, session_id: str) -> list:
