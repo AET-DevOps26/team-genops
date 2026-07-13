@@ -24,17 +24,18 @@ async def create_session(
     }
 
 
-async def is_first_user_session(conn: AsyncConnection, user_id: str, session_id: str) -> bool:
-    """Return True if this is the only session this user has ever created."""
+async def get_session_summary(conn: AsyncConnection, session_id: str) -> str:
+    """
+    Return the session's rolling summary — the compressed record of the messages that have
+    already scrolled out of the verbatim history window. Empty string until the first
+    segment is summarized.
+    """
     cur = await conn.execute(
-        """
-        SELECT COUNT(*) FROM genai.chat_sessions
-        WHERE user_id = %s AND id != %s
-        """,
-        (user_id, session_id),
+        "SELECT summary FROM genai.chat_sessions WHERE id = %s",
+        (session_id,),
     )
     row = await cur.fetchone()
-    return row[0] == 0
+    return (row[0] or "").strip() if row else ""
 
 
 async def delete_session(conn: AsyncConnection, session_id: str, user_id: str) -> bool:

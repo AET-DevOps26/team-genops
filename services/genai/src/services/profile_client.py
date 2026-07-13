@@ -6,9 +6,19 @@ service resolves the owner from the token's `sub` claim, exactly like a
 browser request. Never send user ids in custom headers.
 """
 
+import logging
+
 import httpx
 
 from src.config import settings
+
+logger = logging.getLogger(__name__)
+
+# Bounds on the injected profile. It now goes into every turn's system prompt, so a
+# pathological profile (dozens of roles, essay-length descriptions) must not be able to
+# crowd out the conversation or blow up cost.
+MAX_ENTRIES = 10
+MAX_DESCRIPTION_CHARS = 600
 
 _NOT_ENABLED = (
     "User profile not available yet — document service not connected."
@@ -20,29 +30,48 @@ _NO_PROFILE = (
     "profile in the app so future documents can be tailored automatically."
 )
 
+_UNAVAILABLE = (
+    "The user's career profile could not be loaded right now. Continue helping "
+    "them, and ask for any background details you need."
+)
+
 
 async def get_user_profile(token: str) -> str:
     """
     Fetch and format the user's career profile from the document service.
     Returns a plain-text representation ready to inject into the LLM context.
     `token` is the caller's verified access JWT, forwarded as-is.
+
+    Never raises: this runs on every chat turn, so a document-service outage must
+    degrade the answer, not fail the turn.
     """
     if not settings.profile_enabled:
         return _NOT_ENABLED
 
-    async with httpx.AsyncClient() as client:
-        response = await client.get(
-            f"{settings.document_service_url}/api/v1/profile",
-            headers={"Authorization": f"Bearer {token}"},
-            timeout=5.0,
-        )
-        if response.status_code == 404:
-            # 404 is the contract's "no profile yet" signal, not an error.
-            return _NO_PROFILE
-        response.raise_for_status()
-        data = response.json()
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.get(
+                f"{settings.document_service_url}/api/v1/profile",
+                headers={"Authorization": f"Bearer {token}"},
+                timeout=5.0,
+            )
+            if response.status_code == 404:
+                # 404 is the contract's "no profile yet" signal, not an error.
+                return _NO_PROFILE
+            response.raise_for_status()
+            data = response.json()
+    except Exception:
+        logger.warning("profile fetch failed; continuing without it", exc_info=True)
+        return _UNAVAILABLE
 
     return _format_profile(data)
+
+
+def _clamp(text: str | None) -> str | None:
+    """Truncate a free-text field so one verbose entry cannot dominate the context."""
+    if not text or len(text) <= MAX_DESCRIPTION_CHARS:
+        return text
+    return text[:MAX_DESCRIPTION_CHARS].rstrip() + "…"
 
 
 def _format_profile(data: dict) -> str:
@@ -56,11 +85,11 @@ def _format_profile(data: dict) -> str:
     if profile.get("location"):
         lines.append(f"Location: {profile['location']}")
     if profile.get("bio"):
-        lines.append(f"Summary: {profile['bio']}")
+        lines.append(f"Summary: {_clamp(profile['bio'])}")
     if profile.get("website"):
         lines.append(f"Website: {profile['website']}")
 
-    experiences = data.get("work_experiences") or []
+    experiences = (data.get("work_experiences") or [])[:MAX_ENTRIES]
     if experiences:
         lines.append("Work Experience:")
         for exp in experiences:
@@ -70,9 +99,9 @@ def _format_profile(data: dict) -> str:
                 entry += f", {exp['location']}"
             lines.append(entry)
             if exp.get("description"):
-                lines.append(f"  {exp['description']}")
+                lines.append(f"  {_clamp(exp['description'])}")
 
-    educations = data.get("educations") or []
+    educations = (data.get("educations") or [])[:MAX_ENTRIES]
     if educations:
         lines.append("Education:")
         for edu in educations:
@@ -83,7 +112,7 @@ def _format_profile(data: dict) -> str:
             entry += f", {edu.get('institution')} ({period})"
             lines.append(entry)
             if edu.get("description"):
-                lines.append(f"  {edu['description']}")
+                lines.append(f"  {_clamp(edu['description'])}")
 
     skills = data.get("skills") or []
     if skills:
