@@ -24,6 +24,39 @@ async def create_session(
     }
 
 
+async def get_session_application_id(conn: AsyncConnection, session_id: str) -> str | None:
+    """Return the application this session is about, or None if it is a general chat."""
+    cur = await conn.execute(
+        "SELECT application_id FROM genai.chat_sessions WHERE id = %s",
+        (session_id,),
+    )
+    row = await cur.fetchone()
+    return str(row[0]) if row and row[0] else None
+
+
+async def bind_session_application(
+    conn: AsyncConnection, session_id: str, application_id: str
+) -> None:
+    """
+    Attach an application to a session the first time one is referenced.
+
+    The id arrives in a single message ("...application id: <uuid>"), but the job context
+    is needed on every later turn too — "make it shorter" must still know which job. Binding
+    it to the session is what makes the context outlive that one message.
+
+    Only sets it when unset, so a stray id later in the conversation cannot silently
+    re-target a session that is already about a specific job.
+    """
+    await conn.execute(
+        """
+        UPDATE genai.chat_sessions
+        SET application_id = %s, updated_at = NOW()
+        WHERE id = %s AND application_id IS NULL
+        """,
+        (application_id, session_id),
+    )
+
+
 async def get_session_summary(conn: AsyncConnection, session_id: str) -> str:
     """
     Return the session's rolling summary — the compressed record of the messages that have

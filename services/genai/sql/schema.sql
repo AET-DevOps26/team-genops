@@ -20,6 +20,10 @@ CREATE TABLE IF NOT EXISTS genai.chat_sessions (
     updated_at     TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+-- Databases created before application_id existed still lack the column: CREATE TABLE
+-- IF NOT EXISTS above is a no-op for them.
+ALTER TABLE genai.chat_sessions ADD COLUMN IF NOT EXISTS application_id UUID;
+
 -- Migration: adopt a new embedding dimension if the model changed.
 --
 -- This file is re-executed on every service start, so the guard must compare the CURRENT

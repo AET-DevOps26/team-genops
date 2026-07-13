@@ -151,7 +151,10 @@ function DocumentsTab({ application, type }: { application: JobApplication; type
           onClick={() =>
             navigate('/chat', {
               state: {
-                prefill: `${command} for my ${application.job_title} application at ${application.company} (application id: ${application.id}).${application.job_description ? ` Job description: ${application.job_description}` : ''}`,
+                // Only the reference — the assistant fetches the role, company and job
+                // description from the application service itself. Pasting the whole posting
+                // into the message made the user "say" a wall of text they never typed.
+                prefill: `${command} for my ${application.job_title} application at ${application.company} (application id: ${application.id}).`,
               },
             })
           }
