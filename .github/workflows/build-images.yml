@@ -29,6 +29,8 @@ jobs:
             image: jobready-auth
           - context: services/application
             image: jobready-application
+          - context: services/document
+            image: jobready-document
           - context: web-client
             image: jobready-web-client
           - context: services/gateway

@@ -96,6 +96,30 @@ services:
       timeout: 5s
       retries: 5
 
+  document:
+    build:
+      context: ./services/document
+      dockerfile: Dockerfile
+    container_name: document
+    restart: unless-stopped
+    ports:
+      - "8083:8080"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres-db:5432/${POSTGRES_DB}
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD}
+      AUTH_JWKS_URL: http://auth:8080/api/v1/auth/.well-known/jwks.json
+    depends_on:
+      postgres-db:
+        condition: service_healthy
+      auth:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8080/actuator/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   # email:
   #   build:
   #     context: ./services/email

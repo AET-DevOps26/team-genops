@@ -108,7 +108,9 @@ Stores AI-generated resumes per application.
 
 Placing migrations in this directory is not sufficient by itself. The following configuration is required from the service owner:
 
-1. Add the `flyway-core` and `flyway-database-postgresql` dependencies to `pom.xml`.
+1. Add the `flyway-core` and `flyway-database-postgresql` dependencies to `pom.xml` — plus
+   `org.springframework.boot:spring-boot-flyway` (Spring Boot 4 moved Flyway auto-configuration
+   into that module; with `flyway-core` alone the migrations silently never run).
 2. Enable Flyway and configure the `document` schema in `application.properties`:
 
    ```properties

@@ -109,6 +109,20 @@ application:
       memory: "512Mi"
       cpu: "500m"
 
+document:
+  image: jobready-document
+  tag: latest
+  replicas: 1
+  port: 8080
+
+  resources:
+    requests:
+      memory: "256Mi"
+      cpu: "100m"
+    limits:
+      memory: "512Mi"
+      cpu: "500m"
+
 genai:
   image: jobready-genai
   tag: latest

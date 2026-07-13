@@ -32,6 +32,8 @@ tags:
     description: Job application tracking — create applications, store job descriptions, and manage status transitions
   - name: Chat
     description: AI career-assistant chat — sessions and messages
+  - name: Documents
+    description: Candidate profile (experience, education, skills, languages) and AI-generated documents (cover letters, resumes)
 
 paths:
   /api/v1/auth/register:
@@ -719,6 +721,622 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
 
+  /api/v1/profile:
+    get:
+      tags: [Documents]
+      summary: Get the current user's full profile
+      description: |
+        Returns the authenticated user's profile basics together with all sub-resources
+        (work experiences, educations, skills, languages) in one aggregate. Returns 404
+        when the user has not created a profile yet — clients use this to detect that
+        onboarding is still needed.
+      operationId: getProfile
+      security:
+        - CookieAuth: []
+        - BearerAuth: []
+      responses:
+        '200':
+          description: The user's aggregated profile
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProfileAggregateResponse'
+        '401':
+          description: Missing or invalid access token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: No profile exists for this user yet
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    put:
+      tags: [Documents]
+      summary: Create or update the current user's profile basics
+      description: |
+        Upserts the profile basics keyed on the JWT `sub` — creates the profile on first
+        call, updates it afterwards. Sub-resources are managed via their own endpoints.
+      operationId: upsertProfile
+      security:
+        - CookieAuth: []
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProfileRequest'
+      responses:
+        '200':
+          description: The saved profile basics
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Profile'
+        '401':
+          description: Missing or invalid access token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/v1/profile/work-experiences:
+    post:
+      tags: [Documents]
+      summary: Add a work experience
+      description: |
+        Adds a work experience to the authenticated user's profile. The profile basics
+        must exist first (404 otherwise). Reads happen via the profile aggregate.
+      operationId: createWorkExperience
+      security:
+        - CookieAuth: []
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WorkExperienceRequest'
+      responses:
+        '201':
+          description: Work experience created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkExperience'
+        '401':
+          description: Missing or invalid access token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: No profile exists for this user yet
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/v1/profile/work-experiences/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    put:
+      tags: [Documents]
+      summary: Update a work experience
+      operationId: updateWorkExperience
+      security:
+        - CookieAuth: []
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WorkExperienceRequest'
+      responses:
+        '200':
+          description: Updated work experience
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkExperience'
+        '401':
+          description: Missing or invalid access token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: No such work experience for this user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    delete:
+      tags: [Documents]
+      summary: Delete a work experience
+      operationId: deleteWorkExperience
+      security:
+        - CookieAuth: []
+        - BearerAuth: []
+      responses:
+        '204':
+          description: Work experience deleted
+        '401':
+          description: Missing or invalid access token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: No such work experience for this user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/v1/profile/educations:
+    post:
+      tags: [Documents]
+      summary: Add an education entry
+      description: |
+        Adds an education entry to the authenticated user's profile. The profile basics
+        must exist first (404 otherwise). Reads happen via the profile aggregate.
+      operationId: createEducation
+      security:
+        - CookieAuth: []
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EducationRequest'
+      responses:
+        '201':
+          description: Education entry created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Education'
+        '401':
+          description: Missing or invalid access token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: No profile exists for this user yet
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/v1/profile/educations/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    put:
+      tags: [Documents]
+      summary: Update an education entry
+      operationId: updateEducation
+      security:
+        - CookieAuth: []
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EducationRequest'
+      responses:
+        '200':
+          description: Updated education entry
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Education'
+        '401':
+          description: Missing or invalid access token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: No such education entry for this user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    delete:
+      tags: [Documents]
+      summary: Delete an education entry
+      operationId: deleteEducation
+      security:
+        - CookieAuth: []
+        - BearerAuth: []
+      responses:
+        '204':
+          description: Education entry deleted
+        '401':
+          description: Missing or invalid access token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: No such education entry for this user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/v1/profile/skills:
+    post:
+      tags: [Documents]
+      summary: Add a skill
+      description: |
+        Adds a skill to the authenticated user's profile. The profile basics must exist
+        first (404 otherwise). Reads happen via the profile aggregate.
+      operationId: createSkill
+      security:
+        - CookieAuth: []
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SkillRequest'
+      responses:
+        '201':
+          description: Skill created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Skill'
+        '401':
+          description: Missing or invalid access token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: No profile exists for this user yet
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/v1/profile/skills/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    put:
+      tags: [Documents]
+      summary: Update a skill
+      operationId: updateSkill
+      security:
+        - CookieAuth: []
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SkillRequest'
+      responses:
+        '200':
+          description: Updated skill
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Skill'
+        '401':
+          description: Missing or invalid access token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: No such skill for this user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    delete:
+      tags: [Documents]
+      summary: Delete a skill
+      operationId: deleteSkill
+      security:
+        - CookieAuth: []
+        - BearerAuth: []
+      responses:
+        '204':
+          description: Skill deleted
+        '401':
+          description: Missing or invalid access token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: No such skill for this user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/v1/profile/languages:
+    post:
+      tags: [Documents]
+      summary: Add a language
+      description: |
+        Adds a language to the authenticated user's profile. The profile basics must
+        exist first (404 otherwise). Reads happen via the profile aggregate.
+      operationId: createLanguage
+      security:
+        - CookieAuth: []
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LanguageRequest'
+      responses:
+        '201':
+          description: Language created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Language'
+        '401':
+          description: Missing or invalid access token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: No profile exists for this user yet
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/v1/profile/languages/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    put:
+      tags: [Documents]
+      summary: Update a language
+      operationId: updateLanguage
+      security:
+        - CookieAuth: []
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LanguageRequest'
+      responses:
+        '200':
+          description: Updated language
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Language'
+        '401':
+          description: Missing or invalid access token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: No such language for this user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    delete:
+      tags: [Documents]
+      summary: Delete a language
+      operationId: deleteLanguage
+      security:
+        - CookieAuth: []
+        - BearerAuth: []
+      responses:
+        '204':
+          description: Language deleted
+        '401':
+          description: Missing or invalid access token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: No such language for this user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/v1/documents:
+    get:
+      tags: [Documents]
+      summary: List the current user's generated documents
+      description: |
+        Returns AI-generated documents (cover letters and resumes) owned by the
+        authenticated user, newest first, optionally filtered by application.
+      operationId: listDocuments
+      security:
+        - CookieAuth: []
+        - BearerAuth: []
+      parameters:
+        - name: application_id
+          in: query
+          required: false
+          description: Only return documents generated for this application
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: The user's generated documents
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GeneratedDocumentList'
+        '401':
+          description: Missing or invalid access token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    post:
+      tags: [Documents]
+      summary: Store a generated document
+      description: |
+        Persists an AI-generated cover letter or resume for one of the user's
+        applications. Called by the genai service (with the user's forwarded JWT)
+        after generation; the owner is always the JWT `sub`.
+      operationId: createDocument
+      security:
+        - CookieAuth: []
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateGeneratedDocumentRequest'
+      responses:
+        '201':
+          description: Document stored
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GeneratedDocument'
+        '401':
+          description: Missing or invalid access token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/v1/documents/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    delete:
+      tags: [Documents]
+      summary: Delete a generated document
+      operationId: deleteDocument
+      security:
+        - CookieAuth: []
+        - BearerAuth: []
+      responses:
+        '204':
+          description: Document deleted
+        '401':
+          description: Missing or invalid access token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: No such document for this user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
   /api/v1/chat/sessions/{session_id}/messages:
     get:
       tags: [Chat]
@@ -1117,6 +1735,295 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/Recommendation'
+
+    # ---------------------------------------------------------------------------
+    # Documents — candidate profile & generated documents
+    # ---------------------------------------------------------------------------
+
+    Profile:
+      type: object
+      required: [id, first_name, last_name, created_at, updated_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        first_name:
+          type: string
+        last_name:
+          type: string
+        bio:
+          type: [string, 'null']
+          description: Free-text professional summary
+        location:
+          type: [string, 'null']
+        phone:
+          type: [string, 'null']
+        website:
+          type: [string, 'null']
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    ProfileRequest:
+      type: object
+      required: [first_name, last_name]
+      properties:
+        first_name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        last_name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        bio:
+          type: string
+        location:
+          type: string
+          maxLength: 255
+        phone:
+          type: string
+          maxLength: 50
+        website:
+          type: string
+          maxLength: 255
+
+    ProfileAggregateResponse:
+      type: object
+      required: [profile, work_experiences, educations, skills, languages]
+      properties:
+        profile:
+          $ref: '#/components/schemas/Profile'
+        work_experiences:
+          type: array
+          items:
+            $ref: '#/components/schemas/WorkExperience'
+        educations:
+          type: array
+          items:
+            $ref: '#/components/schemas/Education'
+        skills:
+          type: array
+          items:
+            $ref: '#/components/schemas/Skill'
+        languages:
+          type: array
+          items:
+            $ref: '#/components/schemas/Language'
+
+    WorkExperience:
+      type: object
+      required: [id, company, role, start_date, is_current, created_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        company:
+          type: string
+        role:
+          type: string
+        location:
+          type: [string, 'null']
+        start_date:
+          type: string
+          format: date
+        end_date:
+          type: [string, 'null']
+          format: date
+          description: Null while `is_current` is true
+        is_current:
+          type: boolean
+        description:
+          type: [string, 'null']
+        created_at:
+          type: string
+          format: date-time
+
+    WorkExperienceRequest:
+      type: object
+      required: [company, role, start_date]
+      properties:
+        company:
+          type: string
+          minLength: 1
+          maxLength: 255
+        role:
+          type: string
+          minLength: 1
+          maxLength: 255
+        location:
+          type: string
+          maxLength: 255
+        start_date:
+          type: string
+          format: date
+        end_date:
+          type: string
+          format: date
+        is_current:
+          type: boolean
+          default: false
+        description:
+          type: string
+
+    Education:
+      type: object
+      required: [id, institution, degree, start_date, created_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        institution:
+          type: string
+        degree:
+          type: string
+        field:
+          type: [string, 'null']
+        start_date:
+          type: string
+          format: date
+        end_date:
+          type: [string, 'null']
+          format: date
+        description:
+          type: [string, 'null']
+        created_at:
+          type: string
+          format: date-time
+
+    EducationRequest:
+      type: object
+      required: [institution, degree, start_date]
+      properties:
+        institution:
+          type: string
+          minLength: 1
+          maxLength: 255
+        degree:
+          type: string
+          minLength: 1
+          maxLength: 255
+        field:
+          type: string
+          maxLength: 255
+        start_date:
+          type: string
+          format: date
+        end_date:
+          type: string
+          format: date
+        description:
+          type: string
+
+    SkillLevel:
+      type: string
+      enum: [beginner, intermediate, advanced, expert]
+      description: Lowercase wire values — persisted verbatim (DB CHECK constraint matches).
+
+    Skill:
+      type: object
+      required: [id, name, level, created_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        level:
+          $ref: '#/components/schemas/SkillLevel'
+        created_at:
+          type: string
+          format: date-time
+
+    SkillRequest:
+      type: object
+      required: [name, level]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        level:
+          $ref: '#/components/schemas/SkillLevel'
+
+    LanguageProficiency:
+      type: string
+      enum: [basic, conversational, fluent, native]
+      description: Lowercase wire values — persisted verbatim (DB CHECK constraint matches).
+
+    Language:
+      type: object
+      required: [id, name, proficiency, created_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        proficiency:
+          $ref: '#/components/schemas/LanguageProficiency'
+        created_at:
+          type: string
+          format: date-time
+
+    LanguageRequest:
+      type: object
+      required: [name, proficiency]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        proficiency:
+          $ref: '#/components/schemas/LanguageProficiency'
+
+    GeneratedDocumentType:
+      type: string
+      enum: [cover_letter, resume]
+
+    GeneratedDocument:
+      type: object
+      required: [id, application_id, type, content, created_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        application_id:
+          type: string
+          format: uuid
+          description: The application this document was generated for (no cross-service FK)
+        type:
+          $ref: '#/components/schemas/GeneratedDocumentType'
+        content:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+
+    CreateGeneratedDocumentRequest:
+      type: object
+      required: [application_id, type, content]
+      properties:
+        application_id:
+          type: string
+          format: uuid
+        type:
+          $ref: '#/components/schemas/GeneratedDocumentType'
+        content:
+          type: string
+          minLength: 1
+
+    GeneratedDocumentList:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/GeneratedDocument'
 
     # ---------------------------------------------------------------------------
     # Chat

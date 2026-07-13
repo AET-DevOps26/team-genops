@@ -16,6 +16,13 @@ spring:
               uri: ${APPLICATION_URI:http://application:8080}
               predicates:
                 - Path=/api/v1/applications/**
+            # Document service (profile + generated documents) — must come before
+            # the generic /api/** route. Bare paths listed explicitly so the
+            # collection endpoints match regardless of PathPattern semantics.
+            - id: document
+              uri: ${DOCUMENT_URI:http://document:8080}
+              predicates:
+                - Path=/api/v1/profile,/api/v1/profile/**,/api/v1/documents,/api/v1/documents/**
             # Auth service — catches remaining /api/** traffic.
             - id: auth
               uri: ${AUTH_URI:http://auth:8080}
