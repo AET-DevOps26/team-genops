@@ -19,7 +19,7 @@ import com.fasterxml.jackson.annotation.JsonValue;
  * Application lifecycle stage: `applied` → `follow_up` → `interview` → `offer` → `closed`. 
  */
 
-@Generated(value = "org.openapitools.codegen.languages.SpringCodegen", comments = "Generator version: 7.22.0")
+@Generated(value = "org.openapitools.codegen.languages.SpringCodegen", comments = "Generator version: 7.23.0")
 public enum ApplicationStage {
   
   APPLIED("applied"),

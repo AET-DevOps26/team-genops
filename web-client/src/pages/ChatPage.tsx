@@ -166,7 +166,12 @@ export default function ChatPage() {
             </div>
           )}
           {messages.map((msg, i) => (
-            <MessageBubble key={i} role={msg.role} content={msg.content} />
+            <MessageBubble
+              key={i}
+              role={msg.role}
+              content={msg.content}
+              applicationId={activeSession?.application_id}
+            />
           ))}
           {sending && (
             <div className="flex justify-start">

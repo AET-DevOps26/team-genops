@@ -1,12 +1,21 @@
 import { Markdown } from './Markdown'
+import { SaveDocumentActions } from './SaveDocumentActions'
+
+// A greeting or a clarifying question is not a document. Only offer to save a reply
+// substantial enough to be one, so the buttons do not clutter ordinary conversation.
+const MIN_DOCUMENT_CHARS = 400
 
 interface Props {
   role: 'user' | 'assistant'
   content: string
+  /** The application this chat is bound to, if any — where a save would go. */
+  applicationId?: string | null
 }
 
-export function MessageBubble({ role, content }: Props) {
+export function MessageBubble({ role, content, applicationId }: Props) {
   const isUser = role === 'user'
+  const canSave = !isUser && !!applicationId && content.length >= MIN_DOCUMENT_CHARS
+
   return (
     <div className={`flex ${isUser ? 'justify-end' : 'justify-start'}`}>
       <div
@@ -18,6 +27,8 @@ export function MessageBubble({ role, content }: Props) {
       >
         {/* The model answers in markdown; what the user typed is shown verbatim. */}
         {isUser ? content : <Markdown content={content} />}
+
+        {canSave && <SaveDocumentActions content={content} applicationId={applicationId} />}
       </div>
     </div>
   )

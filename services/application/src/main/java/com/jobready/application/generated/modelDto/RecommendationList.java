@@ -22,10 +22,9 @@ import jakarta.annotation.Generated;
  * RecommendationList
  */
 
-@Generated(value = "org.openapitools.codegen.languages.SpringCodegen", comments = "Generator version: 7.22.0")
+@Generated(value = "org.openapitools.codegen.languages.SpringCodegen", comments = "Generator version: 7.23.0")
 public class RecommendationList {
 
-  @Valid
   private List<@Valid Recommendation> items = new ArrayList<>();
 
   public RecommendationList() {

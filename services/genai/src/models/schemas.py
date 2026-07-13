@@ -16,6 +16,9 @@ class SessionResponse(BaseModel):
     id: str
     user_id: str
     session_type: str
+    # The application this chat is about, bound on first reference. The UI needs it to know
+    # whether a generated document has somewhere to be saved.
+    application_id: str | None = None
     summary: str | None = None
     first_message: str | None = None
     created_at: str

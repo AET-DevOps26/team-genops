@@ -18,9 +18,10 @@ COMMANDS: dict[str, str] = {
         "do not have; do not substitute a placeholder like [Your Email] or a plausible-looking "
         "value. Start from the greeting if no contact details are known.\n"
         "Ask for the job description only if none is available above.\n"
-        "Once the letter is final and an application id is known, save it with the "
-        'save_generated_document tool (document_type "cover_letter") and tell the user it '
-        "is attached to their application."
+        "Output the letter itself as the body of your reply, so the user can read it in full. "
+        "Do not save it and do not claim you have: the app shows a Save button under your "
+        "message, and the user decides. Close with a brief note that they can save it to "
+        "their application or ask for changes."
     ),
     "/resume_tailor": (
         "ACTIVE TASK — Resume Tailoring:\n"
@@ -30,8 +31,10 @@ COMMANDS: dict[str, str] = {
         "and make each bullet concrete (impact and scope, not duties). Never invent roles, "
         "employers, dates or qualifications the user does not have.\n"
         "Ask for the job description only if none is available above.\n"
-        "When you produce a full tailored resume and an application id is known, save it "
-        'with the save_generated_document tool (document_type "resume").'
+        "Output the full tailored resume as the body of your reply, so the user can read it. "
+        "Do not save it and do not claim you have: the app shows a Save button under your "
+        "message, and the user decides. Close with a brief note that they can save it to "
+        "their application or ask for changes."
     ),
     "/fit_analysis": (
         "ACTIVE TASK — Fit Analysis:\n"

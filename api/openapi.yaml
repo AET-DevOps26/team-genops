@@ -2048,6 +2048,14 @@ components:
         user_id:
           type: string
           format: uuid
+        application_id:
+          type: ['string', 'null']
+          format: uuid
+          description: >-
+            The job application this conversation is about, bound the first time one is
+            referenced. Present when the chat was started from an application or one was
+            chosen for a document command; null for a general chat. The UI uses it to know
+            where a generated cover letter or resume would be saved.
         session_type:
           type: string
           enum: [insight_chat, cover_letter_chat, fit_analysis_chat]

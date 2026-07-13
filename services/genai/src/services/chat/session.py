@@ -21,6 +21,8 @@ async def create_session(
         "user_id": str(row[1]),
         "session_type": row[2],
         "created_at": row[3].isoformat(),
+        # Always null at creation — an application is bound later, on first reference.
+        "application_id": None,
     }
 
 
@@ -123,6 +125,7 @@ async def get_sessions(conn: AsyncConnection, user_id: str) -> list[dict]:
             s.session_type,
             s.summary,
             s.created_at,
+            s.application_id,
             (
                 SELECT content
                 FROM genai.chat_messages
@@ -144,7 +147,8 @@ async def get_sessions(conn: AsyncConnection, user_id: str) -> list[dict]:
             "session_type": r[1],
             "summary": r[2],
             "created_at": r[3].isoformat(),
-            "first_message": r[4],
+            "application_id": str(r[4]) if r[4] else None,
+            "first_message": r[5],
         }
         for r in rows
     ]

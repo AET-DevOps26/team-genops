@@ -1,8 +1,13 @@
 import { api } from '~/services/apiClient'
-import type { GeneratedDocumentList } from '~/api/schemas'
+import type {
+  CreateGeneratedDocumentRequest,
+  GeneratedDocument,
+  GeneratedDocumentList,
+} from '~/api/schemas'
 
-// AI-generated documents (cover letters / resumes) persisted by the genai service.
-// The web client only reads and deletes — creation happens through the assistant.
+// AI-generated documents (cover letters / resumes) stored by the document service.
+// The assistant writes them into the conversation; saving one is an explicit user action
+// from the chat, so creation is a plain client call — no LLM in the save path.
 const documentsApi = api.injectEndpoints({
   endpoints: (build) => ({
     getDocuments: build.query<GeneratedDocumentList, { applicationId?: string } | void>({
@@ -13,6 +18,11 @@ const documentsApi = api.injectEndpoints({
       providesTags: ['CoverLetter'],
     }),
 
+    createDocument: build.mutation<GeneratedDocument, CreateGeneratedDocumentRequest>({
+      query: (body) => ({ url: '/documents', method: 'POST', body }),
+      invalidatesTags: ['CoverLetter'],
+    }),
+
     deleteDocument: build.mutation<void, string>({
       query: (id) => ({ url: `/documents/${id}`, method: 'DELETE', responseHandler: 'text' }),
       invalidatesTags: ['CoverLetter'],
@@ -20,4 +30,8 @@ const documentsApi = api.injectEndpoints({
   }),
 })
 
-export const { useGetDocumentsQuery, useDeleteDocumentMutation } = documentsApi
+export const {
+  useGetDocumentsQuery,
+  useCreateDocumentMutation,
+  useDeleteDocumentMutation,
+} = documentsApi

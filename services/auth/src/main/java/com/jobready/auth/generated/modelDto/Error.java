@@ -20,14 +20,13 @@ import jakarta.annotation.Generated;
  * Error
  */
 
-@Generated(value = "org.openapitools.codegen.languages.SpringCodegen", comments = "Generator version: 7.22.0")
+@Generated(value = "org.openapitools.codegen.languages.SpringCodegen", comments = "Generator version: 7.23.0")
 public class Error {
 
   private String code;
 
   private String message;
 
-  @Valid
   private Map<String, Object> details = new HashMap<>();
 
   public Error() {

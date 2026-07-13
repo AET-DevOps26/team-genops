@@ -957,6 +957,11 @@ export interface components {
             id: string;
             /** Format: uuid */
             user_id: string;
+            /**
+             * Format: uuid
+             * @description The job application this conversation is about, bound the first time one is referenced. Present when the chat was started from an application or one was chosen for a document command; null for a general chat. The UI uses it to know where a generated cover letter or resume would be saved.
+             */
+            application_id?: string | null;
             /** @enum {string} */
             session_type: "insight_chat" | "cover_letter_chat" | "fit_analysis_chat";
             /** @description AI-generated memory summary, set after enough messages accumulate */
