@@ -20,22 +20,27 @@ CREATE TABLE IF NOT EXISTS genai.chat_sessions (
     updated_at     TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
--- Migration: Update embedding column dimension for existing tables
--- If the table already exists with a different embedding dimension, this will update it.
--- This handles the case where the table was created with an older dimension (e.g., 1536 or 3072).
+-- Migration: adopt a new embedding dimension if the model changed.
+--
+-- This file is re-executed on every service start, so the guard must compare the CURRENT
+-- dimension and do nothing when it already matches. It previously fired whenever the column
+-- merely existed — which is always — so every restart silently dropped every stored embedding
+-- and cross-session recall could never find anything (summaries survived; their vectors did not).
+--
+-- pgvector stores the declared dimension in atttypmod.
 DO $$
+DECLARE
+    current_dims integer;
 BEGIN
-    -- Check if the embedding column exists and has a different dimension
-    IF EXISTS (
-        SELECT 1
-        FROM information_schema.columns
-        WHERE table_schema = 'genai'
-          AND table_name = 'chat_sessions'
-          AND column_name = 'embedding'
-    ) THEN
-        -- Drop and recreate the column to change dimension
-        -- This is safe because we're in early development; in production with data,
-        -- you'd need a more careful migration strategy (backup, convert, restore)
+    SELECT atttypmod INTO current_dims
+    FROM pg_attribute
+    WHERE attrelid = 'genai.chat_sessions'::regclass
+      AND attname = 'embedding'
+      AND NOT attisdropped;
+
+    IF current_dims IS NOT NULL AND current_dims <> 4096 THEN
+        -- Dimensions actually changed: existing vectors are unusable, so drop and recreate.
+        -- Summaries are kept and will be re-embedded on the next summarization.
         ALTER TABLE genai.chat_sessions DROP COLUMN embedding;
         ALTER TABLE genai.chat_sessions ADD COLUMN embedding vector(4096);
     END IF;
