@@ -1,5 +1,7 @@
 package com.jobready.gateway.security;
 
+import java.util.Set;
+
 import org.springframework.boot.security.autoconfigure.web.servlet.SecurityFilterProperties;
 import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
@@ -45,6 +47,13 @@ public class SecurityConfig {
     // keep in sync with auth JwksController.PATH
     private static final String JWKS_PATH = "/api/v1/auth/.well-known/jwks.json";
 
+		private static final Set<String> SKIP_PATHS = Set.of(
+						"/api/v1/auth/login",
+						"/api/v1/auth/register",
+						"/api/v1/auth/refresh",
+						JWKS_PATH
+		);
+
     @Bean
     SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
@@ -76,7 +85,7 @@ public class SecurityConfig {
     @Bean
     FilterRegistrationBean<CookieToBearerFilter> cookieToBearerFilter() {
         FilterRegistrationBean<CookieToBearerFilter> registration =
-                new FilterRegistrationBean<>(new CookieToBearerFilter(ACCESS_COOKIE));
+                new FilterRegistrationBean<>(new CookieToBearerFilter(ACCESS_COOKIE, SKIP_PATHS));
         // Run just before Spring Security's filter chain so the synthesized Authorization header
         // exists when the resource server looks for it. Spring Security's chain registers at
         // SecurityFilterProperties.DEFAULT_FILTER_ORDER; one slot earlier guarantees we run first.

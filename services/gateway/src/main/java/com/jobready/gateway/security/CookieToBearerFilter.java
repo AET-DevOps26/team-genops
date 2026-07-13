@@ -13,6 +13,7 @@ import java.io.IOException;
 import java.util.Collections;
 import java.util.Enumeration;
 import java.util.List;
+import java.util.Set;
 
 /**
  * Translates the split-token BFF cookie into a standard bearer header.
@@ -35,8 +36,11 @@ public class CookieToBearerFilter extends OncePerRequestFilter {
 
     private final String cookieName;
 
-    public CookieToBearerFilter(String cookieName) {
+    private final Set<String> skipPaths;
+
+    public CookieToBearerFilter(String cookieName, Set<String> skipPaths) {
         this.cookieName = cookieName;
+        this.skipPaths = skipPaths;
     }
 
     @Override
@@ -44,7 +48,8 @@ public class CookieToBearerFilter extends OncePerRequestFilter {
                                     FilterChain chain) throws ServletException, IOException {
         // An explicit Authorization header always wins — never override a caller that already
         // speaks the mesh contract (e.g. service-to-service or a test harness).
-        if (request.getHeader(HttpHeaders.AUTHORIZATION) == null) {
+        if (request.getHeader(HttpHeaders.AUTHORIZATION) == null
+                && !skipPaths.contains(request.getRequestURI())) {
             String token = accessCookie(request);
             if (token != null && !token.isBlank()) {
                 chain.doFilter(new BearerHeaderRequest(request, BEARER_PREFIX + token), response);

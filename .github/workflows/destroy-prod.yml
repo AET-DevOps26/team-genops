@@ -56,11 +56,14 @@ jobs:
         working-directory: infra/ansible
         env:
           KUBECONFIG: ${{ runner.temp }}/kubeconfig
+          CONFIRM: ${{ github.event.inputs.confirm }}
+          WIPE_DATA: ${{ github.event.inputs.wipe_data }}
+          WIPE_TLS: ${{ github.event.inputs.wipe_tls }}
         run: |
           trap 'rm -f vault-pass' EXIT
           echo "${{ secrets.ANSIBLE_VAULT_PASSWORD_PROD }}" > vault-pass
           ansible-playbook -i inventories/prod/hosts.yml playbooks/destroy.yml \
             --vault-password-file vault-pass \
-            -e destroy_confirm="${{ github.event.inputs.confirm }}" \
-            -e wipe_data=${{ github.event.inputs.wipe_data }} \
-            -e wipe_tls=${{ github.event.inputs.wipe_tls }}
+            -e destroy_confirm="$CONFIRM" \
+            -e wipe_data="$WIPE_DATA" \
+            -e wipe_tls="$WIPE_TLS"

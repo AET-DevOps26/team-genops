@@ -246,7 +246,8 @@ KUBECONFIG=<aks-kubeconfig> ansible-playbook -i inventories/dev/hosts.yml playbo
 | `AZURE_CLIENT_ID` / `AZURE_TENANT_ID` / `AZURE_SUBSCRIPTION_ID` | cd-dev | Azure OIDC login |
 | `TFSTATE_RG` / `TFSTATE_SA` | cd-dev | Terraform remote-state storage |
 | `RANCHER_KUBECONFIG` | cd-prod | TUM kubeconfig (token expires — refresh periodically) |
-| `ANSIBLE_VAULT_PASSWORD` | cd-dev, cd-prod | decrypts the committed `vault.yml` |
+| `ANSIBLE_VAULT_PASSWORD_DEV` | cd-dev | decrypts the committed `vault.yml` |
+| `ANSIBLE_VAULT_PASSWORD_PROD` | cd-prod | decrypts the committed `vault.yml` |
 
 **GitHub environments**
 
