@@ -111,16 +111,20 @@ Do these to keep "homemade" a defensible security posture rather than an acciden
   register must not reveal whether an email already exists.
 - [ ] **Password policy** — enforce min length (≥12) + reject a bundled top-N common-passwords list
   (no egress; poor-man's breached-password check).
-- [ ] **Refresh-token rotation** — issue a new refresh token on each refresh, invalidate the old
-  (foundation for reuse detection below).
+- [x] **Refresh-token rotation** — done. `AuthServiceImpl.refresh` validates the presented token,
+  deletes its Redis key, and issues a fresh access + refresh pair; replaying a rotated token gets
+  a `401`. Remaining gap: replay is only *rejected*, not *detected* — see reuse detection below.
 
 ### Tier 2 — course-worthy, medium effort
 - [ ] **Password reset** — single-use, time-limited token in Redis + emailed link. *Needs an
   outbound transactional mail sender (Spring Mail/SMTP or the Gmail API) — the existing `email`
   service is inbound-only. Egress is confirmed available.*
 - [ ] **Email verification** — same machinery as reset (~80% shared code).
-- [ ] **Refresh-token reuse detection** — if an already-rotated refresh token is presented, treat as
-  theft and invalidate the whole token family.
+- [ ] **Refresh-token reuse detection** — the remaining gap now that rotation is in place. Today an
+  already-rotated token is simply rejected (`401`); it should be treated as theft, invalidating the
+  whole token family. Requires storing a family/session ID alongside each refresh token in Redis
+  (currently keys are `refresh:<token>` → `userId` with no lineage), so a replay can revoke every
+  descendant token in one sweep.
 - [ ] **Security audit logging** — structured events (login success/fail, password change, reset);
   export failed-login counts as a Prometheus metric → Grafana alert (also satisfies the project
   observability requirement).
