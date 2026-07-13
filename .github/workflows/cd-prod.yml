@@ -24,7 +24,7 @@ concurrency:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    environment: production   
+    environment: production
     
     steps:
       - uses: actions/checkout@v7
@@ -51,11 +51,11 @@ jobs:
         working-directory: infra/ansible
         env:
           KUBECONFIG: ${{ runner.temp }}/kubeconfig
+          IMAGE_TAG: ${{ github.event.inputs.image_tag || github.event.release.tag_name }}
         run: |
           trap 'rm -f vault-pass' EXIT
           echo "${{ secrets.ANSIBLE_VAULT_PASSWORD_PROD }}" > vault-pass
-          TAG="${{ github.event.inputs.image_tag || github.event.release.tag_name }}"
-          TAG="${TAG:-latest}"; TAG="${TAG#v}"
+          TAG="${IMAGE_TAG:-latest}"; TAG="${TAG#v}"
           ansible-playbook -i inventories/prod/hosts.yml playbooks/deploy.yml \
             --vault-password-file vault-pass \
             -e image_tag="$TAG"
