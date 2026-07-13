@@ -43,7 +43,10 @@ spec:
             - name: GENAI_URI
               value: "http://genai:{{ .Values.genai.port }}"
             - name: WEB_CLIENT_URI
-              value: "http://web-client:{{ .Values.webClient.port }}"
+              value: http://web-client:{{ .Values.webClient.port }}
+            # JWK Set the gateway uses to validate the access JWT at the edge (defense in depth).
+            - name: AUTH_JWKS_URL
+              value: http://auth:{{ .Values.auth.port }}/api/v1/auth/.well-known/jwks.json
           resources:
             {{- toYaml .Values.gateway.resources | nindent 12 }}
           livenessProbe:

@@ -1,7 +1,7 @@
 apiVersion: v2
 name: jobready
-description: JobReady — AI-powered job application tracker (Team GenOps, TUM AET DevOps 2026)
-type: application         
+description: JobReady — AI-powered job application tracker
+type: application
 
-version: 0.1.0            # Chart version. Bump this when you change templates.
+version: 0.1.0            # Chart version.
 appVersion: "0.1.0"       # Application version. Shown by "helm list".

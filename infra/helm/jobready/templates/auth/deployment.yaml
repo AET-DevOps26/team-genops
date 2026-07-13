@@ -104,12 +104,9 @@ spec:
               value: "kubernetes"
           resources:
             {{- toYaml .Values.auth.resources | nindent 12 }}
-          # auth exposes only the base health endpoint (the dedicated
-          # liveness/readiness probe groups aren't enabled), so the
-          # /actuator/health/{liveness,readiness} paths 404. Use /actuator/health.
           livenessProbe:
             httpGet:
-              path: /actuator/health
+              path: /actuator/health/liveness
               port: {{ .Values.auth.port }}
             initialDelaySeconds: 60
             periodSeconds: 15
@@ -117,7 +114,7 @@ spec:
             timeoutSeconds: 5
           readinessProbe:
             httpGet:
-              path: /actuator/health
+              path: /actuator/health/readiness
               port: {{ .Values.auth.port }}
             initialDelaySeconds: 30
             periodSeconds: 10

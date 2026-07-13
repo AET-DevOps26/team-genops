@@ -1,0 +1,90 @@
+# Tears JobReady out of the target namespace for a clean redeploy.
+# Removes the Helm release AND the secrets deploy.yml creates outside the chart.
+# Does NOT delete the namespace (the prod tenant cannot), and keeps the TLS
+# secret by default — Let's Encrypt rate-limits issuance (5/week per domain),
+# so a still-valid cert is worth preserving across rebuilds.
+#
+# Usage (the confirm gate must match the target namespace exactly):
+#   ansible-playbook -i inventories/prod/hosts.yml playbooks/destroy.yml \
+#     -e destroy_confirm=ge86yog-devops-genops [-e wipe_data=true] [-e wipe_tls=true]
+- name: Destroy JobReady
+  hosts: all
+  gather_facts: false
+  vars:
+    wipe_data: false   # true → also delete PVCs (postgres data is GONE)
+    wipe_tls: false    # true → also delete the TLS secret (forces cert re-issue)
+  tasks:
+    - name: Refuse to run without explicit confirmation
+      ansible.builtin.assert:
+        that:
+          - destroy_confirm is defined
+          - destroy_confirm == namespace
+        fail_msg: >-
+          Pass -e destroy_confirm={{ namespace }} to confirm you are destroying
+          the '{{ env_name }}' environment in namespace '{{ namespace }}'.
+
+    - name: Uninstall the Helm release
+      kubernetes.core.helm:
+        name: "{{ release_name }}"
+        release_namespace: "{{ namespace }}"
+        kubeconfig: "{{ kubeconfig }}"
+        state: absent
+        wait: true
+
+    # deploy.yml creates these outside the chart; helm uninstall never touches them.
+    - name: Delete deploy-created secrets
+      kubernetes.core.k8s:
+        kubeconfig: "{{ kubeconfig }}"
+        state: absent
+        api_version: v1
+        kind: Secret
+        namespace: "{{ namespace }}"
+        name: "{{ item }}"
+      loop:
+        - postgres-secret
+        - auth-jwt
+        - genai-secrets
+        - ghcr-pull          # legacy (images are public now); absent is fine
+
+    # Hand-created hotfix objects that predate their chart-managed versions.
+    # Deleting them lets the next helm install own its resources cleanly instead
+    # of failing adoption ("invalid ownership metadata").
+    - name: Delete hand-created leftovers
+      kubernetes.core.k8s:
+        kubeconfig: "{{ kubeconfig }}"
+        state: absent
+        api_version: networking.k8s.io/v1
+        kind: NetworkPolicy
+        namespace: "{{ namespace }}"
+        name: allow-acme-solver
+
+    - name: Delete PVCs (data is unrecoverable)
+      when: wipe_data | bool
+      kubernetes.core.k8s:
+        kubeconfig: "{{ kubeconfig }}"
+        state: absent
+        api_version: v1
+        kind: PersistentVolumeClaim
+        namespace: "{{ namespace }}"
+        name: postgres-pvc
+
+    - name: Delete TLS secret (forces Let's Encrypt re-issue — rate limited!)
+      when: wipe_tls | bool
+      kubernetes.core.k8s:
+        kubeconfig: "{{ kubeconfig }}"
+        state: absent
+        api_version: v1
+        kind: Secret
+        namespace: "{{ namespace }}"
+        name: jobready-tls
+
+    - name: Show what remains in the namespace
+      ansible.builtin.command:
+        cmd: kubectl --kubeconfig {{ kubeconfig }} -n {{ namespace }} get all,ingress,netpol,pvc,secret
+      changed_when: false
+      failed_when: false
+      register: _remaining
+
+    - name: Remaining resources
+      ansible.builtin.debug:
+        var: _remaining.stdout_lines

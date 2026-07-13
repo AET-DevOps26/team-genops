@@ -13,10 +13,6 @@ vault_postgres_user: jobready
 vault_postgres_password: change-me
 vault_postgres_db: jobready
 
-# GitHub username + a PAT with read:packages (for the ghcr-pull image-pull secret).
-vault_ghcr_user: your-github-username
-vault_ghcr_token: ghp_xxxxxxxxxxxxxxxxxxxx
-
 # OpenRouter API key for the genai service (LLM calls).
 vault_openrouter_api_key: sk-or-xxxxxxxxxxxxxxxxxxxx
 

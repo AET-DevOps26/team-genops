@@ -4,6 +4,22 @@
   hosts: all
   gather_facts: false
   tasks:
+    # Pre-flight: the gateway now validates the access JWT at the edge against auth's JWKS.
+    # If the signing keys are blank, fail the deploy here rather than shipping an
+    # intermittently-broken auth flow. Assert the vault values, not the Secret object.
+    - name: Assert auth JWT signing keys are present
+      ansible.builtin.assert:
+        that:
+          - vault_jwt_private_key is defined
+          - (vault_jwt_private_key | trim | length) > 0
+          - vault_jwt_public_key is defined
+          - (vault_jwt_public_key | trim | length) > 0
+        fail_msg: >-
+          vault_jwt_private_key / vault_jwt_public_key are empty. The gateway validates
+          tokens at the edge, so auth MUST use stable RSA keys (not the ephemeral per-pod
+          fallback). Set both in the Ansible vault before deploying.
+        success_msg: "auth JWT signing keys present — edge validation will use stable keys."
+
     - name: Ensure namespace exists (dev only)
       kubernetes.core.k8s:
         kubeconfig: "{{ kubeconfig }}"
@@ -15,24 +31,10 @@
             name: "{{ namespace }}"
       when: create_namespace | bool
 
-    - name: Create GHCR image-pull secret
-      kubernetes.core.k8s:
-        kubeconfig: "{{ kubeconfig }}"
-        state: present
-        definition:
-          apiVersion: v1
-          kind: Secret
-          type: kubernetes.io/dockerconfigjson
-          metadata:
-            name: ghcr-pull
-            namespace: "{{ namespace }}"
-          data:
-            .dockerconfigjson: >-
-              {{ {'auths': {'ghcr.io': {
-                'username': vault_ghcr_user,
-                'password': vault_ghcr_token,
-                'auth': (vault_ghcr_user ~ ':' ~ vault_ghcr_token) | b64encode
-              }}} | to_json | b64encode }}
+    # GHCR images are PUBLIC — no image-pull secret needed. If the packages ever
+    # go private again, restore the ghcr-pull dockerconfigjson secret here and
+    # re-add global.imagePullSecrets in the values files (knob documented in
+    # helm/jobready/values.yaml).
 
     - name: Create postgres secret
       kubernetes.core.k8s:
@@ -83,31 +85,76 @@
             LANGFUSE_PUBLIC_KEY: "{{ vault_langfuse_public_key | default('') }}"
             LANGFUSE_SECRET_KEY: "{{ vault_langfuse_secret_key | default('') }}"
 
-    # Pin image tags, and override the ingress host only when one is supplied
+    # Pin image tags
     # (dev passes the Terraform-computed cloudapp FQDN; prod uses values-prod.yaml).
-    - name: Build Helm value overrides
+    - name: Build base Helm value overrides
       ansible.builtin.set_fact:
-        helm_overrides: >-
-          {{
-            {'auth': {'tag': image_tag},
-             'application': {'tag': image_tag},
-             'document': {'tag': image_tag},
-             'genai': {'tag': image_tag},
-             'webClient': {'tag': image_tag},
-             'gateway': {'tag': image_tag}}
-            | combine(
-                {'ingress': {'host': ingress_host}} if (ingress_host | default('')) | length > 0 else {},
-                recursive=true
-              )
-          }}
+        helm_overrides:
+          auth:
+            tag: "{{ image_tag }}"
+          application:
+            tag: "{{ image_tag }}"
+          gateway:
+            tag: "{{ image_tag }}"
+          webClient:
+            tag: "{{ image_tag }}"
+          genai:
+            tag: "{{ image_tag }}"
+          document:
+            tag: "{{ image_tag }}"
 
+    - name: Add Ingress host override when provided
+      ansible.builtin.set_fact:
+        helm_overrides: "{{ helm_overrides | combine({'ingress': {'host': ingress_host}}) }}"
+      when: (ingress_host | default('')) | length > 0
+
+    # Wrapped so a --wait timeout dumps the ACTUAL pod failure instead of the
+    # opaque "context deadline exceeded". The rescue prints status + events for
+    # every not-Running pod, then re-raises so CD still fails.
     - name: Deploy JobReady chart
-      kubernetes.core.helm:
-        name: "{{ release_name }}"
-        chart_ref: "{{ chart_path }}"
-        release_namespace: "{{ namespace }}"
-        kubeconfig: "{{ kubeconfig }}"
-        values_files:
-          - "{{ values_file }}"
-        values: "{{ helm_overrides }}"
-        wait: true
+      block:
+        - name: Run Helm upgrade
+          kubernetes.core.helm:
+            name: "{{ release_name }}"
+            chart_ref: "{{ chart_path }}"
+            release_namespace: "{{ namespace }}"
+            kubeconfig: "{{ kubeconfig }}"
+            values_files:
+              - "{{ values_file }}"
+            values: "{{ helm_overrides }}"
+            wait: true
+            wait_timeout: "8m0s"
+
+      rescue:
+        - name: Get pod status
+          ansible.builtin.command:
+            cmd: kubectl --kubeconfig {{ kubeconfig }} -n {{ namespace }} get pods -o wide
+          changed_when: false
+          failed_when: false
+          register: _pods
+
+        - name: Show pod status
+          ansible.builtin.debug:
+            var: _pods.stdout_lines
+
+        - name: Describe not-Running pods (image, events, probe failures)
+          ansible.builtin.shell:
+            cmd: >-
+              set -o pipefail;
+              pods=$(kubectl --kubeconfig {{ kubeconfig }} -n {{ namespace }}
+                get pods --field-selector=status.phase!=Running -o name);
+              [ -z "$pods" ] && echo "(all pods Running — likely a failing readiness probe)" && exit 0;
+              kubectl --kubeconfig {{ kubeconfig }} -n {{ namespace }} describe $pods
+          changed_when: false
+          failed_when: false
+          register: _describe
+
+        - name: Show describe output
+          ansible.builtin.debug:
+            var: _describe.stdout_lines
+
+        - name: Re-raise the deploy failure
+          ansible.builtin.fail:
+            msg: >-
+              Helm deploy did not converge within 8m0s — see pod status and
+              describe output above for the real cause.

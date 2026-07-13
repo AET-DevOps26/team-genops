@@ -1,7 +1,6 @@
 name: CD - Prod (Rancher)
 
-# Deploys to the TUM Rancher namespace. The `production` environment should be
-# configured with a required reviewer so each prod deploy needs manual approval.
+# Deploys to the TUM Rancher namespace.
 on:
   release:
     types: [published]
@@ -15,10 +14,18 @@ on:
 permissions:
   contents: read
 
+# One prod operation at a time: a second trigger QUEUES until the running one
+# finishes (never cancelled). Shared group with destroy-prod so a teardown can
+# never overlap a release deploy.
+concurrency:
+  group: deploy-prod
+  cancel-in-progress: false
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    environment: production   # gate: add a required reviewer in repo settings
+    environment: production
+    
     steps:
       - uses: actions/checkout@v7
 
@@ -39,15 +46,16 @@ jobs:
         with:
           version: v3.16.0
 
+        # Remove leading 'v' from image semver tags (v1.2.3 -> 1.2.3)
       - name: Deploy to prod
         working-directory: infra/ansible
         env:
           KUBECONFIG: ${{ runner.temp }}/kubeconfig
+          IMAGE_TAG: ${{ github.event.inputs.image_tag || github.event.release.tag_name }}
         run: |
           trap 'rm -f vault-pass' EXIT
-          echo "${{ secrets.ANSIBLE_VAULT_PASSWORD }}" > vault-pass
-          TAG="${{ github.event.inputs.image_tag || github.event.release.tag_name }}"
-          TAG="${TAG:-latest}"; TAG="${TAG#v}"   # image semver tags have no leading 'v' (v1.2.3 -> 1.2.3)
+          echo "${{ secrets.ANSIBLE_VAULT_PASSWORD_PROD }}" > vault-pass
+          TAG="${IMAGE_TAG:-latest}"; TAG="${TAG#v}"
           ansible-playbook -i inventories/prod/hosts.yml playbooks/deploy.yml \
             --vault-password-file vault-pass \
             -e image_tag="$TAG"

@@ -22,12 +22,49 @@ infra/
 
 ---
 
+# Team secrets — Azure Key Vault
+
+Shared secrets (DB passwords, JWT keys, GHCR tokens, …) live in a team **Azure Key Vault**,
+readable from any machine after `az login` — no key files to copy around.
+
+| | |
+|---|---|
+| Vault | `kv-jobready-dev` — <https://kv-jobready-dev.vault.azure.net/> |
+| Location | resource group `rg-jobready-dev`, subscription `185fd5c7-…` ("Azure for Students") |
+| Access model | **Vault access policies** (per-person, granted in the Portal) |
+| Managed by | **hand (Portal) — deliberately NOT Terraform**, so `terraform destroy`/cluster rebuilds can never take the secrets with it |
+
+### Get access (once per person)
+
+Ask a teammate who already has access: Portal → `kv-jobready-dev` → **Access policies →
++ Create** → Secret permissions **Get, List, Set** → select your `@tum.de` account.
+(CLI access works with just the policy; seeing the vault in the Portal additionally needs a
+reader/contributor role on `rg-jobready-dev`.)
+
+### Use it (any machine)
+
+```sh
+az login                                                  # once per machine
+az keyvault secret list --vault-name kv-jobready-dev -o table
+az keyvault secret show --vault-name kv-jobready-dev --name <name> --query value -o tsv
+az keyvault secret set  --vault-name kv-jobready-dev --name <name> --value '<value>'
+```
+
+Multi-line values (PEM keys) go in via file: `az keyvault secret set … --file private.pem`.
+
+**Conventions:** kebab-case names, prefixed by consumer — e.g. `prod-postgres-password`,
+`prod-jwt-private-key`, `ghcr-pull-token`. The vault is the source of truth for humans;
+deploy-time secrets still flow through the encrypted Ansible vault / GitHub secrets — when
+you rotate a value here, update those too.
+
+---
+
 # Bringing the pipeline up
 
 A working deploy reduces to making three invariants true, then automating them:
 
 1. **Images exist** in GHCR (the CI job).
-2. **The cluster can pull them and has its secrets** (`ghcr-pull`, `postgres-secret`, `auth-jwt`).
+2. **The cluster has its secrets** (`postgres-secret`, `auth-jwt`) — images are public, no pull secret needed.
 3. **Something applies the chart** (you by hand first; then Ansible via CD).
 
 Do it in order. Prove prod by hand before trusting automation; dev/AKS comes last.
@@ -79,7 +116,7 @@ NS=ge86yog-devops-genops
 openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:2048 -out private.pem   # PKCS#8
 openssl rsa -in private.pem -pubout -out public.pem                             # X.509
 
-# 2. The three secrets (names match values.yaml)
+# 2. The two secrets (names match values.yaml; images are public — no pull secret)
 kubectl create secret generic postgres-secret -n $NS \
   --from-literal=POSTGRES_USER=jobready \
   --from-literal=POSTGRES_PASSWORD='<choose-a-password>' \
@@ -87,11 +124,6 @@ kubectl create secret generic postgres-secret -n $NS \
 
 kubectl create secret generic auth-jwt -n $NS \
   --from-file=JWT_PRIVATE_KEY=private.pem --from-file=JWT_PUBLIC_KEY=public.pem
-
-kubectl create secret docker-registry ghcr-pull -n $NS \
-  --docker-server=ghcr.io \
-  --docker-username=<github-user> \
-  --docker-password=<PAT-with-read:packages>     # classic PAT, scope: read:packages
 
 # 3. Deploy (values-prod.yaml filled in Phase A)
 helm upgrade --install jobready infra/helm/jobready -n $NS -f infra/helm/jobready/values-prod.yaml
@@ -102,7 +134,7 @@ kubectl get ingress,certificate -n $NS   # certificate should reach READY=True
 # open https://<your host> → app loads, green padlock, login works
 ```
 
-`ghcr-pull` is required (images are private); `auth-jwt` gives stable keys. If the
+`auth-jwt` gives stable keys. If the
 `certificate` stays `READY=False`, the `clusterIssuer` name (Phase A) is wrong. **The green
 padlock + working login is the real success signal** — Secure cookies need trusted TLS.
 
@@ -115,13 +147,13 @@ Make Ansible do Phase C reproducibly.
 ```sh
 # 1. Encrypt the prod vault (same values you used by hand)
 cp infra/ansible/group_vars/vault.example.yml infra/ansible/inventories/prod/group_vars/vault.yml
-#   edit: postgres creds, ghcr user/token, paste private.pem/public.pem into the JWT fields
+#   edit: postgres creds, paste private.pem/public.pem into the JWT fields
 ansible-vault encrypt infra/ansible/inventories/prod/group_vars/vault.yml
 #   commit the ENCRYPTED file
 ```
 
 In **GitHub → Settings**:
-- **Secrets:** `RANCHER_KUBECONFIG`, `ANSIBLE_VAULT_PASSWORD`. Generate a self-contained,
+- **Secrets:** `RANCHER_KUBECONFIG`, `ANSIBLE_VAULT_PASSWORD_DEV`, `ANSIBLE_VAULT_PASSWORD_PROD`. Generate a self-contained,
   stud-only kubeconfig for the secret with:
   ```sh
   kubectl --kubeconfig ~/.kube/config --context stud config view --minify --flatten
@@ -214,7 +246,8 @@ KUBECONFIG=<aks-kubeconfig> ansible-playbook -i inventories/dev/hosts.yml playbo
 | `AZURE_CLIENT_ID` / `AZURE_TENANT_ID` / `AZURE_SUBSCRIPTION_ID` | cd-dev | Azure OIDC login |
 | `TFSTATE_RG` / `TFSTATE_SA` | cd-dev | Terraform remote-state storage |
 | `RANCHER_KUBECONFIG` | cd-prod | TUM kubeconfig (token expires — refresh periodically) |
-| `ANSIBLE_VAULT_PASSWORD` | cd-dev, cd-prod | decrypts the committed `vault.yml` |
+| `ANSIBLE_VAULT_PASSWORD_DEV` | cd-dev | decrypts the committed `vault.yml` |
+| `ANSIBLE_VAULT_PASSWORD_PROD` | cd-prod | decrypts the committed `vault.yml` |
 
 **GitHub environments**
 
@@ -223,6 +256,7 @@ KUBECONFIG=<aks-kubeconfig> ansible-playbook -i inventories/dev/hosts.yml playbo
 | `production` | required reviewer (approval gate) |
 | `dev` | none |
 
-> Images are **private** on GHCR → the `ghcr-pull` secret must exist in each namespace
-> (Ansible creates it from the vault; by hand in Phase C). Or make the packages public to
-> drop the pull secret entirely.
+> Images are **public** on GHCR → no pull secret anywhere. If the packages ever go
+> private again: recreate the `ghcr-pull` dockerconfigjson secret in each namespace and
+> re-add `global.imagePullSecrets` in the values files (knob documented in
+> `helm/jobready/values.yaml`).

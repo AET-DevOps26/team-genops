@@ -12,7 +12,8 @@ global:
   # Use "IfNotPresent" locally to avoid re-pulling, "Always" in CI/CD.
   imagePullPolicy: Always
 
-  # Names of existing dockerconfigjson Secrets used to pull PRIVATE GHCR images.
+  # GHCR packages are currently PUBLIC, so no pull secret is configured anywhere.
+  # If they ever go private again: names of existing dockerconfigjson Secrets.
   # Create one with:
   #   kubectl create secret docker-registry ghcr-pull \
   #     --docker-server=ghcr.io --docker-username=<gh-user> \
@@ -75,18 +76,14 @@ auth:
   replicas: 1
   port: 8080
 
-  # Existing Secret holding the RSA signing keys:
-  #   JWT_PRIVATE_KEY  (PKCS#8 PEM, -----BEGIN PRIVATE KEY-----)
-  #   JWT_PUBLIC_KEY   (X.509 PEM,  -----BEGIN PUBLIC KEY-----)
+
   # If left blank, auth self-generates an EPHEMERAL keypair at startup —
   # tokens are invalidated on every restart and differ across replicas.
   # Set this for stable sessions / >1 replica.
   jwtSecret: auth-jwt
 
   # Session cookies use Secure=true → browsers only send them over HTTPS.
-  # Keep "true" (both environments terminate TLS at the ingress).
   cookieSecure: "true"
-
   resources:
     requests:
       memory: "256Mi"
@@ -185,6 +182,27 @@ gateway:
       memory: "512Mi"
       cpu: "500m"
 
+networkPolicy:
+  # Default-deny + explicit allow-list for pod-to-pod traffic. OFF by default
+  # (and in dev) so local/AKS bring-up is never blocked; turned ON in prod
+  # (values-prod.yaml) for tenant isolation. Rollback if it misbehaves:
+  #   helm upgrade ... --set networkPolicy.enabled=false
+  enabled: false
+
+  # Namespace where the ingress controller runs. Used to allow ingress→gateway
+  # (default-deny blocks it otherwise). Must match the controller's namespace;
+  # a wrong value silently blocks ALL external traffic to the gateway.
+  #   AKS (Ansible-installed ingress-nginx): ingress-nginx
+  #   TUM Rancher: confirm the platform controller's namespace before enabling.
+  ingressNamespace: ingress-nginx
+
+  # Optional node/pod CIDR allowed to reach pods for kubelet HTTP health probes.
+  # Some CNIs (Calico/Canal) enforce NetworkPolicy on probe traffic, which
+  # originates from the node IP — outside any pod/namespace selector — so a
+  # default-deny can fail readiness and take the pod down. Leave "" if your CNI
+  # exempts host→pod probes (e.g. Cilium); set to the node CIDR if it does not.
+  probeCidr: ""
+
 ingress:
   enabled: true
 
@@ -194,7 +212,7 @@ ingress:
   host: jobready.local
 
   # Must match an installed IngressController.
-  #   TUM: confirm in Rancher UI    AKS: nginx (installed by Ansible)
+  # AKS: nginx (installed by Ansible)
   ingressClassName: nginx
 
   # cert-manager ClusterIssuer that auto-issues the TLS cert.
