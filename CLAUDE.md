@@ -216,7 +216,7 @@ Service implementation status:
 - `application` — ✅ functional (Spring Boot): applications CRUD with stage filter + pagination + optional company website/LinkedIn fields, per-stage `/summary` endpoint, stored per-application `Recommendation` items (persistence only), unit + web-layer security tests, verify-only JWT (owner from `sub`).
 - `email` — ✅ functional (Python/FastAPI): Gmail OAuth2 connect/disconnect, background poller, JWT auth, tests.
 - `genai` — ✅ functional (Python/FastAPI): LangGraph chat agent with sessions, pgvector RAG over past sessions, background summarization, JWKS auth, Langfuse tracing. Delivers cover-letter/resume/fit via chat commands. Gaps: cloud-only LLM (OpenRouter — no local model yet), thin tests.
-- `web-client` — ✅ auth + chat pages working (React + Vite + RTK Query). Product UIs (profile, application board) still thin. No client tests yet.
+- `web-client` — ✅ product shell (React + Vite + RTK Query): auth, dashboard with pipeline, applications board with detail drawer + generated-document tabs, profile editor, onboarding wizard, assistant chat. Jobs page is a static placeholder. No client tests yet.
 - `gateway` — ✅ Spring Cloud Gateway (JWT auth + routing), in compose/Helm.
 - `document` — ✅ functional (Spring Boot): profile aggregate + sub-resource CRUD (work experiences, educations, skills, languages), generated-document storage (cover letters/resumes per application), Flyway schema (`ddl-auto=validate`), verify-only JWT (owner from `sub`); port 8083 local.
 - **Monitoring** — ⛔ Prometheus/Grafana metrics pending (only `genai` emits metrics today); LLM observability via Langfuse is in place.

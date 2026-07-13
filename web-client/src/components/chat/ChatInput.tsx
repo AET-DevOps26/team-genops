@@ -9,12 +9,16 @@ const COMMANDS = [
 interface Props {
   onSend: (message: string) => void
   disabled?: boolean
+  /** Initial input handed off by another page (e.g. an application's document tab). */
+  prefill?: string
 }
 
-export function ChatInput({ onSend, disabled }: Props) {
-  const [value, setValue] = useState('')
+export function ChatInput({ onSend, disabled, prefill }: Props) {
+  const [value, setValue] = useState(prefill ?? '')
   const [showDropdown, setShowDropdown] = useState(false)
-  const [activeCommand, setActiveCommand] = useState<(typeof COMMANDS)[0] | null>(null)
+  const [activeCommand, setActiveCommand] = useState<(typeof COMMANDS)[0] | null>(
+    prefill ? (COMMANDS.find((c) => prefill.toLowerCase().includes(c.cmd)) ?? null) : null,
+  )
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
   function handleChange(e: React.ChangeEvent<HTMLTextAreaElement>) {

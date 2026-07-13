@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useAppDispatch, useAppSelector } from '~/store/hooks'
 import { clearError, login, register } from '~/services/auth/authSlice'
 import { Button, ErrorBanner } from '~/components/ui'
@@ -95,6 +96,7 @@ export default function AuthPage() {
   const [showPw, setShowPw] = useState(false)
 
   const dispatch = useAppDispatch()
+  const navigate = useNavigate()
   const status = useAppSelector((s) => s.auth.status)
   const error = useAppSelector((s) => s.auth.error)
   const loading = status === 'authenticating'
@@ -111,8 +113,17 @@ export default function AuthPage() {
     e.preventDefault()
     // The thunk drives status/error in the store; the cookie is set by the
     // server and never touched here. On success status becomes 'authenticated',
-    // which is where the full app routes to the board.
-    dispatch(isRegister ? register({ email, password }) : login({ email, password }))
+    // which is where the full app routes to the shell.
+    if (isRegister) {
+      // Fresh accounts go through the guided profile setup first. The navigate
+      // runs after the auth gates re-render, so it wins over their '/' default.
+      dispatch(register({ email, password }))
+        .unwrap()
+        .then(() => navigate('/onboarding', { replace: true }))
+        .catch(() => {})
+    } else {
+      dispatch(login({ email, password }))
+    }
   }
 
   return (
