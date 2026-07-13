@@ -6,10 +6,10 @@
 #   RG=<resource-group> CLUSTER=<aks-name> SUBSCRIPTION=<sub-id> \
 #     ./scripts/cluster.sh stop|start|status
 #
-# Set the three env vars 
-# export RG=$<value>
-# export CLUSTER=$<value>
-# export SUBSCRIPTION=$<value
+# Set the three env vars first (plain quoted literals — no ${} around values):
+#   export RG="<resource-group>"
+#   export CLUSTER="<aks-cluster-name>"
+#   export SUBSCRIPTION="<subscription-id>"
 #
 # All three env vars are required — ask a teammate or check the team Key Vault
 # for the values. Prereq: az login with an account that has Contributor.
@@ -32,9 +32,11 @@ if (( ${#missing[@]} )); then
   exit 2
 fi
 
-AZ="az --subscription $SUBSCRIPTION"
+# NOTE: az only accepts flags AFTER the full command (az aks show --subscription ...),
+# never between `az`/`aks` and the subcommand.
+TARGET=(-g "$RG" -n "$CLUSTER" --subscription "$SUBSCRIPTION")
 
-STATE=$($AZ aks show -g "$RG" -n "$CLUSTER" --query powerState.code -o tsv 2>/dev/null || echo "absent")
+STATE=$(az aks show "${TARGET[@]}" --query powerState.code -o tsv 2>/dev/null || echo "absent")
 echo "Cluster '$CLUSTER' power state: $STATE"
 
 case "$ACTION" in
@@ -43,13 +45,13 @@ case "$ACTION" in
   stop)
     if [[ "$STATE" == "absent" ]]; then echo "Cluster does not exist — nothing to do."; exit 0; fi
     if [[ "$STATE" == "Stopped" ]]; then echo "Already stopped."; exit 0; fi
-    $AZ aks stop -g "$RG" -n "$CLUSTER"
+    az aks stop "${TARGET[@]}"
     echo "Stopped — node VMs deallocated, compute billing paused."
     ;;
   start)
     if [[ "$STATE" == "absent" ]]; then echo "Cluster does not exist — run CD - Dev to create it."; exit 1; fi
     if [[ "$STATE" == "Running" ]]; then echo "Already running."; exit 0; fi
-    $AZ aks start -g "$RG" -n "$CLUSTER"
+    az aks start "${TARGET[@]}"
     echo "Started — app should be back at the usual URL in a few minutes."
     ;;
 esac
