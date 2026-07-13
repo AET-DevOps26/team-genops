@@ -4,7 +4,11 @@ name: Build & Push Images
 # Pull-request CI (build + test) stays in the per-service ci-*.yml workflows.
 on:
   push:
+    branches: [main]
     tags: ['v*']
+  pull_request:
+    branches:
+      - main
   workflow_dispatch:
 
 env:

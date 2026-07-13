@@ -1,7 +1,7 @@
 name: CD - Dev (AKS)
 
-# Runs after images are published to GHCR on main. Ensures the AKS infra exists
-# (Terraform), then bootstraps the cluster and deploys the app (Ansible).
+# Runs after images are published to GHCR on main — i.e. when a PR is merged.
+# PR builds still publish images but do NOT deploy.
 on:
   workflow_run:
     workflows: ["Build & Push Images"]
