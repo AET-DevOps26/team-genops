@@ -31,6 +31,16 @@ jobs:
     if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
     environment: dev
+    # Terraform (backend + provider) authenticates on its own via GitHub OIDC,
+    # minting a fresh token per auth. It must NOT ride on the az CLI login:
+    # that assertion expires 5 min after azure/login, and the wake step can run
+    # 10+ min when the cluster is stopped (AADSTS700024). az CLI steps are fine
+    # only right after azure/login — re-login before adding one later in the job.
+    env:
+      ARM_USE_OIDC: "true"
+      ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+      ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+      ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
     steps:
       - uses: actions/checkout@v7
 
@@ -60,8 +70,6 @@ jobs:
 
       - name: Terraform apply
         working-directory: infra/terraform
-        env:
-          ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
         run: |
           terraform init \
             -backend-config="resource_group_name=${{ secrets.TFSTATE_RG }}" \
