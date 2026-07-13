@@ -203,6 +203,7 @@ services:
       OPENROUTER_EMBEDDING_MODEL: ${OPENROUTER_EMBEDDING_MODEL:-qwen/qwen3-embedding-8b}
       AUTH_JWKS_URL: http://auth:8080/api/v1/auth/.well-known/jwks.json
       DOCUMENT_SERVICE_URL: http://document:8080
+      PROFILE_ENABLED: "true"
       # Langfuse tracing. Blank keys (the default) disable tracing, so genai runs
       # without the monitoring stack. Set both in .env and start with the
       # `monitoring` profile to send traces to the local Langfuse instance.

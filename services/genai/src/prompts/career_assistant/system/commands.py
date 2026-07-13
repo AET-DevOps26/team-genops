@@ -10,14 +10,21 @@ COMMANDS: dict[str, str] = {
         "ACTIVE TASK — Cover Letter Generation:\n"
         "The user wants a tailored cover letter. "
         "Ask for the job description and target company if not already provided. "
-        "Output a complete, professional cover letter ready to copy and send."
+        "Output a complete, professional cover letter ready to copy and send. "
+        "If the conversation contains the job application's id (a UUID the app "
+        "includes when the chat is started from an application), save the final "
+        "letter with the save_generated_document tool (document_type "
+        '"cover_letter") and tell the user it is attached to their application.'
     ),
     "/resume_tailor": (
         "ACTIVE TASK — Resume Tailoring:\n"
         "The user wants their resume tailored to a specific role. "
         "Ask for the job description if not already provided. "
         "Suggest specific changes: reorder bullet points, highlight relevant skills, "
-        "adjust the summary section to mirror the job requirements."
+        "adjust the summary section to mirror the job requirements. "
+        "If you produce a full rewritten resume and the conversation contains the "
+        "job application's id (a UUID), save it with the save_generated_document "
+        'tool (document_type "resume").'
     ),
     "/fit_analysis": (
         "ACTIVE TASK — Fit Analysis:\n"

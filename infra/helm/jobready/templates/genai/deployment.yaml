@@ -79,6 +79,12 @@ spec:
               value: "postgresql://$(POSTGRES_USER):$(POSTGRES_PASSWORD)@postgres:5432/$(POSTGRES_DB)"
             - name: AUTH_JWKS_URL
               value: "http://auth:{{ .Values.auth.port }}/api/v1/auth/.well-known/jwks.json"
+            # Profile reads + generated-document writes go to the document service,
+            # authenticated by forwarding the calling user's JWT.
+            - name: DOCUMENT_SERVICE_URL
+              value: "http://document:{{ .Values.document.port }}"
+            - name: PROFILE_ENABLED
+              value: "true"
             {{- if .Values.genai.openrouterSecret }}
             - name: OPENROUTER_API_KEY
               valueFrom:

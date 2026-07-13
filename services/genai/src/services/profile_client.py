@@ -1,31 +1,44 @@
 """
-Client for fetching user profile from the document service.
-Currently stubbed — wire up when the document service is available.
+Client for fetching the user's profile from the document service.
+
+The user's own JWT is forwarded as `Authorization: Bearer` — the document
+service resolves the owner from the token's `sub` claim, exactly like a
+browser request. Never send user ids in custom headers.
 """
 
 import httpx
 
 from src.config import settings
 
-_NOT_IMPLEMENTED = (
+_NOT_ENABLED = (
     "User profile not available yet — document service not connected."
 )
 
+_NO_PROFILE = (
+    "The user has not created a career profile yet. Ask them for the details "
+    "you need (experience, education, skills), and suggest completing their "
+    "profile in the app so future documents can be tailored automatically."
+)
 
-async def get_user_profile(user_id: str) -> str:
+
+async def get_user_profile(token: str) -> str:
     """
     Fetch and format the user's career profile from the document service.
     Returns a plain-text representation ready to inject into the LLM context.
+    `token` is the caller's verified access JWT, forwarded as-is.
     """
     if not settings.profile_enabled:
-        return _NOT_IMPLEMENTED
+        return _NOT_ENABLED
 
     async with httpx.AsyncClient() as client:
         response = await client.get(
             f"{settings.document_service_url}/api/v1/profile",
-            headers={"X-User-Id": user_id},
+            headers={"Authorization": f"Bearer {token}"},
             timeout=5.0,
         )
+        if response.status_code == 404:
+            # 404 is the contract's "no profile yet" signal, not an error.
+            return _NO_PROFILE
         response.raise_for_status()
         data = response.json()
 
@@ -33,21 +46,62 @@ async def get_user_profile(user_id: str) -> str:
 
 
 def _format_profile(data: dict) -> str:
-    """Format the profile JSON into a readable string for LLM injection."""
+    """Format a ProfileAggregateResponse into a readable string for LLM injection."""
+    profile = data.get("profile") or {}
     lines = ["User Profile:"]
 
-    if data.get("name"):
-        lines.append(f"Name: {data['name']}")
-    if data.get("experience"):
-        lines.append(f"Experience: {data['experience']}")
-    if data.get("education"):
-        lines.append(f"Education: {data['education']}")
-    if data.get("skills"):
-        skills = ", ".join(data["skills"]) if isinstance(data["skills"], list) else data["skills"]
-        lines.append(f"Skills: {skills}")
-    if data.get("certifications"):
-        lines.append(f"Certifications: {data['certifications']}")
-    if data.get("languages"):
-        lines.append(f"Languages: {data['languages']}")
+    name = " ".join(filter(None, [profile.get("first_name"), profile.get("last_name")]))
+    if name:
+        lines.append(f"Name: {name}")
+    if profile.get("location"):
+        lines.append(f"Location: {profile['location']}")
+    if profile.get("bio"):
+        lines.append(f"Summary: {profile['bio']}")
+    if profile.get("website"):
+        lines.append(f"Website: {profile['website']}")
+
+    experiences = data.get("work_experiences") or []
+    if experiences:
+        lines.append("Work Experience:")
+        for exp in experiences:
+            period = _period(exp.get("start_date"), exp.get("end_date"), exp.get("is_current"))
+            entry = f"- {exp.get('role')} at {exp.get('company')} ({period})"
+            if exp.get("location"):
+                entry += f", {exp['location']}"
+            lines.append(entry)
+            if exp.get("description"):
+                lines.append(f"  {exp['description']}")
+
+    educations = data.get("educations") or []
+    if educations:
+        lines.append("Education:")
+        for edu in educations:
+            period = _period(edu.get("start_date"), edu.get("end_date"), False)
+            entry = f"- {edu.get('degree')}"
+            if edu.get("field"):
+                entry += f" in {edu['field']}"
+            entry += f", {edu.get('institution')} ({period})"
+            lines.append(entry)
+            if edu.get("description"):
+                lines.append(f"  {edu['description']}")
+
+    skills = data.get("skills") or []
+    if skills:
+        formatted = ", ".join(f"{s.get('name')} ({s.get('level')})" for s in skills)
+        lines.append(f"Skills: {formatted}")
+
+    languages = data.get("languages") or []
+    if languages:
+        formatted = ", ".join(
+            f"{lang.get('name')} ({lang.get('proficiency')})" for lang in languages
+        )
+        lines.append(f"Languages: {formatted}")
 
     return "\n".join(lines)
+
+
+def _period(start: str | None, end: str | None, is_current: bool | None) -> str:
+    """Human-readable date range, e.g. '2023-01 – present'."""
+    start_text = start or "?"
+    end_text = "present" if is_current else (end or "present")
+    return f"{start_text} – {end_text}"
