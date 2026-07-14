@@ -43,7 +43,11 @@ public class ApplicationServiceImpl implements ApplicationService {
         application.setCompanyWebsite(request.getCompanyWebsite());
         application.setLinkedinUrl(request.getLinkedinUrl());
         application.setNotes(request.getNotes());
-        // stage defaults to APPLIED on the entity — new applications always start in `applied`.
+        // stage defaults to DRAFT on the entity; an explicit stage (e.g. importing an
+        // application that was already sent) overrides it.
+        if (request.getStage() != null) {
+            application.setStage(request.getStage());
+        }
         return toDto(repository.save(application));
     }
 
@@ -106,18 +110,20 @@ public class ApplicationServiceImpl implements ApplicationService {
         Map<ApplicationStage, Long> counts = repository.countByUserIdGroupedByStage(userId).stream()
             .collect(Collectors.toMap(ApplicationRepository.StageCount::getStage,
                                       ApplicationRepository.StageCount::getCount));
+        long draft = counts.getOrDefault(ApplicationStage.DRAFT, 0L);
         long applied = counts.getOrDefault(ApplicationStage.APPLIED, 0L);
         long followUp = counts.getOrDefault(ApplicationStage.FOLLOW_UP, 0L);
         long interview = counts.getOrDefault(ApplicationStage.INTERVIEW, 0L);
         long offer = counts.getOrDefault(ApplicationStage.OFFER, 0L);
         long closed = counts.getOrDefault(ApplicationStage.CLOSED, 0L);
         return new ApplicationSummary()
+            .draft(draft)
             .applied(applied)
             .followUp(followUp)
             .interview(interview)
             .offer(offer)
             .closed(closed)
-            .total(applied + followUp + interview + offer + closed);
+            .total(draft + applied + followUp + interview + offer + closed);
     }
 
     @Override

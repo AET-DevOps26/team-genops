@@ -12,12 +12,12 @@ CREATE TABLE application.applications (
     user_id         UUID NOT NULL,
     company         VARCHAR(255) NOT NULL,
     job_title       VARCHAR(255) NOT NULL,
-    job_description TEXT,
+    job_description TEXT NOT NULL,
     job_url         VARCHAR(512),
     company_website VARCHAR(512),
     linkedin_url    VARCHAR(512),
-    stage           VARCHAR(50) NOT NULL DEFAULT 'applied'
-                        CHECK (stage IN ('applied', 'follow_up', 'interview', 'offer', 'closed')),
+    stage           VARCHAR(50) NOT NULL DEFAULT 'draft'
+                        CHECK (stage IN ('draft', 'applied', 'follow_up', 'interview', 'offer', 'closed')),
     notes           TEXT,
     applied_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()

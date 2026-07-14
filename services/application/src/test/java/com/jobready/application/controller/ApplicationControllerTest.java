@@ -71,14 +71,14 @@ class ApplicationControllerTest {
                 .id(UUID.randomUUID())
                 .company("Acme")
                 .jobTitle("Engineer")
-                .stage(ApplicationStage.APPLIED)
+                .stage(ApplicationStage.DRAFT)
                 .appliedAt(OffsetDateTime.now())
                 .updatedAt(OffsetDateTime.now()));
 
         mvc.perform(post("/api/v1/applications")
                 .with(jwt().jwt(j -> j.subject(userId.toString())))
                 .contentType("application/json")
-                .content("{\"company\":\"Acme\",\"job_title\":\"Engineer\"}"))
+                .content("{\"company\":\"Acme\",\"job_title\":\"Engineer\",\"job_description\":\"Build things\"}"))
             .andExpect(status().isCreated())
             .andExpect(jsonPath("$.company").value("Acme"));
     }

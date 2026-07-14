@@ -43,7 +43,7 @@ public class Application {
     @Column(name = "job_title", nullable = false)
     private String jobTitle;
 
-    @Column(name = "job_description", columnDefinition = "text")
+    @Column(name = "job_description", columnDefinition = "text", nullable = false)
     private String jobDescription;
 
     @Column(name = "job_url", length = 512)
@@ -57,7 +57,7 @@ public class Application {
 
     @Convert(converter = StageConverter.class)
     @Column(nullable = false, length = 50)
-    private ApplicationStage stage = ApplicationStage.APPLIED;
+    private ApplicationStage stage = ApplicationStage.DRAFT;
 
     @Column(columnDefinition = "text")
     private String notes;

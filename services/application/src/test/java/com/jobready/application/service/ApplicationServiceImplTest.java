@@ -48,26 +48,37 @@ class ApplicationServiceImplTest {
     private final UUID userId = UUID.randomUUID();
 
     @Test
-    void create_setsOwnerFromArgument_andDefaultsToApplied() {
+    void create_setsOwnerFromArgument_andDefaultsToDraft() {
         when(repository.save(any(Application.class))).thenAnswer(inv -> inv.getArgument(0));
 
-        CreateApplicationRequest request = new CreateApplicationRequest("Acme", "Engineer")
-            .jobDescription("Build things");
+        CreateApplicationRequest request = new CreateApplicationRequest("Acme", "Engineer", "Build things");
 
         JobApplication result = service.create(userId, request);
 
         ArgumentCaptor<Application> saved = ArgumentCaptor.forClass(Application.class);
         verify(repository).save(saved.capture());
         assertThat(saved.getValue().getUserId()).isEqualTo(userId);
-        assertThat(saved.getValue().getStage()).isEqualTo(ApplicationStage.APPLIED);
+        assertThat(saved.getValue().getStage()).isEqualTo(ApplicationStage.DRAFT);
         assertThat(result.getCompany()).isEqualTo("Acme");
+    }
+
+    @Test
+    void create_withExplicitStage_overridesTheDraftDefault() {
+        when(repository.save(any(Application.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        CreateApplicationRequest request = new CreateApplicationRequest("Acme", "Engineer", "Build things")
+            .stage(ApplicationStage.INTERVIEW);
+
+        JobApplication result = service.create(userId, request);
+
+        assertThat(result.getStage()).isEqualTo(ApplicationStage.INTERVIEW);
     }
 
     @Test
     void create_roundTripsCompanyWebsiteAndLinkedinUrl() {
         when(repository.save(any(Application.class))).thenAnswer(inv -> inv.getArgument(0));
 
-        CreateApplicationRequest request = new CreateApplicationRequest("Acme", "Engineer")
+        CreateApplicationRequest request = new CreateApplicationRequest("Acme", "Engineer", "Build things")
             .companyWebsite("https://acme.example")
             .linkedinUrl("https://linkedin.com/company/acme");
 
@@ -132,7 +143,7 @@ class ApplicationServiceImplTest {
         when(repository.save(any(Application.class))).thenAnswer(inv -> inv.getArgument(0));
 
         UpdateApplicationRequest request =
-            new UpdateApplicationRequest("Acme", "Engineer", ApplicationStage.INTERVIEW);
+            new UpdateApplicationRequest("Acme", "Engineer", "Build things", ApplicationStage.INTERVIEW);
 
         JobApplication result = service.update(userId, id, request);
 
@@ -172,6 +183,7 @@ class ApplicationServiceImplTest {
 
         assertThat(summary.getApplied()).isEqualTo(2L);
         assertThat(summary.getOffer()).isEqualTo(1L);
+        assertThat(summary.getDraft()).isZero();
         assertThat(summary.getFollowUp()).isZero();
         assertThat(summary.getInterview()).isZero();
         assertThat(summary.getClosed()).isZero();
