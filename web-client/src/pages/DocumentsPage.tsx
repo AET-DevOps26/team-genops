@@ -53,55 +53,64 @@ export default function DocumentsPage() {
 
   if (isLoading) return <p className="p-6 text-sm text-dim">Loading your documents…</p>
 
+  // The shell's <main> is overflow-hidden, so each page owns its own scrolling — without
+  // this an expanded document is simply clipped at the fold.
   return (
-    <div className="p-6 max-w-4xl mx-auto">
-      <header className="mb-6">
-        <h1 className="text-xl font-semibold text-fg">Documents</h1>
-        <p className="mt-1 text-sm text-dim">
-          Cover letters and resumes you saved from the assistant.
-        </p>
-      </header>
-
-      <div className="mb-5 flex gap-2">
-        {FILTERS.map((f) => (
-          <button
-            key={f.key}
-            onClick={() => setFilter(f.key)}
-            className={`text-xs px-3 py-1.5 rounded-lg border transition-colors ${
-              filter === f.key
-                ? 'border-applied text-applied bg-applied/10'
-                : 'border-line text-dim hover:text-fg'
-            }`}
-          >
-            {f.label}
-          </button>
-        ))}
-      </div>
-
-      {documents.length === 0 ? (
-        <div className="rounded-xl border border-line bg-raised px-6 py-10 text-center">
-          <p className="text-sm text-dim">Nothing saved yet.</p>
-          <p className="mt-1 text-xs text-faint">
-            Ask the assistant for a cover letter or a resume, then save the reply.
+    <div className="h-full overflow-y-auto">
+      <div className="mx-auto max-w-4xl p-6">
+        <header className="mb-6">
+          <h1 className="text-xl font-semibold text-fg">Documents</h1>
+          <p className="mt-1 text-sm text-dim">
+            Cover letters and resumes you saved from the assistant.
           </p>
-          <button onClick={() => navigate('/chat')} className="cta mt-4 rounded-xl px-4 py-2 text-sm">
-            Open the assistant
-          </button>
-        </div>
-      ) : (
-        <ul className="space-y-3">
-          {documents.map((doc) => (
-            <DocumentCard
-              key={doc.id}
-              document={doc}
-              application={doc.application_id ? applicationsById.get(doc.application_id) : undefined}
-              expanded={openId === doc.id}
-              onToggle={() => setOpenId(openId === doc.id ? null : doc.id)}
-              onDelete={() => deleteDocument(doc.id)}
-            />
+        </header>
+
+        <div className="mb-5 flex gap-2">
+          {FILTERS.map((f) => (
+            <button
+              key={f.key}
+              onClick={() => setFilter(f.key)}
+              className={`text-xs px-3 py-1.5 rounded-lg border transition-colors ${
+                filter === f.key
+                  ? 'border-applied text-applied bg-applied/10'
+                  : 'border-line text-dim hover:text-fg'
+              }`}
+            >
+              {f.label}
+            </button>
           ))}
-        </ul>
-      )}
+        </div>
+
+        {documents.length === 0 ? (
+          <div className="rounded-xl border border-line bg-raised px-6 py-10 text-center">
+            <p className="text-sm text-dim">Nothing saved yet.</p>
+            <p className="mt-1 text-xs text-faint">
+              Ask the assistant for a cover letter or a resume, then save the reply.
+            </p>
+            <button
+              onClick={() => navigate('/chat')}
+              className="cta mt-4 rounded-xl px-4 py-2 text-sm"
+            >
+              Open the assistant
+            </button>
+          </div>
+        ) : (
+          <ul className="space-y-3">
+            {documents.map((doc) => (
+              <DocumentCard
+                key={doc.id}
+                document={doc}
+                application={
+                  doc.application_id ? applicationsById.get(doc.application_id) : undefined
+                }
+                expanded={openId === doc.id}
+                onToggle={() => setOpenId(openId === doc.id ? null : doc.id)}
+                onDelete={() => deleteDocument(doc.id)}
+              />
+            ))}
+          </ul>
+        )}
+      </div>
     </div>
   )
 }
