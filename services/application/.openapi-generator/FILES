@@ -1,5 +1,8 @@
 src/main/java/com/jobready/application/generated/api/ApiUtil.java
 src/main/java/com/jobready/application/generated/api/ApplicationsApi.java
+src/main/java/com/jobready/application/generated/modelDto/ApplicationEvent.java
+src/main/java/com/jobready/application/generated/modelDto/ApplicationEventList.java
+src/main/java/com/jobready/application/generated/modelDto/ApplicationEventType.java
 src/main/java/com/jobready/application/generated/modelDto/ApplicationList.java
 src/main/java/com/jobready/application/generated/modelDto/ApplicationStage.java
 src/main/java/com/jobready/application/generated/modelDto/ApplicationSummary.java

@@ -1,5 +1,6 @@
 package com.jobready.application.service;
 
+import com.jobready.application.generated.modelDto.ApplicationEventList;
 import com.jobready.application.generated.modelDto.ApplicationList;
 import com.jobready.application.generated.modelDto.ApplicationStage;
 import com.jobready.application.generated.modelDto.ApplicationSummary;
@@ -32,4 +33,7 @@ public interface ApplicationService {
     RecommendationList listRecommendations(UUID userId, UUID applicationId);
 
     void deleteRecommendation(UUID userId, UUID applicationId, UUID recommendationId);
+
+    /** Timeline of one application, newest first by {@code occurred_at}. */
+    ApplicationEventList listEvents(UUID userId, UUID applicationId);
 }

@@ -10,7 +10,9 @@ import com.jobready.application.generated.modelDto.JobApplication;
 import com.jobready.application.generated.modelDto.RecommendationList;
 import com.jobready.application.generated.modelDto.UpdateApplicationRequest;
 import com.jobready.application.modelEntity.Application;
+import com.jobready.application.modelEntity.ApplicationEvent;
 import com.jobready.application.modelEntity.Recommendation;
+import com.jobready.application.repository.ApplicationEventRepository;
 import com.jobready.application.repository.ApplicationRepository;
 import com.jobready.application.repository.RecommendationRepository;
 import org.junit.jupiter.api.Test;
@@ -41,6 +43,9 @@ class ApplicationServiceImplTest {
 
     @Mock
     private RecommendationRepository recommendationRepository;
+
+    @Mock
+    private ApplicationEventRepository eventRepository;
 
     @InjectMocks
     private ApplicationServiceImpl service;
@@ -138,6 +143,34 @@ class ApplicationServiceImplTest {
 
         assertThat(result.getStage()).isEqualTo(ApplicationStage.INTERVIEW);
         assertThat(existing.getStage()).isEqualTo(ApplicationStage.INTERVIEW);
+    }
+
+    @Test
+    void update_whenStageChanges_recordsManualTimelineEvent() {
+        UUID id = UUID.randomUUID();
+        Application existing = entity(userId, ApplicationStage.APPLIED);
+        when(repository.findByIdAndUserId(id, userId)).thenReturn(Optional.of(existing));
+        when(repository.save(any(Application.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        service.update(userId, id, new UpdateApplicationRequest("Acme", "Engineer", ApplicationStage.INTERVIEW));
+
+        ArgumentCaptor<ApplicationEvent> saved = ArgumentCaptor.forClass(ApplicationEvent.class);
+        verify(eventRepository).save(saved.capture());
+        assertThat(saved.getValue().getStageFrom()).isEqualTo(ApplicationStage.APPLIED);
+        assertThat(saved.getValue().getStageTo()).isEqualTo(ApplicationStage.INTERVIEW);
+        assertThat(saved.getValue().getSource()).isEqualTo(ApplicationEvent.Source.MANUAL);
+    }
+
+    @Test
+    void update_whenStageUnchanged_recordsNoEvent() {
+        UUID id = UUID.randomUUID();
+        Application existing = entity(userId, ApplicationStage.APPLIED);
+        when(repository.findByIdAndUserId(id, userId)).thenReturn(Optional.of(existing));
+        when(repository.save(any(Application.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        service.update(userId, id, new UpdateApplicationRequest("Acme", "Engineer", ApplicationStage.APPLIED));
+
+        verify(eventRepository, never()).save(any());
     }
 
     @Test

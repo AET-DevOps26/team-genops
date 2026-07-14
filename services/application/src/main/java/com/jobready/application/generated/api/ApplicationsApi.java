@@ -5,6 +5,7 @@
  */
 package com.jobready.application.generated.api;
 
+import com.jobready.application.generated.modelDto.ApplicationEventList;
 import com.jobready.application.generated.modelDto.ApplicationList;
 import com.jobready.application.generated.modelDto.ApplicationStage;
 import com.jobready.application.generated.modelDto.ApplicationSummary;
@@ -407,6 +408,69 @@ public interface ApplicationsApi {
             for (MediaType mediaType: MediaType.parseMediaTypes(request.getHeader("Accept"))) {
                 if (mediaType.isCompatibleWith(MediaType.valueOf("application/json"))) {
                     String exampleString = "{ \"offer\" : 5, \"total\" : 2, \"applied\" : 0, \"closed\" : 5, \"interview\" : 1, \"follow_up\" : 6 }";
+                    ApiUtil.setExampleResponse(request, "application/json", exampleString);
+                    break;
+                }
+                if (mediaType.isCompatibleWith(MediaType.valueOf("application/json"))) {
+                    String exampleString = "{ \"code\" : \"INVALID_CREDENTIALS\", \"details\" : { \"key\" : \"\" }, \"message\" : \"Email or password is incorrect\" }";
+                    ApiUtil.setExampleResponse(request, "application/json", exampleString);
+                    break;
+                }
+            }
+        });
+        return new ResponseEntity<>(HttpStatus.NOT_IMPLEMENTED);
+
+    }
+
+
+    String PATH_LIST_APPLICATION_EVENTS = "/api/v1/applications/{id}/events";
+    /**
+     * GET /api/v1/applications/{id}/events : List an application&#39;s timeline events
+     * Returns the timeline of an application owned by the authenticated user, newest first by &#x60;occurred_at&#x60;. Events are appended automatically — from detected emails (source &#x60;email&#x60;) and from manual stage changes (source &#x60;manual&#x60;) — and record exactly when each step happened. 
+     *
+     * @param id  (required)
+     * @return The application&#39;s timeline events (status code 200)
+     *         or Missing or invalid access token (status code 401)
+     *         or No such application for this user (status code 404)
+     */
+    @Operation(
+        operationId = "listApplicationEvents",
+        summary = "List an application's timeline events",
+        description = "Returns the timeline of an application owned by the authenticated user, newest first by `occurred_at`. Events are appended automatically — from detected emails (source `email`) and from manual stage changes (source `manual`) — and record exactly when each step happened. ",
+        tags = { "Applications" },
+        responses = {
+            @ApiResponse(responseCode = "200", description = "The application's timeline events", content = {
+                @Content(mediaType = "application/json", schema = @Schema(implementation = ApplicationEventList.class))
+            }),
+            @ApiResponse(responseCode = "401", description = "Missing or invalid access token", content = {
+                @Content(mediaType = "application/json", schema = @Schema(implementation = Error.class))
+            }),
+            @ApiResponse(responseCode = "404", description = "No such application for this user", content = {
+                @Content(mediaType = "application/json", schema = @Schema(implementation = Error.class))
+            })
+        },
+        security = {
+            @SecurityRequirement(name = "CookieAuth"),
+            @SecurityRequirement(name = "BearerAuth")
+        }
+    )
+    @RequestMapping(
+        method = RequestMethod.GET,
+        value = ApplicationsApi.PATH_LIST_APPLICATION_EVENTS,
+        produces = { "application/json" }
+    )
+    default ResponseEntity<ApplicationEventList> listApplicationEvents(
+        @Parameter(name = "id", description = "", required = true, in = ParameterIn.PATH) @PathVariable("id") UUID id
+    ) {
+        getRequest().ifPresent(request -> {
+            for (MediaType mediaType: MediaType.parseMediaTypes(request.getHeader("Accept"))) {
+                if (mediaType.isCompatibleWith(MediaType.valueOf("application/json"))) {
+                    String exampleString = "{ \"items\" : [ { \"occurred_at\" : \"2000-01-23T04:56:07.000+00:00\", \"event_type\" : \"stage_change\", \"stage_from\" : \"\", \"stage_to\" : \"\", \"description\" : \"description\", \"created_at\" : \"2000-01-23T04:56:07.000+00:00\", \"id\" : \"046b6c7f-0b8a-43b9-b35d-6489e6daee91\", \"source\" : \"email\", \"title\" : \"title\", \"application_id\" : \"046b6c7f-0b8a-43b9-b35d-6489e6daee91\" }, { \"occurred_at\" : \"2000-01-23T04:56:07.000+00:00\", \"event_type\" : \"stage_change\", \"stage_from\" : \"\", \"stage_to\" : \"\", \"description\" : \"description\", \"created_at\" : \"2000-01-23T04:56:07.000+00:00\", \"id\" : \"046b6c7f-0b8a-43b9-b35d-6489e6daee91\", \"source\" : \"email\", \"title\" : \"title\", \"application_id\" : \"046b6c7f-0b8a-43b9-b35d-6489e6daee91\" } ] }";
+                    ApiUtil.setExampleResponse(request, "application/json", exampleString);
+                    break;
+                }
+                if (mediaType.isCompatibleWith(MediaType.valueOf("application/json"))) {
+                    String exampleString = "{ \"code\" : \"INVALID_CREDENTIALS\", \"details\" : { \"key\" : \"\" }, \"message\" : \"Email or password is incorrect\" }";
                     ApiUtil.setExampleResponse(request, "application/json", exampleString);
                     break;
                 }
