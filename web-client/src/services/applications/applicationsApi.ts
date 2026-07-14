@@ -1,8 +1,10 @@
 import { api } from '~/services/apiClient'
 import type {
+  ApplicationEventList,
   ApplicationList,
   CreateApplicationRequest,
   JobApplication,
+  RecommendationList,
   UpdateApplicationRequest,
 } from '~/api/schemas'
 
@@ -36,6 +38,27 @@ const applicationsApi = api.injectEndpoints({
       invalidatesTags: (_result, _error, { id }) => ['Application', { type: 'Application', id }],
     }),
 
+    listApplicationEvents: build.query<ApplicationEventList, string>({
+      query: (id) => `/applications/${id}/events`,
+      // Broad 'Application' tag: any mutation that invalidates applications (incl.
+      // stage edits, which append a timeline event) refetches the timeline too.
+      providesTags: ['Application'],
+    }),
+
+    listRecommendations: build.query<RecommendationList, string>({
+      query: (id) => `/applications/${id}/recommendations`,
+      providesTags: ['Application'],
+    }),
+
+    deleteRecommendation: build.mutation<void, { applicationId: string; recommendationId: string }>({
+      query: ({ applicationId, recommendationId }) => ({
+        url: `/applications/${applicationId}/recommendations/${recommendationId}`,
+        method: 'DELETE',
+        responseHandler: 'text', // 204 No Content has no body
+      }),
+      invalidatesTags: ['Application'],
+    }),
+
     deleteApplication: build.mutation<void, string>({
       query: (id) => ({
         url: `/applications/${id}`,
@@ -53,4 +76,7 @@ export const {
   useCreateApplicationMutation,
   useUpdateApplicationMutation,
   useDeleteApplicationMutation,
+  useListApplicationEventsQuery,
+  useListRecommendationsQuery,
+  useDeleteRecommendationMutation,
 } = applicationsApi

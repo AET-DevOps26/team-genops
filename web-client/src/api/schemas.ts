@@ -26,6 +26,13 @@ export type ApplicationStage = Schemas['ApplicationStage']
 export type CreateApplicationRequest = Schemas['CreateApplicationRequest']
 export type UpdateApplicationRequest = Schemas['UpdateApplicationRequest']
 
+// Application timeline & recommendations (application service)
+export type ApplicationEvent = Schemas['ApplicationEvent']
+export type ApplicationEventList = Schemas['ApplicationEventList']
+export type ApplicationEventType = Schemas['ApplicationEventType']
+export type Recommendation = Schemas['Recommendation']
+export type RecommendationList = Schemas['RecommendationList']
+
 // Profile & generated documents (document service)
 export type Profile = Schemas['Profile']
 export type ProfileRequest = Schemas['ProfileRequest']
