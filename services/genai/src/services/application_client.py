@@ -8,6 +8,7 @@ custom headers.
 """
 
 import logging
+from uuid import UUID
 
 import httpx
 
@@ -38,10 +39,19 @@ async def get_application(token: str, application_id: str) -> str | None:
     plain-text note instead of raising: this runs on every turn of a bound session,
     so an application-service outage must degrade the answer, not fail the turn.
     """
+    # The id reaches us from a model tool call, so it is untrusted: interpolating it raw
+    # would let a value like "../../users/1" retarget the request at another endpoint of the
+    # application service. Rebuilding it from the parsed UUID means only a canonical id can
+    # ever reach the URL.
+    try:
+        safe_id = str(UUID(str(application_id)))
+    except ValueError:
+        return _NOT_FOUND
+
     try:
         async with httpx.AsyncClient() as client:
             response = await client.get(
-                f"{settings.application_service_url}/api/v1/applications/{application_id}",
+                f"{settings.application_service_url}/api/v1/applications/{safe_id}",
                 headers={"Authorization": f"Bearer {token}"},
                 timeout=5.0,
             )
