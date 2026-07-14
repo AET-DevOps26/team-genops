@@ -21,6 +21,10 @@ export default defineConfig({
         target: process.env.VITE_GENAI_TARGET ?? 'http://localhost:8000',
         changeOrigin: true,
       },
+      '/api/v1/job-postings': {
+        target: process.env.VITE_GENAI_TARGET ?? 'http://localhost:8000',
+        changeOrigin: true,
+      },
       // Application service on port 8082
       '/api/v1/applications': {
         target: process.env.VITE_APPLICATION_TARGET ?? 'http://localhost:8082',
