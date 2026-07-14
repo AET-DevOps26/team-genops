@@ -32,7 +32,8 @@ public class ResumeEntity {
     @Column(name = "user_id", nullable = false)
     private UUID userId;
 
-    @Column(name = "application_id", nullable = false)
+    /** Null for a standalone document — one the user polished without a target job. */
+    @Column(name = "application_id")
     private UUID applicationId;
 
     @Column(nullable = false, columnDefinition = "text")

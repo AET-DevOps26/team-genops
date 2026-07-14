@@ -5,8 +5,11 @@ import { useCreateDocumentMutation } from '~/services/documents/documentsApi'
 interface Props {
   /** The assistant message body — saved verbatim as the document content. */
   content: string
-  /** The application this chat is bound to. Without one there is nowhere to save. */
-  applicationId: string
+  /**
+   * The application this chat is bound to, if any. Optional: a document does not need a
+   * target job ("just tighten my general resume"), it is simply saved unattached.
+   */
+  applicationId?: string | null
 }
 
 /**
@@ -24,7 +27,12 @@ export function SaveDocumentActions({ content, applicationId }: Props) {
   async function save(type: GeneratedDocumentType) {
     setError(false)
     try {
-      await createDocument({ application_id: applicationId, type, content }).unwrap()
+      await createDocument({
+        // Omitted entirely when there is no target job — the document is standalone.
+        ...(applicationId ? { application_id: applicationId } : {}),
+        type,
+        content,
+      }).unwrap()
       setSavedAs(type)
     } catch {
       setError(true)
@@ -32,10 +40,11 @@ export function SaveDocumentActions({ content, applicationId }: Props) {
   }
 
   if (savedAs) {
+    const label = savedAs === 'cover_letter' ? 'cover letter' : 'resume'
     return (
       <p className="mt-2 text-xs text-offer">
-        Saved as {savedAs === 'cover_letter' ? 'cover letter' : 'resume'} — it is on the
-        application now.
+        Saved as {label} — find it under Documents
+        {applicationId ? ' and on the application.' : '.'}
       </p>
     )
   }

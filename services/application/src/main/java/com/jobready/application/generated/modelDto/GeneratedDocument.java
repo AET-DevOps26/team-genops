@@ -28,7 +28,7 @@ public class GeneratedDocument {
 
   private UUID id;
 
-  private UUID applicationId;
+  private @Nullable UUID applicationId = null;
 
   private GeneratedDocumentType type;
 
@@ -44,9 +44,8 @@ public class GeneratedDocument {
   /**
    * Constructor with only required parameters
    */
-  public GeneratedDocument(UUID id, UUID applicationId, GeneratedDocumentType type, String content, OffsetDateTime createdAt) {
+  public GeneratedDocument(UUID id, GeneratedDocumentType type, String content, OffsetDateTime createdAt) {
     this.id = id;
-    this.applicationId = applicationId;
     this.type = type;
     this.content = content;
     this.createdAt = createdAt;
@@ -73,24 +72,24 @@ public class GeneratedDocument {
     this.id = id;
   }
 
-  public GeneratedDocument applicationId(UUID applicationId) {
+  public GeneratedDocument applicationId(@Nullable UUID applicationId) {
     this.applicationId = applicationId;
     return this;
   }
 
   /**
-   * The application this document was generated for (no cross-service FK)
+   * The application this document was tailored for (no cross-service FK), or null for a standalone document — a user may polish a general resume without a target job. A document is owned by its user; being filed under an application is optional.
    * @return applicationId
    */
-  @NotNull @Valid 
-  @Schema(name = "application_id", description = "The application this document was generated for (no cross-service FK)", requiredMode = Schema.RequiredMode.REQUIRED)
+  @Valid 
+  @Schema(name = "application_id", description = "The application this document was tailored for (no cross-service FK), or null for a standalone document — a user may polish a general resume without a target job. A document is owned by its user; being filed under an application is optional.", requiredMode = Schema.RequiredMode.NOT_REQUIRED)
   @JsonProperty("application_id")
-  public UUID getApplicationId() {
+  public @Nullable UUID getApplicationId() {
     return applicationId;
   }
 
   @JsonProperty("application_id")
-  public void setApplicationId(UUID applicationId) {
+  public void setApplicationId(@Nullable UUID applicationId) {
     this.applicationId = applicationId;
   }
 

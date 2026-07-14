@@ -24,7 +24,7 @@ import jakarta.annotation.Generated;
 @Generated(value = "org.openapitools.codegen.languages.SpringCodegen", comments = "Generator version: 7.23.0")
 public class CreateGeneratedDocumentRequest {
 
-  private UUID applicationId;
+  private @Nullable UUID applicationId = null;
 
   private GeneratedDocumentType type;
 
@@ -37,30 +37,29 @@ public class CreateGeneratedDocumentRequest {
   /**
    * Constructor with only required parameters
    */
-  public CreateGeneratedDocumentRequest(UUID applicationId, GeneratedDocumentType type, String content) {
-    this.applicationId = applicationId;
+  public CreateGeneratedDocumentRequest(GeneratedDocumentType type, String content) {
     this.type = type;
     this.content = content;
   }
 
-  public CreateGeneratedDocumentRequest applicationId(UUID applicationId) {
+  public CreateGeneratedDocumentRequest applicationId(@Nullable UUID applicationId) {
     this.applicationId = applicationId;
     return this;
   }
 
   /**
-   * Get applicationId
+   * Omit to save a standalone document not tied to any application.
    * @return applicationId
    */
-  @NotNull @Valid 
-  @Schema(name = "application_id", requiredMode = Schema.RequiredMode.REQUIRED)
+  @Valid 
+  @Schema(name = "application_id", description = "Omit to save a standalone document not tied to any application.", requiredMode = Schema.RequiredMode.NOT_REQUIRED)
   @JsonProperty("application_id")
-  public UUID getApplicationId() {
+  public @Nullable UUID getApplicationId() {
     return applicationId;
   }
 
   @JsonProperty("application_id")
-  public void setApplicationId(UUID applicationId) {
+  public void setApplicationId(@Nullable UUID applicationId) {
     this.applicationId = applicationId;
   }
 

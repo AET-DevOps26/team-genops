@@ -927,17 +927,20 @@ export interface components {
             id: string;
             /**
              * Format: uuid
-             * @description The application this document was generated for (no cross-service FK)
+             * @description The application this document was tailored for (no cross-service FK), or null for a standalone document — a user may polish a general resume without a target job. A document is owned by its user; being filed under an application is optional.
              */
-            application_id: string;
+            application_id?: string | null;
             type: components["schemas"]["GeneratedDocumentType"];
             content: string;
             /** Format: date-time */
             created_at: string;
         };
         CreateGeneratedDocumentRequest: {
-            /** Format: uuid */
-            application_id: string;
+            /**
+             * Format: uuid
+             * @description Omit to save a standalone document not tied to any application.
+             */
+            application_id?: string | null;
             type: components["schemas"]["GeneratedDocumentType"];
             content: string;
         };

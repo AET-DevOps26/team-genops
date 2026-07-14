@@ -1,4 +1,4 @@
-import { Markdown } from './Markdown'
+import { Markdown } from '~/components/Markdown'
 import { SaveDocumentActions } from './SaveDocumentActions'
 
 // A greeting or a clarifying question is not a document. Only offer to save a reply
@@ -14,7 +14,9 @@ interface Props {
 
 export function MessageBubble({ role, content, applicationId }: Props) {
   const isUser = role === 'user'
-  const canSave = !isUser && !!applicationId && content.length >= MIN_DOCUMENT_CHARS
+  // No application needed: a standalone resume is a legitimate document, it just saves
+  // unattached. Length is the only gate, so ordinary replies don't sprout buttons.
+  const canSave = !isUser && content.length >= MIN_DOCUMENT_CHARS
 
   return (
     <div className={`flex ${isUser ? 'justify-end' : 'justify-start'}`}>

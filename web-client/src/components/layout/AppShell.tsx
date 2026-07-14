@@ -49,6 +49,17 @@ const ICONS = {
       <path d="M5.5 3V2a1 1 0 0 1 1-1h3a1 1 0 0 1 1 1v1" stroke="currentColor" strokeWidth="1.3" />
     </svg>
   ),
+  documents: (
+    <svg width="15" height="15" viewBox="0 0 16 16" fill="none" aria-hidden>
+      <path
+        d="M4 1.5h5L12.5 5v9.5h-8.5z"
+        stroke="currentColor"
+        strokeWidth="1.3"
+        strokeLinejoin="round"
+      />
+      <path d="M9 1.5V5h3.5M6 8.5h4M6 11h4" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
+    </svg>
+  ),
   jobs: (
     <svg width="15" height="15" viewBox="0 0 16 16" fill="none" aria-hidden>
       <circle cx="7" cy="7" r="5" stroke="currentColor" strokeWidth="1.3" />
@@ -104,6 +115,7 @@ export function AppShell() {
             label="Applications"
             badge={applications?.items.length}
           />
+          <NavItem to="/documents" icon={ICONS.documents} label="Documents" />
           <NavItem to="/jobs" icon={ICONS.jobs} label="Jobs" />
         </nav>
 
