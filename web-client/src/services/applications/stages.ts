@@ -5,6 +5,7 @@ import type { ApplicationStage } from '~/api/schemas'
  * Color is meaning — these are the only saturated colors in the UI.
  */
 export const STAGES: { value: ApplicationStage; label: string; color: string }[] = [
+  { value: 'draft', label: 'Draft', color: 'var(--color-dim)' },
   { value: 'applied', label: 'Applied', color: 'var(--color-applied)' },
   { value: 'follow_up', label: 'Follow-up', color: 'var(--color-screen)' },
   { value: 'interview', label: 'Interview', color: 'var(--color-interview)' },
