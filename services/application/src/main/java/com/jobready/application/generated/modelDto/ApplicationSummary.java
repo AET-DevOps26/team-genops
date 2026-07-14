@@ -18,8 +18,10 @@ import jakarta.annotation.Generated;
  * ApplicationSummary
  */
 
-@Generated(value = "org.openapitools.codegen.languages.SpringCodegen", comments = "Generator version: 7.22.0")
+@Generated(value = "org.openapitools.codegen.languages.SpringCodegen", comments = "Generator version: 7.23.0")
 public class ApplicationSummary {
+
+  private Long draft;
 
   private Long applied;
 
@@ -40,13 +42,35 @@ public class ApplicationSummary {
   /**
    * Constructor with only required parameters
    */
-  public ApplicationSummary(Long applied, Long followUp, Long interview, Long offer, Long closed, Long total) {
+  public ApplicationSummary(Long draft, Long applied, Long followUp, Long interview, Long offer, Long closed, Long total) {
+    this.draft = draft;
     this.applied = applied;
     this.followUp = followUp;
     this.interview = interview;
     this.offer = offer;
     this.closed = closed;
     this.total = total;
+  }
+
+  public ApplicationSummary draft(Long draft) {
+    this.draft = draft;
+    return this;
+  }
+
+  /**
+   * Get draft
+   * @return draft
+   */
+  @NotNull 
+  @Schema(name = "draft", requiredMode = Schema.RequiredMode.REQUIRED)
+  @JsonProperty("draft")
+  public Long getDraft() {
+    return draft;
+  }
+
+  @JsonProperty("draft")
+  public void setDraft(Long draft) {
+    this.draft = draft;
   }
 
   public ApplicationSummary applied(Long applied) {
@@ -184,7 +208,8 @@ public class ApplicationSummary {
       return false;
     }
     ApplicationSummary applicationSummary = (ApplicationSummary) o;
-    return Objects.equals(this.applied, applicationSummary.applied) &&
+    return Objects.equals(this.draft, applicationSummary.draft) &&
+        Objects.equals(this.applied, applicationSummary.applied) &&
         Objects.equals(this.followUp, applicationSummary.followUp) &&
         Objects.equals(this.interview, applicationSummary.interview) &&
         Objects.equals(this.offer, applicationSummary.offer) &&
@@ -194,13 +219,14 @@ public class ApplicationSummary {
 
   @Override
   public int hashCode() {
-    return Objects.hash(applied, followUp, interview, offer, closed, total);
+    return Objects.hash(draft, applied, followUp, interview, offer, closed, total);
   }
 
   @Override
   public String toString() {
     StringBuilder sb = new StringBuilder();
     sb.append("class ApplicationSummary {\n");
+    sb.append("    draft: ").append(toIndentedString(draft)).append("\n");
     sb.append("    applied: ").append(toIndentedString(applied)).append("\n");
     sb.append("    followUp: ").append(toIndentedString(followUp)).append("\n");
     sb.append("    interview: ").append(toIndentedString(interview)).append("\n");
