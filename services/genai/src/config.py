@@ -32,5 +32,9 @@ class Settings(BaseSettings):
     document_service_url: str = "http://document:8080"
     profile_enabled: bool = False
 
+    # Static shared secret guarding /internal/** (called by the email service's
+    # detection pipeline). Blank disables the internal API entirely (fail-closed).
+    internal_service_token: str = ""
+
 
 settings = Settings()

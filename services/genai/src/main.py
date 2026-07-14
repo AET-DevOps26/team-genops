@@ -7,6 +7,7 @@ from src.db.pool import close_db, init_db
 from src.observability import flush as flush_tracing
 from src.observability import init_tracing
 from src.routers.chat import router as chat_router
+from src.routers.internal_analysis import router as internal_analysis_router
 
 
 @asynccontextmanager
@@ -27,6 +28,7 @@ app = FastAPI(
 Instrumentator().instrument(app).expose(app)
 
 app.include_router(chat_router)
+app.include_router(internal_analysis_router)
 
 
 @app.get("/health")
