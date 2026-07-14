@@ -1,0 +1,117 @@
+name: Ansible deploy
+description: >-
+  Installs the Ansible toolchain, runs the platform bootstrap and app deploy
+  playbooks against the target inventory, smoke-checks the public URL, and
+  writes a deploy summary. The caller must provide a kubeconfig via the
+  KUBECONFIG env var on the `uses:` step (the kubernetes.core modules read it
+  through the inventory's `kubeconfig` var).
+
+inputs:
+  inventory:
+    description: "Inventory path relative to infra/ansible (e.g. inventories/dev/hosts.yml)"
+    required: true
+  image_tag:
+    description: "Final, ready-to-use image tag (callers normalize sha-/semver forms)"
+    required: true
+  vault_password:
+    description: "Ansible vault password for the target environment"
+    required: true
+  bootstrap:
+    description: "Set to 'true' to run bootstrap.yml (platform add-ons) before the deploy — dev/AKS only"
+    required: false
+    default: "false"
+  ingress_ip:
+    description: "Reserved static IP for ingress-nginx (required when bootstrap=true)"
+    required: false
+    default: ""
+  azure_lb_resource_group:
+    description: "Resource group holding the reserved IP (dev/AKS only)"
+    required: false
+    default: ""
+  app_url:
+    description: "Public URL to smoke-check after deploy (strict TLS; skipped when empty)"
+    required: false
+    default: ""
+  extra_args:
+    description: "Extra ansible-playbook args for deploy.yml (e.g. -e ingress_host=...)"
+    required: false
+    default: ""
+
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-python@v6
+      with:
+        python-version: '3.12'
+
+    # Pinned so a deploy never breaks because pip resolved a different
+    # ansible-core that morning — bump deliberately, with a diff.
+    - name: Install Ansible + collections
+      shell: bash
+      run: |
+        pip install 'ansible-core==2.17.*' kubernetes
+        ansible-galaxy collection install -r infra/ansible/requirements.yml
+
+    - uses: azure/setup-helm@v4
+      with:
+        version: v3.16.0
+
+    # Only dev/AKS starts from a bare cluster; prod/TUM provides ingress-nginx
+    # + cert-manager, so there the step is skipped outright (grey in the step
+    # list). The caller opts in explicitly via the bootstrap input; the
+    # inventory's install_platform flag remains the inner guard in the playbook.
+    - name: Bootstrap platform (dev/AKS only)
+      if: inputs.bootstrap == 'true'
+      shell: bash
+      working-directory: infra/ansible
+      run: |
+        trap 'rm -f vault-pass' EXIT
+        echo "${{ inputs.vault_password }}" > vault-pass
+        ansible-playbook -i "${{ inputs.inventory }}" playbooks/bootstrap.yml \
+          --vault-password-file vault-pass \
+          -e "ingress_ip=${{ inputs.ingress_ip }}" \
+          -e "azure_lb_resource_group=${{ inputs.azure_lb_resource_group }}"
+
+    - name: Deploy app
+      shell: bash
+      working-directory: infra/ansible
+      run: |
+        trap 'rm -f vault-pass' EXIT
+        echo "${{ inputs.vault_password }}" > vault-pass
+        ansible-playbook -i "${{ inputs.inventory }}" playbooks/deploy.yml \
+          --vault-password-file vault-pass \
+          -e "image_tag=${{ inputs.image_tag }}" ${{ inputs.extra_args }}
+
+    # Outside-in check: helm --wait (inside deploy.yml) already proved the pods
+    # are Ready; this proves the route to them — LB, ingress, TLS, DNS. No -k:
+    # an untrusted (staging-issuer) certificate must fail the deploy.
+    - name: Smoke check
+      if: inputs.app_url != ''
+      shell: bash
+      run: |
+        echo "Probing ${{ inputs.app_url }} ..."
+        for i in $(seq 1 12); do
+          if curl -sfo /dev/null --max-time 10 "${{ inputs.app_url }}"; then
+            echo "OK (attempt $i)"
+            exit 0
+          fi
+          sleep 10
+        done
+        echo "::error::${{ inputs.app_url }} did not answer within 2 minutes after deploy"
+        exit 1
+
+    - name: Write deploy summary
+      shell: bash
+      run: |
+        {
+          echo "## Deployed ✅"
+          echo ""
+          echo "| | |"
+          echo "|---|---|"
+          echo "| Inventory | \`${{ inputs.inventory }}\` |"
+          echo "| Image tag | \`${{ inputs.image_tag }}\` |"
+          if [ -n "${{ inputs.app_url }}" ]; then
+            echo "| URL | ${{ inputs.app_url }} |"
+          fi
+          echo ""
+        } >> "$GITHUB_STEP_SUMMARY"

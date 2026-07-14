@@ -93,37 +93,28 @@ jobs:
           echo "rg=$(terraform output -raw resource_group_name)" >> "$GITHUB_OUTPUT"
           terraform output -raw kube_config > "$RUNNER_TEMP/kubeconfig"
 
-      - uses: actions/setup-python@v6
-        with:
-          python-version: '3.12'
-
-      - name: Install Ansible + collections
+      # Trigger interpretation lives here, not in the action: a workflow_run
+      # deploy pins the exact sha- tag that build just published; a manual
+      # dispatch uses the given input.
+      - name: Compute image tag
+        id: tag
         run: |
-          pip install ansible-core kubernetes
-          ansible-galaxy collection install -r infra/ansible/requirements.yml
+          if [ -n "${{ github.event.workflow_run.head_sha }}" ]; then
+            echo "tag=sha-$(echo ${{ github.event.workflow_run.head_sha }} | cut -c1-7)" >> "$GITHUB_OUTPUT"
+          else
+            echo "tag=${{ inputs.image_tag }}" >> "$GITHUB_OUTPUT"
+          fi
 
-      - name: Set up Helm
-        uses: azure/setup-helm@v4
-        with:
-          version: v3.16.0
-
-      - name: Bootstrap + deploy
-        working-directory: infra/ansible
+      - name: Deploy via Ansible
+        uses: ./.github/actions/ansible-deploy
         env:
           KUBECONFIG: ${{ runner.temp }}/kubeconfig
-        run: |
-          trap 'rm -f vault-pass' EXIT
-          echo "${{ secrets.ANSIBLE_VAULT_PASSWORD_DEV }}" > vault-pass
-          if [ -n "${{ github.event.workflow_run.head_sha }}" ]; then
-            IMAGE_TAG="sha-$(echo ${{ github.event.workflow_run.head_sha }} | cut -c1-7)"
-          else
-            IMAGE_TAG="${{ inputs.image_tag }}"
-          fi
-          ansible-playbook -i inventories/dev/hosts.yml playbooks/bootstrap.yml \
-            --vault-password-file vault-pass \
-            -e ingress_ip=${{ steps.tf.outputs.ingress_ip }} \
-            -e azure_lb_resource_group=${{ steps.tf.outputs.rg }}
-          ansible-playbook -i inventories/dev/hosts.yml playbooks/deploy.yml \
-            --vault-password-file vault-pass \
-            -e image_tag=${IMAGE_TAG} \
-            -e ingress_host=${{ steps.tf.outputs.fqdn }}
+        with:
+          inventory: inventories/dev/hosts.yml
+          image_tag: ${{ steps.tag.outputs.tag }}
+          vault_password: ${{ secrets.ANSIBLE_VAULT_PASSWORD_DEV }}
+          bootstrap: "true"
+          ingress_ip: ${{ steps.tf.outputs.ingress_ip }}
+          azure_lb_resource_group: ${{ steps.tf.outputs.rg }}
+          app_url: https://${{ steps.tf.outputs.fqdn }}
+          extra_args: -e ingress_host=${{ steps.tf.outputs.fqdn }}

@@ -34,30 +34,22 @@ jobs:
       - name: Write Rancher kubeconfig
         run: echo "${{ secrets.RANCHER_KUBECONFIG }}" > "$RUNNER_TEMP/kubeconfig"
 
-      - uses: actions/setup-python@v6
-        with:
-          python-version: '3.12'
+      # Trigger interpretation lives here, not in the action: releases arrive
+      # as v1.2.3 but images are tagged 1.2.3 (build-images.yml semver pattern),
+      # so strip the leading 'v'. Dispatch tags pass through as typed.
+      - name: Normalize image tag
+        id: tag
+        env:
+          IMAGE_TAG: ${{ github.event.inputs.image_tag || github.event.release.tag_name }}
+        run: echo "tag=${IMAGE_TAG#v}" >> "$GITHUB_OUTPUT"
 
-      - name: Install Ansible + collections
-        run: |
-          pip install ansible-core kubernetes
-          ansible-galaxy collection install -r infra/ansible/requirements.yml
-
-      - name: Set up Helm
-        uses: azure/setup-helm@v4
-        with:
-          version: v3.16.0
-
-        # Remove leading 'v' from image semver tags (v1.2.3 -> 1.2.3)
-      - name: Deploy to prod
-        working-directory: infra/ansible
+      - name: Deploy via Ansible
+        uses: ./.github/actions/ansible-deploy
         env:
           KUBECONFIG: ${{ runner.temp }}/kubeconfig
-          IMAGE_TAG: ${{ github.event.inputs.image_tag || github.event.release.tag_name }}
-        run: |
-          trap 'rm -f vault-pass' EXIT
-          echo "${{ secrets.ANSIBLE_VAULT_PASSWORD_PROD }}" > vault-pass
-          TAG="${IMAGE_TAG:-latest}"; TAG="${TAG#v}"
-          ansible-playbook -i inventories/prod/hosts.yml playbooks/deploy.yml \
-            --vault-password-file vault-pass \
-            -e image_tag="$TAG"
+        with:
+          inventory: inventories/prod/hosts.yml
+          image_tag: ${{ steps.tag.outputs.tag }}
+          vault_password: ${{ secrets.ANSIBLE_VAULT_PASSWORD_PROD }}
+          # Public host from helm/jobready/values-prod.yaml (ingress.host)
+          app_url: https://jobready.stud.k8s.aet.cit.tum.de
