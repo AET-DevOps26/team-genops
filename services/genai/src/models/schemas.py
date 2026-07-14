@@ -46,3 +46,21 @@ class MessageItem(BaseModel):
 
 class MessageListResponse(BaseModel):
     messages: list[MessageItem]
+
+
+# ---------------------------------------------------------------------------
+# Job postings — AI extraction
+# ---------------------------------------------------------------------------
+
+class JobPostingExtractRequest(BaseModel):
+    # Kept as a plain string so URL problems surface as the contract's
+    # `URL_INVALID` error body instead of FastAPI's default 422 shape.
+    url: str = Field(..., min_length=1, max_length=2048)
+
+
+class JobPostingExtraction(BaseModel):
+    """Fields extracted from a job posting. Null where the page lacked the info."""
+
+    company: str | None = None
+    job_title: str | None = None
+    job_description: str | None = None
