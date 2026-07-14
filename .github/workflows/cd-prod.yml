@@ -7,9 +7,11 @@ on:
   workflow_dispatch:
     inputs:
       image_tag:
-        description: "Image tag to deploy (e.g. sha-abc1234 or latest)"
+        # No default on purpose: prod must never accidentally ship the mutable
+        # `latest` tag (repointed by every merge to main). Type it deliberately
+        # if that is really what you want.
+        description: "Exact image tag to deploy (e.g. 1.4.2 or sha-abc1234)"
         required: true
-        default: latest
 
 permissions:
   contents: read

@@ -56,15 +56,21 @@ jobs:
       # any deploy must wake the cluster first. The script auto-discovers the
       # cluster by its Terraform tags, so no RG/name secrets are needed.
       # Absent is fine: Terraform creates it on first run.
+      # Allowlist the exact strings cluster.sh emits (powerState.code is only
+      # ever Running/Stopped; "does not exist"/"absent" mean no cluster yet)
+      # and fail loudly on anything else — a clear error here beats a
+      # confusing Terraform failure two steps later.
       - name: Wake cluster if stopped
         env:
           SUBSCRIPTION: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
         run: |
-          if ./scripts/cluster.sh status | grep -q "Stopped"; then
-            ./scripts/cluster.sh start
-          else
-            echo "Cluster running or not created yet — nothing to wake."
-          fi
+          STATE=$(./scripts/cluster.sh status)
+          echo "$STATE"
+          case "$STATE" in
+            *Running*|*"does not exist"*|*absent*) echo "Nothing to wake." ;;
+            *Stopped*)                             ./scripts/cluster.sh start ;;
+            *) echo "::error::Unexpected cluster.sh output — not proceeding: $STATE"; exit 1 ;;
+          esac
 
       - uses: hashicorp/setup-terraform@v3
 
