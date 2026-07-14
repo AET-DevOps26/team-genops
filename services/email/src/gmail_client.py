@@ -6,7 +6,9 @@ DB/web concerns so they can be mocked in tests.
 """
 from __future__ import annotations
 
+import base64
 import os
+import re
 from dataclasses import dataclass
 from datetime import datetime, timezone
 
@@ -122,17 +124,16 @@ def list_recent_message_ids(access_token: str, refresh_token: str) -> list[str]:
 
 
 def fetch_message(access_token: str, refresh_token: str, message_id: str) -> dict:
-    """Fetch a single message's metadata and normalise it for storage."""
+    """Fetch a single message (headers + body) and normalise it for storage.
+
+    `format="full"` so the body is available to the application-detection pipeline;
+    the plain-text part is extracted (HTML stripped as a fallback) and truncated.
+    """
     service = _gmail(access_token, refresh_token)
     msg = (
         service.users()
         .messages()
-        .get(
-            userId="me",
-            id=message_id,
-            format="metadata",
-            metadataHeaders=["Subject", "From"],
-        )
+        .get(userId="me", id=message_id, format="full")
         .execute()
     )
     headers = {h["name"].lower(): h["value"] for h in msg.get("payload", {}).get("headers", [])}
@@ -145,8 +146,47 @@ def fetch_message(access_token: str, refresh_token: str, message_id: str) -> dic
         "subject": headers.get("subject"),
         "sender": headers.get("from"),
         "snippet": msg.get("snippet"),
+        "body": extract_body(msg.get("payload", {})),
         "received_at": received_at,
     }
+
+
+# Bodies are truncated so a huge email can't blow up storage or the LLM context.
+MAX_BODY_CHARS = 8000
+
+
+def extract_body(payload: dict) -> str | None:
+    """Extract readable text from a Gmail message payload.
+
+    Prefers the first `text/plain` part (walking multipart trees depth-first);
+    falls back to `text/html` with tags stripped. Returns None when no text part
+    exists (e.g. attachment-only messages).
+    """
+    plain = _find_part(payload, "text/plain")
+    if plain is not None:
+        return plain[:MAX_BODY_CHARS]
+    html = _find_part(payload, "text/html")
+    if html is not None:
+        return _strip_html(html)[:MAX_BODY_CHARS]
+    return None
+
+
+def _find_part(part: dict, mime_type: str) -> str | None:
+    if part.get("mimeType") == mime_type:
+        data = part.get("body", {}).get("data")
+        if data:
+            return base64.urlsafe_b64decode(data + "===").decode("utf-8", errors="replace")
+    for child in part.get("parts", []) or []:
+        found = _find_part(child, mime_type)
+        if found is not None:
+            return found
+    return None
+
+
+def _strip_html(html: str) -> str:
+    text = re.sub(r"(?is)<(script|style).*?>.*?</\1>", " ", html)
+    text = re.sub(r"<[^>]+>", " ", text)
+    return re.sub(r"\s+", " ", text).strip()
 
 
 def _gmail(access_token: str, refresh_token: str):

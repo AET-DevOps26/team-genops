@@ -55,6 +55,7 @@ def _poll_connection(db: Session, conn: Connection) -> int:
             sender=msg.get("sender"),
             snippet=msg.get("snippet"),
             received_at=msg.get("received_at"),
+            body=msg.get("body"),
         )
         if inserted:
             stored += 1
@@ -95,6 +96,17 @@ def _job() -> None:
     stored = poll_once()
     if stored:
         logger.info("Poller stored %d new email(s)", stored)
+    # Application detection runs in the same cycle; pending emails left by a failure
+    # here are retried automatically next cycle. Guarded so an analyzer bug or LLM
+    # outage can never break polling itself.
+    try:
+        from .analyzer import analyze_pending
+
+        analyzed = analyze_pending()
+        if analyzed:
+            logger.info("Analyzer finalized %d email(s)", analyzed)
+    except Exception:  # noqa: BLE001 — detection must never break polling
+        logger.exception("Email analysis pass failed")
 
 
 def start_poller() -> None:

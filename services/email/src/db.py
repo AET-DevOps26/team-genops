@@ -216,18 +216,21 @@ def insert_processed_email(
     sender: str | None,
     snippet: str | None,
     received_at: datetime | None,
+    body: str | None = None,
 ) -> bool:
     """Insert a fetched email, deduped on (user_id, message_id).
 
     Returns True if a new row was inserted, False if it already existed.
+    New rows start with analysis_status='pending' (column default) so the
+    analyzer picks them up.
     """
     result = db.execute(
         text(
             """
             INSERT INTO email.processed_emails
-                (user_id, message_id, subject, sender, snippet, received_at)
+                (user_id, message_id, subject, sender, snippet, received_at, body)
             VALUES
-                (:user_id, :message_id, :subject, :sender, :snippet, :received_at)
+                (:user_id, :message_id, :subject, :sender, :snippet, :received_at, :body)
             ON CONFLICT (user_id, message_id) DO NOTHING
             """
         ),
@@ -238,10 +241,79 @@ def insert_processed_email(
             "sender": sender,
             "snippet": snippet,
             "received_at": received_at,
+            "body": body,
         },
     )
     db.commit()
     return result.rowcount > 0
+
+
+def list_pending_analysis(db: Session, *, limit: int) -> list[dict]:
+    """Emails awaiting application-detection analysis, oldest first."""
+    rows = db.execute(
+        text(
+            """
+            SELECT user_id, message_id, subject, sender, snippet, body,
+                   received_at, analysis_attempts
+            FROM email.processed_emails
+            WHERE analysis_status = 'pending'
+            ORDER BY received_at ASC NULLS LAST, processed_at ASC
+            LIMIT :limit
+            """
+        ),
+        {"limit": limit},
+    ).mappings().all()
+    return [dict(r) | {"user_id": str(r["user_id"])} for r in rows]
+
+
+def mark_analysis(
+    db: Session,
+    *,
+    user_id: str,
+    message_id: str,
+    status: str,
+    matched_application_id: str | None = None,
+) -> None:
+    """Record a final analysis outcome for one email."""
+    db.execute(
+        text(
+            """
+            UPDATE email.processed_emails SET
+                analysis_status        = :status,
+                matched_application_id = :matched_application_id,
+                analyzed_at            = NOW()
+            WHERE user_id = :user_id AND message_id = :message_id
+            """
+        ),
+        {
+            "user_id": user_id,
+            "message_id": message_id,
+            "status": status,
+            "matched_application_id": matched_application_id,
+        },
+    )
+    db.commit()
+
+
+def record_analysis_failure(
+    db: Session, *, user_id: str, message_id: str, max_attempts: int
+) -> None:
+    """Count a transient failure; flip to 'failed' once max_attempts is reached."""
+    db.execute(
+        text(
+            """
+            UPDATE email.processed_emails SET
+                analysis_attempts = analysis_attempts + 1,
+                analysis_status = CASE
+                    WHEN analysis_attempts + 1 >= :max_attempts THEN 'failed'
+                    ELSE 'pending'
+                END
+            WHERE user_id = :user_id AND message_id = :message_id
+            """
+        ),
+        {"user_id": user_id, "message_id": message_id, "max_attempts": max_attempts},
+    )
+    db.commit()
 
 
 def list_processed_emails(

@@ -45,6 +45,19 @@ class Settings(BaseSettings):
     email_poll_interval_seconds: int = 300
     gmail_max_results: int = 25
 
+    # Application-detection pipeline: internal calls to genai (LLM classification)
+    # and the application service (apply stage/timeline updates). The shared
+    # INTERNAL_SERVICE_TOKEN authenticates both; blank disables the pipeline.
+    genai_url: str = "http://genai:8000"
+    application_service_url: str = "http://application:8080"
+    internal_service_token: str = ""
+    # Only apply LLM verdicts at least this confident; below → 'irrelevant'.
+    email_analysis_confidence_threshold: float = 0.6
+    # Transient failures are retried each poll cycle up to this many times.
+    email_analysis_max_attempts: int = 3
+    # Max pending emails analyzed per poll cycle (bounds LLM cost per cycle).
+    email_analysis_batch_size: int = 20
+
 
 def warn_on_dev_secrets(settings: Settings) -> None:
     """Loudly flag any security-sensitive key still set to the dev placeholder."""
