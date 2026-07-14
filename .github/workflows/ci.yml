@@ -1,0 +1,262 @@
+name: CI
+
+# Single PR pipeline for the whole monorepo:
+#   changes (dorny/paths-filter) → per-component jobs (only for what the PR
+#   touches) → ci-ok aggregator gate.
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+# New pushes to the same PR cancel the still-running CI of the old commit.
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # Detects which components the PR touches. Runs on every PR (no `paths:` on
+  # the trigger — a path-filtered workflow never reports, which breaks required
+  # checks); gating happens per job via these outputs instead.
+  changes:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      java_matrix: ${{ steps.java.outputs.matrix }}
+      email: ${{ steps.filter.outputs.email }}
+      genai: ${{ steps.filter.outputs.genai }}
+      web-client: ${{ steps.filter.outputs.web-client }}
+      openapi: ${{ steps.filter.outputs.openapi }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          # `shared` is not a job trigger — it's spliced into every component:
+          # the spec regenerates committed DTOs/types (a spec change without
+          # regenerated code must fail the builds), and a change to this
+          # pipeline must re-run everything it gates.
+          filters: |
+            shared: &shared
+              - api/openapi.yaml
+              - .github/workflows/ci.yml
+            auth:
+              - *shared
+              - services/auth/**
+            application:
+              - *shared
+              - services/application/**
+            document:
+              - *shared
+              - services/document/**
+            gateway:
+              - *shared
+              - services/gateway/**
+            email:
+              - *shared
+              - services/email/**
+            genai:
+              - *shared
+              - services/genai/**
+            web-client:
+              - *shared
+              - web-client/**
+            openapi:
+              - api/**
+              - .github/workflows/ci.yml
+
+      - name: Build java matrix
+        id: java
+        run: |
+          services=()
+          if [ "${{ steps.filter.outputs.auth }}" = "true" ]; then services+=('"auth"'); fi
+          if [ "${{ steps.filter.outputs.application }}" = "true" ]; then services+=('"application"'); fi
+          if [ "${{ steps.filter.outputs.document }}" = "true" ]; then services+=('"document"'); fi
+          if [ "${{ steps.filter.outputs.gateway }}" = "true" ]; then services+=('"gateway"'); fi
+          matrix="[$(IFS=,; echo "${services[*]}")]"
+          echo "matrix=$matrix" >> "$GITHUB_OUTPUT"
+          echo "java matrix: $matrix"
+
+  # One leg per changed Spring service. Postgres is provided to every leg —
+  # auth/application/document run their test suites against it; gateway
+  # simply ignores it (cheaper than templating the container per leg).
+  java:
+    name: java (${{ matrix.service }})
+    needs: changes
+    if: needs.changes.outputs.java_matrix != '[]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        service: ${{ fromJson(needs.changes.outputs.java_matrix) }}
+
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: jobready
+          POSTGRES_PASSWORD: jobready
+          POSTGRES_DB: jobready
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Set up Java 21
+        uses: actions/setup-java@v5
+        with:
+          java-version: 21
+          distribution: temurin
+
+      - name: Cache Maven repository
+        uses: actions/cache@v6
+        with:
+          path: ~/.m2/repository
+          key: maven-${{ hashFiles(format('services/{0}/pom.xml', matrix.service)) }}
+          restore-keys: maven-
+
+      - name: Build and test
+        run: ./mvnw verify
+        working-directory: services/${{ matrix.service }}
+        env:
+          SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5432/jobready
+          SPRING_DATASOURCE_USERNAME: jobready
+          SPRING_DATASOURCE_PASSWORD: jobready
+
+  email:
+    needs: changes
+    if: needs.changes.outputs.email == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: services/email
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Lint
+        run: ruff check .
+
+      - name: Test
+        run: pytest
+
+  genai:
+    needs: changes
+    if: needs.changes.outputs.genai == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: services/genai
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
+        with:
+          version: "0.11.18"
+          enable-cache: true
+          cache-dependency-glob: "services/genai/uv.lock"
+
+      - name: Install dependencies
+        run: uv sync --locked --all-groups
+
+      - name: Lint (Ruff)
+        run: uv run --locked ruff check src/ tests/
+
+      - name: Test (pytest)
+        run: uv run --locked python -m pytest tests/
+
+  web-client:
+    needs: changes
+    if: needs.changes.outputs.web-client == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: web-client
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: web-client/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+  openapi:
+    needs: changes
+    if: needs.changes.outputs.openapi == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 20
+
+      - name: Lint OpenAPI spec
+        run: make -C api lint
+
+  # The single check branch protection should require. `if: always()` is
+  # load-bearing: without it a failed dependency would SKIP this job, and
+  # skipped counts as passing — a gate must always run to be a gate.
+  ci-ok:
+    needs: [changes, java, email, genai, web-client, openapi]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Fail if any needed job failed or was cancelled
+        if: contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled')
+        run: |
+          echo "::error::A CI job failed: ${{ toJSON(needs.*.result) }}"
+          exit 1
+      - run: echo "All CI jobs passed or were skipped as not affected."
