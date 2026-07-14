@@ -97,12 +97,15 @@ jobs:
       # deploy pins the exact sha- tag that build just published; a manual
       # dispatch uses the given input.
       - name: Compute image tag
+        env:
+          head_sha: ${{ github.event.workflow_run.head_sha }}
+          image_tag: ${{ inputs.image_tag }}
         id: tag
         run: |
-          if [ -n "${{ github.event.workflow_run.head_sha }}" ]; then
-            echo "tag=sha-$(echo ${{ github.event.workflow_run.head_sha }} | cut -c1-7)" >> "$GITHUB_OUTPUT"
+          if [ -n "${head_sha}" ]; then
+            echo "tag=sha-$(echo ${head_sha} | cut -c1-7)" >> "$GITHUB_OUTPUT"
           else
-            echo "tag=${{ inputs.image_tag }}" >> "$GITHUB_OUTPUT"
+            echo "tag=${image_tag}" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Deploy via Ansible

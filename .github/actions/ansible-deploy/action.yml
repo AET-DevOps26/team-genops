@@ -62,56 +62,72 @@ runs:
     # inventory's install_platform flag remains the inner guard in the playbook.
     - name: Bootstrap platform (dev/AKS only)
       if: inputs.bootstrap == 'true'
+      env:
+        vault_password: ${{ inputs.vault_password }}
+        inventory: ${{ inputs.inventory }}
+        ingress_ip: ${{ inputs.ingress_ip }}
+        azure_lb_resource_group: ${{ inputs.azure_lb_resource_group }}
       shell: bash
       working-directory: infra/ansible
       run: |
         trap 'rm -f vault-pass' EXIT
-        echo "${{ inputs.vault_password }}" > vault-pass
-        ansible-playbook -i "${{ inputs.inventory }}" playbooks/bootstrap.yml \
+        echo "$vault_password" > vault-pass
+        ansible-playbook -i "$inventory" playbooks/bootstrap.yml \
           --vault-password-file vault-pass \
-          -e "ingress_ip=${{ inputs.ingress_ip }}" \
-          -e "azure_lb_resource_group=${{ inputs.azure_lb_resource_group }}"
+          -e "ingress_ip=${ingress_ip}" \
+          -e "azure_lb_resource_group=${azure_lb_resource_group}"
 
     - name: Deploy app
       shell: bash
+      env:
+        vault_password: ${{ inputs.vault_password }}
+        inventory: ${{ inputs.inventory }}
+        image_tag: ${{ inputs.image_tag }}
+        extra_args: ${{ inputs.extra_args }}
       working-directory: infra/ansible
       run: |
         trap 'rm -f vault-pass' EXIT
-        echo "${{ inputs.vault_password }}" > vault-pass
-        ansible-playbook -i "${{ inputs.inventory }}" playbooks/deploy.yml \
+        echo "${vault_password}" > vault-pass
+        ansible-playbook -i "${inventory}" playbooks/deploy.yml \
           --vault-password-file vault-pass \
-          -e "image_tag=${{ inputs.image_tag }}" ${{ inputs.extra_args }}
+          -e "image_tag=${image_tag}" ${extra_args}
 
     # Outside-in check: helm --wait (inside deploy.yml) already proved the pods
     # are Ready; this proves the route to them — LB, ingress, TLS, DNS. No -k:
     # an untrusted (staging-issuer) certificate must fail the deploy.
     - name: Smoke check
       if: inputs.app_url != ''
+      env:
+        app_url: ${{ inputs.app_url }}
       shell: bash
       run: |
-        echo "Probing ${{ inputs.app_url }} ..."
+        echo "Probing ${app_url} ..."
         for i in $(seq 1 12); do
-          if curl -sfo /dev/null --max-time 10 "${{ inputs.app_url }}"; then
+          if curl -sfo /dev/null --max-time 10 "${app_url}"; then
             echo "OK (attempt $i)"
             exit 0
           fi
           sleep 10
         done
-        echo "::error::${{ inputs.app_url }} did not answer within 2 minutes after deploy"
+        echo "::error::${app_url} did not answer within 2 minutes after deploy"
         exit 1
 
     - name: Write deploy summary
       shell: bash
+      env:
+        inventory: ${{ inputs.inventory }}
+        image_tag: ${{ inputs.image_tag }}
+        app_url: ${{ inputs.app_url }}
       run: |
         {
           echo "## Deployed ✅"
           echo ""
           echo "| | |"
           echo "|---|---|"
-          echo "| Inventory | \`${{ inputs.inventory }}\` |"
-          echo "| Image tag | \`${{ inputs.image_tag }}\` |"
-          if [ -n "${{ inputs.app_url }}" ]; then
-            echo "| URL | ${{ inputs.app_url }} |"
+          echo "| Inventory | \`${inventory}\` |"
+          echo "| Image tag | \`${image_tag}\` |"
+          if [ -n "${app_url}" ]; then
+            echo "| URL | ${app_url} |"
           fi
           echo ""
         } >> "$GITHUB_STEP_SUMMARY"
