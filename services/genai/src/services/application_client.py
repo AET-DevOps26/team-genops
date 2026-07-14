@@ -56,6 +56,47 @@ async def get_application(token: str, application_id: str) -> str | None:
     return _format_application(data)
 
 
+async def list_applications(token: str) -> str:
+    """
+    Fetch the user's applications and format them as a compact overview.
+
+    Descriptions are omitted — this is the index the model reads to decide which application
+    to look up in full, so keeping it short is the point. Never raises, for the same reason
+    as get_application.
+    """
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.get(
+                f"{settings.application_service_url}/api/v1/applications",
+                headers={"Authorization": f"Bearer {token}"},
+                timeout=5.0,
+            )
+            response.raise_for_status()
+            data = response.json()
+    except Exception:
+        logger.warning("application list failed; continuing without it", exc_info=True)
+        return _UNAVAILABLE
+
+    items = data.get("items") or []
+    if not items:
+        return (
+            "The user has no job applications tracked yet. Suggest adding one in the app so "
+            "documents can be tailored to it."
+        )
+
+    lines = [f"The user is tracking {len(items)} job application(s):"]
+    for item in items:
+        line = f"- {item.get('job_title')} at {item.get('company')} — stage: {item.get('stage')}"
+        if not item.get("job_description"):
+            # Say so up front: without it a tailored document has only role + company to work
+            # from, and the model should ask rather than quietly produce something generic.
+            line += " (no job description saved)"
+        line += f" [id: {item.get('id')}]"
+        lines.append(line)
+
+    return "\n".join(lines)
+
+
 def _format_application(data: dict) -> str:
     """Format a JobApplication into a readable block for LLM injection."""
     lines = ["Target Job Application (the document must be tailored to this role):"]

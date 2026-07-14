@@ -16,6 +16,7 @@ from src.services.chat.session import (
 )
 from src.services.chat.utils.history import load_history, save_message
 from src.services.profile_client import get_user_profile
+from src.tools.applications import make_application_tools
 from src.tools.session_memory import make_session_memory_tool
 
 # The app hands off an application by embedding its id in the message it prefills
@@ -88,12 +89,17 @@ async def chat(
         else ""
     )
 
+    # Pushed above: who the user is, and the job this chat is about. Pulled here: everything
+    # optional — other applications, past conversations. A tool only fires when the model
+    # thinks to call it, which is fine for context it can live without.
+    #
     # No save tool: the model writes the document, the user decides whether to keep it.
     # Saving used to happen inside the agent, so a letter was persisted before anyone had
     # read it — every draft and revision left a row. The UI now offers an explicit Save on
     # the message, which posts to the document service directly.
     tools = [
         make_session_memory_tool(conn, user_id, session_id),
+        *make_application_tools(token),
     ]
 
     system_msg = SystemMessage(content=SYSTEM_PROMPT.format(
