@@ -1,6 +1,6 @@
 """Poller tests — focus on dedupe across repeated polls (Gmail + DB mocked)."""
 
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta, UTC
 
 from src import poller
 from src.db import Connection
@@ -39,8 +39,8 @@ def _connection() -> Connection:
         email_address="jane@gmail.com",
         access_token="at",
         refresh_token="rt",
-        token_expiry=datetime.now(tz=timezone.utc) + timedelta(hours=1),  # not expired
-        created_at=datetime.now(tz=timezone.utc),
+        token_expiry=datetime.now(tz=UTC) + timedelta(hours=1),  # not expired
+        created_at=datetime.now(tz=UTC),
     )
 
 
@@ -86,7 +86,7 @@ def test_second_poll_stores_nothing(monkeypatch):
 
 def test_expired_token_is_refreshed(monkeypatch):
     conn = _connection()
-    conn.token_expiry = datetime.now(tz=timezone.utc) - timedelta(minutes=1)  # expired
+    conn.token_expiry = datetime.now(tz=UTC) - timedelta(minutes=1)  # expired
     monkeypatch.setattr(poller, "list_connections", lambda db: [conn])
     monkeypatch.setattr(poller.gmail_client, "list_recent_message_ids", lambda at, rt: [])
 
@@ -94,7 +94,7 @@ def test_expired_token_is_refreshed(monkeypatch):
 
     def fake_refresh(refresh_token):
         refreshed["called"] = True
-        return "new-access", datetime.now(tz=timezone.utc) + timedelta(hours=1)
+        return "new-access", datetime.now(tz=UTC) + timedelta(hours=1)
 
     monkeypatch.setattr(poller.gmail_client, "refresh_access_token", fake_refresh)
     monkeypatch.setattr(poller, "update_tokens", lambda db, **kw: None)

@@ -14,6 +14,10 @@ select = [
 ]
 ignore = []
 
+[lint.flake8-bugbear]
+# fastapi.Depends in parameter defaults is the standard FastAPI DI idiom (B008).
+extend-immutable-calls = ["fastapi.Depends"]
+
 [format]
 quote-style = "double"
 indent-style = "space"

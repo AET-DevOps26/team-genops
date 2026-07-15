@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import os
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import datetime, UTC
 
 # Google frequently returns a scope set that differs (order/extras, e.g. an added
 # `openid`) from what was requested, which makes oauthlib raise "Scope has changed"
@@ -135,7 +135,7 @@ def fetch_message(access_token: str, refresh_token: str, message_id: str) -> dic
     received_at = None
     internal = msg.get("internalDate")
     if internal is not None:
-        received_at = datetime.fromtimestamp(int(internal) / 1000, tz=timezone.utc)
+        received_at = datetime.fromtimestamp(int(internal) / 1000, tz=UTC)
     return {
         "message_id": msg["id"],
         "subject": headers.get("subject"),
@@ -157,7 +157,7 @@ def _gmail(access_token: str, refresh_token: str):
 def _as_utc(value: datetime | None) -> datetime:
     """Google credentials expose a naive UTC expiry; make it timezone-aware."""
     if value is None:
-        return datetime.now(tz=timezone.utc)
+        return datetime.now(tz=UTC)
     if value.tzinfo is None:
-        return value.replace(tzinfo=timezone.utc)
+        return value.replace(tzinfo=UTC)
     return value

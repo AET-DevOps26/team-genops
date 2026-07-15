@@ -1,7 +1,7 @@
 """OAuth callback + state-token security tests (Gmail and DB mocked)."""
 
 import time
-from datetime import datetime, timezone
+from datetime import datetime, UTC
 from unittest.mock import MagicMock
 
 import jwt
@@ -88,7 +88,7 @@ def test_callback_success_stores_connection(client, monkeypatch):
             email_address="jane@gmail.com",
             access_token="at",
             refresh_token="rt",
-            token_expiry=datetime.now(tz=timezone.utc),
+            token_expiry=datetime.now(tz=UTC),
         ),
     )
     upsert = MagicMock()
@@ -111,7 +111,7 @@ def test_callback_without_refresh_token_rejected(client, monkeypatch):
             email_address="x@gmail.com",
             access_token="at",
             refresh_token="",
-            token_expiry=datetime.now(tz=timezone.utc),
+            token_expiry=datetime.now(tz=UTC),
         ),
     )
     upsert = MagicMock()
@@ -153,7 +153,7 @@ def test_callback_state_reusable_after_failed_exchange(client, monkeypatch):
             email_address="ok@gmail.com",
             access_token="at",
             refresh_token="rt",
-            token_expiry=datetime.now(tz=timezone.utc),
+            token_expiry=datetime.now(tz=UTC),
         )
 
     monkeypatch.setattr(conn_router.gmail_client, "exchange_code", flaky)
