@@ -32,6 +32,7 @@ jobs:
       genai: ${{ steps.filter.outputs.genai }}
       web-client: ${{ steps.filter.outputs.web-client }}
       openapi: ${{ steps.filter.outputs.openapi }}
+      infra: ${{ steps.filter.outputs.infra }}
     steps:
       - uses: actions/checkout@v7
         with:
@@ -72,6 +73,10 @@ jobs:
             openapi:
               - api/**
               - .github/workflows/ci.yml
+            infra:
+              - .github/workflows/**
+              - "**/Dockerfile"
+              - .pre-commit-config.yaml
 
       - name: Build java matrix
         id: java
@@ -161,8 +166,14 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
-      - name: Lint
+      - name: Lint (Ruff)
         run: ruff check .
+
+      - name: Format check (Ruff)
+        run: ruff format --check .
+
+      - name: Typecheck (mypy)
+        run: mypy src/ tests/
 
       - name: Test
         run: pytest
@@ -196,7 +207,13 @@ jobs:
         run: uv sync --locked --all-groups
 
       - name: Lint (Ruff)
-        run: uv run --locked ruff check src/ tests/
+        run: uv run --locked ruff check .
+
+      - name: Format check (Ruff)
+        run: uv run --locked ruff format --check .
+
+      - name: Typecheck (mypy)
+        run: uv run --locked mypy src/ tests/
 
       - name: Test (pytest)
         run: uv run --locked python -m pytest tests/
@@ -224,6 +241,13 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Lint (ESLint)
+        run: npm run lint
+
+      - name: Format check (Prettier)
+        run: npm run format:check
+
+      # tsc -b inside `build` is the typecheck.
       - name: Build
         run: npm run build
 
@@ -245,11 +269,48 @@ jobs:
       - name: Lint OpenAPI spec
         run: make -C api lint
 
+  # Lints the CI/CD surface itself: workflows (actionlint, via the pre-commit
+  # hook so the version pin lives once in .pre-commit-config.yaml) and
+  # Dockerfiles (hadolint binary — its pre-commit hook needs docker, so it is
+  # pinned here and runs only in CI).
+  infra-lint:
+    needs: changes
+    if: needs.changes.outputs.infra == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Cache pre-commit environments
+        uses: actions/cache@v6
+        with:
+          path: ~/.cache/pre-commit
+          key: pre-commit-${{ hashFiles('.pre-commit-config.yaml') }}
+
+      - name: Lint workflows (actionlint)
+        run: |
+          pip install pre-commit
+          pre-commit run actionlint --all-files
+
+      - name: Lint Dockerfiles (hadolint)
+        run: |
+          curl -fsSL -o /usr/local/bin/hadolint \
+            https://github.com/hadolint/hadolint/releases/download/v2.14.0/hadolint-linux-x86_64
+          chmod +x /usr/local/bin/hadolint
+          git ls-files '*Dockerfile*' | xargs hadolint
+
   # The single check branch protection should require. `if: always()` is
   # load-bearing: without it a failed dependency would SKIP this job, and
   # skipped counts as passing — a gate must always run to be a gate.
   ci-ok:
-    needs: [changes, java, email, genai, web-client, openapi]
+    needs: [changes, java, email, genai, web-client, openapi, infra-lint]
     if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 5
