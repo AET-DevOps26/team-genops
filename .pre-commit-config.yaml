@@ -10,6 +10,8 @@ repos:
       - id: end-of-file-fixer
         exclude: *generated
       - id: check-yaml
+        # Helm templates are Go templates, not valid YAML — helm lint owns them.
+        exclude: ^infra/helm/.*/templates/
       - id: check-json
       - id: check-merge-conflict
       - id: check-added-large-files
