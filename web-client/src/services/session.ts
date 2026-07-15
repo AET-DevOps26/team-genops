@@ -1,4 +1,4 @@
-import { createAction } from '@reduxjs/toolkit'
+import { createAction } from "@reduxjs/toolkit";
 
 // A neutral cross-cutting signal: "the session is gone, the cookie can't be refreshed."
 //
@@ -10,4 +10,4 @@ import { createAction } from '@reduxjs/toolkit'
 //   apiClient ──dispatch──> sessionExpired <──listen── authSlice
 //
 // Same dependency-direction lesson as the backend's CookieProperties extraction.
-export const sessionExpired = createAction('session/expired')
+export const sessionExpired = createAction("session/expired");
