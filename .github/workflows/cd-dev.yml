@@ -1,7 +1,8 @@
 name: CD - Dev (AKS)
 
-# Runs after images are published to GHCR on main — i.e. when a PR is merged.
-# PR builds still publish images but do NOT deploy.
+# Last link of the deploy chain: CI (tests green on main) → Build & Push
+# Images (workflow_run on CI) → this workflow. Fires only after images for
+# the merged commit are actually in GHCR.
 on:
   workflow_run:
     workflows: ["Build & Push Images"]

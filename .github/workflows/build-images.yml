@@ -1,14 +1,19 @@
 name: Build & Push Images
 
-# Publishes container images to GHCR on merge to main and on version tags.
-# Pull-request CI (build + test) stays in the per-service ci-*.yml workflows.
+# Middle link of the deploy chain: CI (tests green on main) → this workflow
+# (build & push) → CD - Dev (workflow_run on this one). Merges to main only
+# reach here after the CI workflow SUCCEEDS — never build images from a red
+# main. Release semver images (1.2.3) are NOT built here: cd-prod.yml
+# PROMOTES them by retagging the sha- image this workflow already published
+# (build once, deploy many). Deliberately no tag/PR triggers — a git tag can
+# point at any commit, so a tag-triggered build would bypass the CI gate.
+# Note: workflow_run is an OR-list, not a join — never add a second workflow
+# here expecting "wait for both".
 on:
-  push:
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
     branches: [main]
-    tags: ['v*']
-  pull_request:
-    branches:
-      - main
   workflow_dispatch:
 
 env:
@@ -23,6 +28,9 @@ permissions:
 jobs:
   build:
     name: ${{ matrix.image }}
+    # workflow_run fires on ANY completion (failure/cancelled included) —
+    # only build when the CI run actually succeeded.
+    if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -42,9 +50,14 @@ jobs:
             image: jobready-genai
 
     steps:
+      # On workflow_run, github.sha is main's tip at event time — NOT
+      # necessarily the commit CI just validated (two quick merges can race).
+      # Pin the checkout to the exact commit the triggering CI run tested.
       - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
 
-      # The default docker driver can't export the git GitHub Actions cache; 
+      # The default docker driver can't export the git GitHub Actions cache;
       # the container driver from Buildx can.
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -56,18 +69,27 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      # Same race as the checkout: metadata-action's `type=sha` reads
+      # github.sha, so derive the short SHA from the commit we actually
+      # checked out (the CI run's head_sha) instead.
+      - name: Compute short SHA
+        id: sha
+        env:
+          SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
+        run: echo "short=${SHA:0:7}" >> "$GITHUB_OUTPUT"
+
       - name: Compute tags & labels
         id: meta
         uses: docker/metadata-action@v5
         with:
           images: ${{ env.IMAGE_PREFIX }}/${{ matrix.image }}
-          # SHA tag (sha-<short>) for precise CD pins, latest on default branch,
-          # semver tags on v* releases.
+          # SHA tag (sha-<short>) for precise CD pins — cd-dev deploys exactly
+          # this tag, and cd-prod's promote job retags it with the release
+          # semver. `latest` on default branch (workflow_run sets github.ref
+          # to the default branch, so CI-chained builds from main get it).
           tags: |
-            type=sha
+            type=raw,value=sha-${{ steps.sha.outputs.short }}
             type=raw,value=latest,enable={{is_default_branch}}
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
 
       - name: Build & push
         uses: docker/build-push-action@v6

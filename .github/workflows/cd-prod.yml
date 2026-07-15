@@ -16,6 +16,9 @@ on:
 permissions:
   contents: read
 
+env:
+  IMAGE_PREFIX: ghcr.io/aet-devops26
+
 # One prod operation at a time: a second trigger QUEUES until the running one
 # finishes (never cancelled). Shared group with destroy-prod so a teardown can
 # never overlap a release deploy.
@@ -24,10 +27,57 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  # Build once, promote many: releases do NOT rebuild images. This retags the
+  # sha-<short> images that the CI→build chain already published for the
+  # tagged commit — prod ships the exact bytes that ran in dev. Failure mode
+  # is the gate: if the tagged commit never went through CI→build on main,
+  # the sha- source image doesn't exist and `crane copy` fails loudly here,
+  # before anything touches the cluster.
+  # Only for release events — a workflow_dispatch deploys an existing tag as
+  # typed and has nothing to promote.
+  promote-images:
+    if: github.event_name == 'release'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Install crane
+        uses: imjasonh/setup-crane@v0.4
+
+      - name: Log in to GHCR
+        env:
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: crane auth login ghcr.io -u "${{ github.actor }}" --password-stdin <<< "$GHCR_TOKEN"
+
+      # github.sha on a release event is the commit the release tag points
+      # to — the same commit whose CI run produced the sha-<short> images.
+      - name: Retag sha images with release version
+        env:
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+          SHA: ${{ github.sha }}
+        run: |
+          VERSION="${RELEASE_TAG#v}"          # v1.2.3 -> 1.2.3
+          MAJOR_MINOR="${VERSION%.*}"         # 1.2.3  -> 1.2
+          SRC="sha-${SHA:0:7}"
+          for image in jobready-auth jobready-application jobready-document \
+                       jobready-web-client jobready-gateway jobready-genai; do
+            src="${IMAGE_PREFIX}/${image}:${SRC}"
+            echo "Promoting ${src} -> ${VERSION}, ${MAJOR_MINOR}"
+            crane copy "$src" "${IMAGE_PREFIX}/${image}:${VERSION}"
+            crane copy "$src" "${IMAGE_PREFIX}/${image}:${MAJOR_MINOR}"
+          done
+
   deploy:
+    needs: promote-images
+    # `!cancelled()` is load-bearing: on workflow_dispatch promote-images is
+    # skipped, and a skipped dependency would skip this job too without it.
+    if: >-
+      !cancelled() &&
+      (github.event_name == 'workflow_dispatch' || needs.promote-images.result == 'success')
     runs-on: ubuntu-latest
     environment: production
-    
+
     steps:
       - uses: actions/checkout@v7
 
@@ -35,8 +85,8 @@ jobs:
         run: echo "${{ secrets.RANCHER_KUBECONFIG }}" > "$RUNNER_TEMP/kubeconfig"
 
       # Trigger interpretation lives here, not in the action: releases arrive
-      # as v1.2.3 but images are tagged 1.2.3 (build-images.yml semver pattern),
-      # so strip the leading 'v'. Dispatch tags pass through as typed.
+      # as v1.2.3 but images are tagged 1.2.3 (promote-images above), so strip
+      # the leading 'v'. Dispatch tags pass through as typed.
       - name: Normalize image tag
         id: tag
         env:
