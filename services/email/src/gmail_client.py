@@ -108,6 +108,7 @@ def refresh_access_token(refresh_token: str) -> tuple[str, datetime]:
     """Use a refresh token to obtain a fresh access token + expiry."""
     creds = _credentials(access_token="", refresh_token=refresh_token)
     creds.refresh(GoogleRequest())
+    assert creds.token is not None  # refresh() populates the token
     return creds.token, _as_utc(creds.expiry)
 
 

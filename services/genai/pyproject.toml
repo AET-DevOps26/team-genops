@@ -32,4 +32,6 @@ dev = [
 python_version = "3.12"
 ignore_missing_imports = true
 check_untyped_defs = true
+# src/ has no __init__.py; modules are imported as src.* (uvicorn src.main:app).
+explicit_package_bases = true
 exclude = ["client"]

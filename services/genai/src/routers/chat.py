@@ -28,6 +28,7 @@ async def _background_summarize(session_id: str, message_count: int, transcript:
     """
     from src.db.pool import pool
 
+    assert pool is not None, "DB pool not initialised — init_db() must run first"
     async with pool.connection() as conn:
         await maybe_summarize(conn, session_id, message_count, transcript)
 
@@ -49,7 +50,7 @@ async def list_chat_sessions(
 ):
     """List all sessions for the authenticated user."""
     sessions = await get_sessions(conn, user_id)
-    return SessionListResponse(sessions=sessions)
+    return SessionListResponse(sessions=[SessionResponse(**s) for s in sessions])
 
 
 @router.delete("/sessions/{session_id}", status_code=204)

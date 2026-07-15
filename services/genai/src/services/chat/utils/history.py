@@ -1,4 +1,4 @@
-from langchain_core.messages import AIMessage, HumanMessage
+from langchain_core.messages import AIMessage, BaseMessage, HumanMessage
 from psycopg import AsyncConnection
 
 
@@ -25,7 +25,7 @@ async def load_history(conn: AsyncConnection, session_id: str) -> list:
         (session_id, HISTORY_WINDOW),
     )
     rows = await cur.fetchall()
-    messages = []
+    messages: list[BaseMessage] = []
     for role, content in rows:
         if role == "user":
             messages.append(HumanMessage(content=content))
@@ -52,6 +52,7 @@ async def count_messages(conn: AsyncConnection, session_id: str) -> int:
         (session_id,),
     )
     row = await cur.fetchone()
+    assert row is not None  # COUNT(*) always yields a row
     return row[0]
 
 

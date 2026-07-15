@@ -250,7 +250,7 @@ def insert_processed_email(
         },
     )
     db.commit()
-    return result.rowcount > 0
+    return result.rowcount > 0  # type: ignore[attr-defined]  # DML returns CursorResult
 
 
 def list_processed_emails(db: Session, user_id: str, *, limit: int, offset: int) -> list[dict]:

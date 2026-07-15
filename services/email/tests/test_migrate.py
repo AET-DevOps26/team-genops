@@ -18,6 +18,7 @@ pytestmark = pytest.mark.skipif(not DB_URL, reason="EMAIL_TEST_DB_URL not set")
 
 @pytest.fixture
 def engine():
+    assert DB_URL is not None  # module is skipped when unset (see pytestmark)
     eng = create_engine(DB_URL, future=True)
     with eng.begin() as conn:
         conn.execute(text("DROP SCHEMA IF EXISTS email CASCADE"))

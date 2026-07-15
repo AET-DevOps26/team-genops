@@ -79,7 +79,7 @@ async def get_current_user_id(request: Request) -> str:
         try:
             jwks = await _get_jwks(force_refresh=True)
             payload = jwt.decode(token, jwks, algorithms=["RS256"])
-            user_id: str = payload.get("sub")
+            user_id = payload.get("sub")
             if not user_id:
                 raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
             return user_id
