@@ -10,6 +10,12 @@
     <property name="charset" value="UTF-8"/>
     <property name="severity" value="error"/>
 
+    <!-- Test methods use the method_scenario_expectation underscore convention. -->
+    <module name="SuppressionSingleFilter">
+        <property name="checks" value="MethodName"/>
+        <property name="files" value="[\\/]src[\\/]test[\\/]"/>
+    </module>
+
     <module name="TreeWalker">
         <!-- Imports -->
         <module name="AvoidStarImport"/>
