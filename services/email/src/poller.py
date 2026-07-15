@@ -8,6 +8,7 @@ NOTE: the scheduler runs per-process, so this is single-instance only. With >1 r
 each would poll independently (correctness is preserved by the dedupe, but Gmail quota is
 wasted). A multi-replica fix is a Redis leader lock — out of scope here.
 """
+
 from __future__ import annotations
 
 import logging

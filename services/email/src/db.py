@@ -5,6 +5,7 @@ are encrypted at rest with pgcrypto: written as `armor(pgp_sym_encrypt(...))` (A
 so the existing TEXT columns are untouched) and read back with `pgp_sym_decrypt(dearmor(...))`.
 The encryption key comes from `EMAIL_TOKEN_ENC_KEY`. Plaintext tokens never touch disk.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -145,9 +146,10 @@ def update_tokens(
 
 def get_connection(db: Session, user_id: str) -> Connection | None:
     """Fetch and decrypt a user's connection, or None if not connected."""
-    row = db.execute(
-        text(
-            """
+    row = (
+        db.execute(
+            text(
+                """
             SELECT user_id, provider, email_address,
                    pgp_sym_decrypt(dearmor(access_token), :enc_key)  AS access_token,
                    pgp_sym_decrypt(dearmor(refresh_token), :enc_key) AS refresh_token,
@@ -155,9 +157,12 @@ def get_connection(db: Session, user_id: str) -> Connection | None:
             FROM email.email_connections
             WHERE user_id = :user_id
             """
-        ),
-        {"user_id": user_id, "enc_key": _settings.email_token_enc_key},
-    ).mappings().first()
+            ),
+            {"user_id": user_id, "enc_key": _settings.email_token_enc_key},
+        )
+        .mappings()
+        .first()
+    )
     if row is None:
         return None
     return Connection(
@@ -173,18 +178,22 @@ def get_connection(db: Session, user_id: str) -> Connection | None:
 
 def list_connections(db: Session) -> list[Connection]:
     """All connections — used by the poller to iterate every connected user."""
-    rows = db.execute(
-        text(
-            """
+    rows = (
+        db.execute(
+            text(
+                """
             SELECT user_id, provider, email_address,
                    pgp_sym_decrypt(dearmor(access_token), :enc_key)  AS access_token,
                    pgp_sym_decrypt(dearmor(refresh_token), :enc_key) AS refresh_token,
                    token_expiry, created_at
             FROM email.email_connections
             """
-        ),
-        {"enc_key": _settings.email_token_enc_key},
-    ).mappings().all()
+            ),
+            {"enc_key": _settings.email_token_enc_key},
+        )
+        .mappings()
+        .all()
+    )
     return [
         Connection(
             user_id=str(r["user_id"]),
@@ -244,19 +253,21 @@ def insert_processed_email(
     return result.rowcount > 0
 
 
-def list_processed_emails(
-    db: Session, user_id: str, *, limit: int, offset: int
-) -> list[dict]:
-    rows = db.execute(
-        text(
-            """
+def list_processed_emails(db: Session, user_id: str, *, limit: int, offset: int) -> list[dict]:
+    rows = (
+        db.execute(
+            text(
+                """
             SELECT message_id, subject, sender, snippet, received_at
             FROM email.processed_emails
             WHERE user_id = :user_id
             ORDER BY received_at DESC NULLS LAST, processed_at DESC
             LIMIT :limit OFFSET :offset
             """
-        ),
-        {"user_id": user_id, "limit": limit, "offset": offset},
-    ).mappings().all()
+            ),
+            {"user_id": user_id, "limit": limit, "offset": offset},
+        )
+        .mappings()
+        .all()
+    )
     return [dict(r) for r in rows]

@@ -4,6 +4,7 @@ Wraps `google-auth-oauthlib` (consent flow + token exchange) and the Gmail API c
 (list/fetch messages, token refresh). Network-touching functions are small and free of
 DB/web concerns so they can be mocked in tests.
 """
+
 from __future__ import annotations
 
 import os
@@ -112,12 +113,7 @@ def refresh_access_token(refresh_token: str) -> tuple[str, datetime]:
 
 def list_recent_message_ids(access_token: str, refresh_token: str) -> list[str]:
     service = _gmail(access_token, refresh_token)
-    resp = (
-        service.users()
-        .messages()
-        .list(userId="me", maxResults=_settings.gmail_max_results)
-        .execute()
-    )
+    resp = service.users().messages().list(userId="me", maxResults=_settings.gmail_max_results).execute()
     return [m["id"] for m in resp.get("messages", [])]
 
 

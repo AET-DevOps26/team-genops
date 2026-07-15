@@ -4,6 +4,7 @@ These exercise the real Postgres-targeted SQL (pgcrypto, schemas), so they need 
 database. They run when EMAIL_TEST_DB_URL points at a disposable Postgres and skip
 otherwise, keeping the default CI (no DB service) green.
 """
+
 import os
 
 import pytest
@@ -32,14 +33,18 @@ def test_migrations_apply_then_are_idempotent(engine):
 
     # Tables exist with the extended columns.
     with engine.begin() as conn:
-        cols = conn.execute(
-            text(
-                """
+        cols = (
+            conn.execute(
+                text(
+                    """
                 SELECT column_name FROM information_schema.columns
                 WHERE table_schema = 'email' AND table_name = 'processed_emails'
                 """
+                )
             )
-        ).scalars().all()
+            .scalars()
+            .all()
+        )
     assert {"subject", "sender", "snippet", "received_at"} <= set(cols)
 
     # Re-running applies nothing.

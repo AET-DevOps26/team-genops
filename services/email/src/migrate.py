@@ -5,6 +5,7 @@ infra). On startup we ensure the `email` schema and a `schema_migrations` ledger
 then apply every `*.sql` file not yet recorded, in filename order, each in its own
 transaction. Re-runs are idempotent: already-applied files are skipped.
 """
+
 from __future__ import annotations
 
 import logging

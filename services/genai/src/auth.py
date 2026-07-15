@@ -85,10 +85,7 @@ async def get_current_user_id(request: Request) -> str:
             return user_id
         except JWTError:
             # Still failed after refresh — token is genuinely invalid or expired
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Invalid or expired token"
-            ) from first_error
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid or expired token") from first_error
 
 
 async def get_access_token(request: Request) -> str:

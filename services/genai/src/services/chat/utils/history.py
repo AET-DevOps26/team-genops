@@ -55,9 +55,7 @@ async def count_messages(conn: AsyncConnection, session_id: str) -> int:
     return row[0]
 
 
-async def load_last_n_messages_as_text(
-    conn: AsyncConnection, session_id: str, n: int
-) -> str:
+async def load_last_n_messages_as_text(conn: AsyncConnection, session_id: str, n: int) -> str:
     """
     Load the last N messages as a plain text block for summarization.
     Format: 'User: ...\nAssistant: ...'
