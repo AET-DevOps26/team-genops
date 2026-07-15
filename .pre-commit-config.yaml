@@ -3,8 +3,12 @@ repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v5.0.0
     hooks:
+      # Never touch OpenAPI codegen output — fixing it up makes it drift from
+      # what `make -C api generate` produces.
       - id: trailing-whitespace
+        exclude: &generated ^(services/.*/src/main/java/.*/generated/|services/genai/client/|web-client/src/generated/)
       - id: end-of-file-fixer
+        exclude: *generated
       - id: check-yaml
       - id: check-json
       - id: check-merge-conflict
