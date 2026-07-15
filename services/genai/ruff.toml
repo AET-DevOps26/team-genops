@@ -1,20 +1,6 @@
-line-length = 200
-target-version = "py312"
-
-[lint]
-select = [
-    "E",
-    "F",
-    "B",
-    "UP",
-    "SIM",
-]
-ignore = []
+extend = "../../ruff.toml"
+# client/ is OpenAPI-generated (make -C api generate) — never lint or format it.
+extend-exclude = ["client"]
 
 [lint.flake8-bugbear]
 extend-immutable-calls = ["fastapi.Depends"]
-
-[format]
-quote-style = "double"
-indent-style = "space"
-line-ending = "auto"

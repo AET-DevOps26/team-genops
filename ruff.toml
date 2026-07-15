@@ -1,0 +1,20 @@
+# Repo-wide Ruff config — single source of truth for every Python service.
+# Services extend this file (see services/*/ruff.toml or [tool.ruff] in
+# pyproject.toml) and add only genuinely local settings there.
+line-length = 200
+target-version = "py312"
+
+[lint]
+select = [
+    "E",
+    "F",
+    "B",
+    "UP",
+    "SIM",
+]
+ignore = []
+
+[format]
+quote-style = "double"
+indent-style = "space"
+line-ending = "auto"
