@@ -1,7 +1,6 @@
 package com.jobready.gateway.security;
 
 import java.util.Set;
-
 import org.springframework.boot.security.autoconfigure.web.servlet.SecurityFilterProperties;
 import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
@@ -38,21 +37,15 @@ public class SecurityConfig {
 
     /** Auth endpoints that must stay open — a caller cannot yet have a token when hitting these. */
     private static final String[] PUBLIC_AUTH_POST = {
-            "/api/v1/auth/login",
-            "/api/v1/auth/register",
-            "/api/v1/auth/refresh",
+        "/api/v1/auth/login", "/api/v1/auth/register", "/api/v1/auth/refresh",
     };
 
     /** Public key material other services fetch to verify tokens; must be reachable unauthenticated. */
     // keep in sync with auth JwksController.PATH
     private static final String JWKS_PATH = "/api/v1/auth/.well-known/jwks.json";
 
-		private static final Set<String> SKIP_PATHS = Set.of(
-						"/api/v1/auth/login",
-						"/api/v1/auth/register",
-						"/api/v1/auth/refresh",
-						JWKS_PATH
-		);
+    private static final Set<String> SKIP_PATHS =
+            Set.of("/api/v1/auth/login", "/api/v1/auth/register", "/api/v1/auth/refresh", JWKS_PATH);
 
     @Bean
     SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
@@ -64,20 +57,26 @@ public class SecurityConfig {
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
                         // k8s liveness/readiness probes must never require a token.
-                        .requestMatchers("/actuator/health/**").permitAll()
+                        .requestMatchers("/actuator/health/**")
+                        .permitAll()
                         // Anonymous auth flows: you cannot present a token to obtain your first token.
-                        .requestMatchers(HttpMethod.POST, PUBLIC_AUTH_POST).permitAll()
+                        .requestMatchers(HttpMethod.POST, PUBLIC_AUTH_POST)
+                        .permitAll()
                         // JWKS is public verification material by design.
-                        .requestMatchers(HttpMethod.GET, JWKS_PATH).permitAll()
-                        // Only the probe group above is public. Everything else under /actuator 
-                        // (notably /actuator/gateway/routes, which enumerates the internal topology) 
-                        // must never be reachable through the ingress. denyAll rather than authenticated 
+                        .requestMatchers(HttpMethod.GET, JWKS_PATH)
+                        .permitAll()
+                        // Only the probe group above is public. Everything else under /actuator
+                        // (notably /actuator/gateway/routes, which enumerates the internal topology)
+                        // must never be reachable through the ingress. denyAll rather than authenticated
                         // — no end-user JWT should grant access to the gateway's own operational surface.
-                        .requestMatchers("/actuator/**").denyAll()
+                        .requestMatchers("/actuator/**")
+                        .denyAll()
                         // Everything else under /api requires a valid access token at the edge.
-                        .requestMatchers("/api/**").authenticated()
+                        .requestMatchers("/api/**")
+                        .authenticated()
                         // Non-API traffic (SPA shell, static assets) is served openly.
-                        .anyRequest().permitAll())
+                        .anyRequest()
+                        .permitAll())
                 .oauth2ResourceServer(oauth2 -> oauth2.jwt(Customizer.withDefaults()));
         return http.build();
     }

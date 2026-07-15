@@ -2,14 +2,13 @@ package com.jobready.application.repository;
 
 import com.jobready.application.generated.modelDto.ApplicationStage;
 import com.jobready.application.modelEntity.Application;
+import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
-
-import java.util.List;
-import java.util.Optional;
-import java.util.UUID;
 
 public interface ApplicationRepository extends JpaRepository<Application, UUID> {
 
@@ -35,6 +34,7 @@ public interface ApplicationRepository extends JpaRepository<Application, UUID> 
 
     interface StageCount {
         ApplicationStage getStage();
+
         long getCount();
     }
 }

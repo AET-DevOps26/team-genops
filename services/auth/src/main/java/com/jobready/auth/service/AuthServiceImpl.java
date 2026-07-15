@@ -9,12 +9,11 @@ import com.jobready.auth.generated.modelDto.UserResponse;
 import com.jobready.auth.model.IssuedSession;
 import com.jobready.auth.modelEntity.User;
 import com.jobready.auth.repository.UserRepository;
+import java.time.Duration;
+import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
-
-import java.time.Duration;
-import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -39,8 +38,7 @@ public class AuthServiceImpl implements AuthService {
 
     @Override
     public IssuedSession login(LoginRequest request) {
-        User user = userRepository.findByEmail(request.getEmail())
-            .orElseThrow(InvalidCredentialsException::new);
+        User user = userRepository.findByEmail(request.getEmail()).orElseThrow(InvalidCredentialsException::new);
         if (!passwordEncoder.matches(request.getPassword(), user.getPasswordHash())) {
             throw new InvalidCredentialsException();
         }
@@ -56,32 +54,26 @@ public class AuthServiceImpl implements AuthService {
     public IssuedSession refresh(String refreshToken) {
         UUID userId = jwtService.validateRefreshToken(refreshToken);
         jwtService.revokeRefreshToken(refreshToken);
-        User user = userRepository.findById(userId)
-            .orElseThrow(InvalidCredentialsException::new);
+        User user = userRepository.findById(userId).orElseThrow(InvalidCredentialsException::new);
         return issueSession(user);
     }
 
     @Override
     public UserResponse getMe(UUID userId) {
-        User user = userRepository.findById(userId)
-            .orElseThrow(InvalidCredentialsException::new);
+        User user = userRepository.findById(userId).orElseThrow(InvalidCredentialsException::new);
         return toUserResponse(user);
     }
 
     private IssuedSession issueSession(User user) {
         return new IssuedSession(
-            jwtService.generateAccessToken(user),
-            jwtService.generateRefreshToken(user),
-            Duration.ofSeconds(jwtProperties.getAccessTokenExpiry()),
-            Duration.ofSeconds(jwtProperties.getRefreshTokenExpiry()),
-            toUserResponse(user)
-        );
+                jwtService.generateAccessToken(user),
+                jwtService.generateRefreshToken(user),
+                Duration.ofSeconds(jwtProperties.getAccessTokenExpiry()),
+                Duration.ofSeconds(jwtProperties.getRefreshTokenExpiry()),
+                toUserResponse(user));
     }
 
     private UserResponse toUserResponse(User user) {
-        return new UserResponse()
-            .id(user.getId())
-            .email(user.getEmail())
-            .createdAt(user.getCreatedAt());
+        return new UserResponse().id(user.getId()).email(user.getEmail()).createdAt(user.getCreatedAt());
     }
 }

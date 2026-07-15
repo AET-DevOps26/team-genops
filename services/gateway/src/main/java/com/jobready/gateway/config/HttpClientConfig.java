@@ -1,10 +1,9 @@
 package com.jobready.gateway.config;
 
+import java.net.http.HttpClient;
 import org.springframework.boot.http.client.ClientHttpRequestFactoryBuilder;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-
-import java.net.http.HttpClient;
 
 /**
  * Pins the proxy HTTP client to HTTP/1.1.

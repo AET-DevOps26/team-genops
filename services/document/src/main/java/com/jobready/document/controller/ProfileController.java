@@ -16,14 +16,13 @@ import com.jobready.document.generated.modelDto.SkillRequest;
 import com.jobready.document.generated.modelDto.WorkExperience;
 import com.jobready.document.generated.modelDto.WorkExperienceRequest;
 import com.jobready.document.service.DocumentService;
+import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
 import org.springframework.web.bind.annotation.RestController;
-
-import java.util.UUID;
 
 @RestController
 @RequiredArgsConstructor
@@ -44,7 +43,7 @@ public class ProfileController implements DocumentsApi {
     @Override
     public ResponseEntity<WorkExperience> createWorkExperience(WorkExperienceRequest workExperienceRequest) {
         return ResponseEntity.status(201)
-            .body(documentService.createWorkExperience(currentUserId(), workExperienceRequest));
+                .body(documentService.createWorkExperience(currentUserId(), workExperienceRequest));
     }
 
     @Override
@@ -60,8 +59,7 @@ public class ProfileController implements DocumentsApi {
 
     @Override
     public ResponseEntity<Education> createEducation(EducationRequest educationRequest) {
-        return ResponseEntity.status(201)
-            .body(documentService.createEducation(currentUserId(), educationRequest));
+        return ResponseEntity.status(201).body(documentService.createEducation(currentUserId(), educationRequest));
     }
 
     @Override
@@ -77,8 +75,7 @@ public class ProfileController implements DocumentsApi {
 
     @Override
     public ResponseEntity<Skill> createSkill(SkillRequest skillRequest) {
-        return ResponseEntity.status(201)
-            .body(documentService.createSkill(currentUserId(), skillRequest));
+        return ResponseEntity.status(201).body(documentService.createSkill(currentUserId(), skillRequest));
     }
 
     @Override
@@ -94,8 +91,7 @@ public class ProfileController implements DocumentsApi {
 
     @Override
     public ResponseEntity<Language> createLanguage(LanguageRequest languageRequest) {
-        return ResponseEntity.status(201)
-            .body(documentService.createLanguage(currentUserId(), languageRequest));
+        return ResponseEntity.status(201).body(documentService.createLanguage(currentUserId(), languageRequest));
     }
 
     @Override
@@ -111,14 +107,15 @@ public class ProfileController implements DocumentsApi {
 
     @Override
     public ResponseEntity<GeneratedDocumentList> listDocuments(UUID applicationId) {
-        return ResponseEntity.ok(new GeneratedDocumentList()
-            .items(documentService.listDocuments(currentUserId(), applicationId)));
+        return ResponseEntity.ok(
+                new GeneratedDocumentList().items(documentService.listDocuments(currentUserId(), applicationId)));
     }
 
     @Override
-    public ResponseEntity<GeneratedDocument> createDocument(CreateGeneratedDocumentRequest createGeneratedDocumentRequest) {
+    public ResponseEntity<GeneratedDocument> createDocument(
+            CreateGeneratedDocumentRequest createGeneratedDocumentRequest) {
         return ResponseEntity.status(201)
-            .body(documentService.createDocument(currentUserId(), createGeneratedDocumentRequest));
+                .body(documentService.createDocument(currentUserId(), createGeneratedDocumentRequest));
     }
 
     @Override
@@ -129,8 +126,8 @@ public class ProfileController implements DocumentsApi {
 
     /** The owner is always the JWT {@code sub} claim — never read from the request. */
     private UUID currentUserId() {
-        JwtAuthenticationToken auth = (JwtAuthenticationToken)
-            SecurityContextHolder.getContext().getAuthentication();
+        JwtAuthenticationToken auth =
+                (JwtAuthenticationToken) SecurityContextHolder.getContext().getAuthentication();
         String subject = auth.getToken().getSubject();
         // `sub` is optional per the JWT spec, and UUID.fromString(null) throws NPE, not
         // IllegalArgumentException — guard explicitly so a sub-less token can't become a 500.

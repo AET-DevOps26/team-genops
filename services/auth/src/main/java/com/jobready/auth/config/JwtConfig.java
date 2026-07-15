@@ -5,6 +5,12 @@ import com.nimbusds.jose.jwk.RSAKey;
 import com.nimbusds.jose.jwk.source.ImmutableJWKSet;
 import com.nimbusds.jose.jwk.source.JWKSource;
 import com.nimbusds.jose.proc.SecurityContext;
+import java.io.ByteArrayInputStream;
+import java.nio.charset.StandardCharsets;
+import java.security.KeyPair;
+import java.security.KeyPairGenerator;
+import java.security.interfaces.RSAPrivateKey;
+import java.security.interfaces.RSAPublicKey;
 import lombok.RequiredArgsConstructor;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
@@ -14,13 +20,6 @@ import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.oauth2.jwt.JwtEncoder;
 import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 import org.springframework.security.oauth2.jwt.NimbusJwtEncoder;
-
-import java.io.ByteArrayInputStream;
-import java.nio.charset.StandardCharsets;
-import java.security.KeyPair;
-import java.security.KeyPairGenerator;
-import java.security.interfaces.RSAPrivateKey;
-import java.security.interfaces.RSAPublicKey;
 
 @Configuration
 @EnableConfigurationProperties(JwtProperties.class)
@@ -36,20 +35,20 @@ public class JwtConfig {
             gen.initialize(2048);
             KeyPair keyPair = gen.generateKeyPair();
             return new RSAKey.Builder((RSAPublicKey) keyPair.getPublic())
-                .privateKey((RSAPrivateKey) keyPair.getPrivate())
+                    .privateKey((RSAPrivateKey) keyPair.getPrivate())
+                    .keyID(props.getKeyId())
+                    .build();
+        }
+        RSAPrivateKey privateKey = RsaKeyConverters.pkcs8()
+                .convert(new ByteArrayInputStream(
+                        props.getPrivateKey().replace("\\n", "\n").getBytes(StandardCharsets.UTF_8)));
+        RSAPublicKey publicKey = RsaKeyConverters.x509()
+                .convert(new ByteArrayInputStream(
+                        props.getPublicKey().replace("\\n", "\n").getBytes(StandardCharsets.UTF_8)));
+        return new RSAKey.Builder(publicKey)
+                .privateKey(privateKey)
                 .keyID(props.getKeyId())
                 .build();
-        }
-        RSAPrivateKey privateKey = RsaKeyConverters.pkcs8().convert(
-            new ByteArrayInputStream(props.getPrivateKey().replace("\\n", "\n").getBytes(StandardCharsets.UTF_8))
-        );
-        RSAPublicKey publicKey = RsaKeyConverters.x509().convert(
-            new ByteArrayInputStream(props.getPublicKey().replace("\\n", "\n").getBytes(StandardCharsets.UTF_8))
-        );
-        return new RSAKey.Builder(publicKey)
-            .privateKey(privateKey)
-            .keyID(props.getKeyId())
-            .build();
     }
 
     @Bean
