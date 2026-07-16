@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "prepare": "cd .. && (pre-commit install || echo 'WARNING: pre-commit not installed - hooks NOT active.')",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "format": "prettier --write .",
