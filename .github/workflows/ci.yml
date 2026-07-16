@@ -212,8 +212,10 @@ jobs:
       - name: Typecheck (mypy)
         run: uv run --locked mypy src/ tests/
 
+      # Gate sits below the ~80% the suite currently reaches, so it blocks a real
+      # regression without tripping on a line or two of churn. Raise it as coverage grows.
       - name: Test (pytest)
-        run: uv run --locked python -m pytest tests/
+        run: uv run --locked python -m pytest tests/ --cov=src --cov-report=term-missing --cov-fail-under=75
 
   web-client:
     needs: changes

@@ -49,3 +49,10 @@ FEATURES.md
 DB_SCHEMAS.md
 dist
 deploy.md
+
+# Test/coverage artefacts
+.coverage
+.coverage.*
+htmlcov/
+coverage.xml
+.pytest_cache/
