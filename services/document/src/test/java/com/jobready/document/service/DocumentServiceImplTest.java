@@ -222,7 +222,7 @@ class DocumentServiceImplTest {
         UUID applicationId = UUID.randomUUID();
 
         CreateGeneratedDocumentRequest request =
-            new CreateGeneratedDocumentRequest(GeneratedDocumentType.COVER_LETTER, "Dear team");
+                new CreateGeneratedDocumentRequest(GeneratedDocumentType.COVER_LETTER, "Dear team");
         request.setApplicationId(applicationId);
 
         GeneratedDocument result = service.createDocument(userId, request);
@@ -240,7 +240,7 @@ class DocumentServiceImplTest {
         when(resumeRepository.saveAndFlush(any(ResumeEntity.class))).thenAnswer(inv -> inv.getArgument(0));
 
         CreateGeneratedDocumentRequest request =
-            new CreateGeneratedDocumentRequest(GeneratedDocumentType.RESUME, "...");
+                new CreateGeneratedDocumentRequest(GeneratedDocumentType.RESUME, "...");
         request.setApplicationId(UUID.randomUUID());
 
         GeneratedDocument result = service.createDocument(userId, request);
@@ -254,8 +254,8 @@ class DocumentServiceImplTest {
     void createDocument_withoutApplication_savesStandaloneDocument() {
         when(resumeRepository.saveAndFlush(any(ResumeEntity.class))).thenAnswer(inv -> inv.getArgument(0));
 
-        GeneratedDocument result = service.createDocument(userId,
-            new CreateGeneratedDocumentRequest(GeneratedDocumentType.RESUME, "General resume"));
+        GeneratedDocument result = service.createDocument(
+                userId, new CreateGeneratedDocumentRequest(GeneratedDocumentType.RESUME, "General resume"));
 
         ArgumentCaptor<ResumeEntity> saved = ArgumentCaptor.forClass(ResumeEntity.class);
         verify(resumeRepository).saveAndFlush(saved.capture());

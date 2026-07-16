@@ -25,13 +25,13 @@ _NOT_FOUND = "The referenced job application could not be found. Ask the user fo
 _UNAVAILABLE = "The job application details could not be loaded right now. Ask the user for the role, company and job description directly."
 
 
-async def get_application(token: str, application_id: str) -> str | None:
+async def get_application(token: str, application_id: str) -> str:
     """
     Fetch one application and format it for injection into the LLM context.
 
-    Returns None only when there is nothing to say (no id). Any failure returns a
-    plain-text note instead of raising: this runs on every turn of a bound session,
-    so an application-service outage must degrade the answer, not fail the turn.
+    Any failure returns a plain-text note instead of raising: this runs on every turn
+    of a bound session, so an application-service outage must degrade the answer, not
+    fail the turn. Callers that may have no id skip the call rather than passing None.
     """
     # The id reaches us from a model tool call, so it is untrusted: interpolating it raw
     # would let a value like "../../users/1" retarget the request at another endpoint of the
