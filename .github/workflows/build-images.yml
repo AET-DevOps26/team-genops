@@ -80,7 +80,7 @@ jobs:
 
       - name: Compute tags & labels
         id: meta
-        uses: docker/metadata-action@v5
+        uses: docker/metadata-action@v6
         with:
           images: ${{ env.IMAGE_PREFIX }}/${{ matrix.image }}
           # SHA tag (sha-<short>) for precise CD pins — cd-dev deploys exactly
