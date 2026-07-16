@@ -5,6 +5,7 @@ from pydantic import BaseModel, Field
 # Session
 # ---------------------------------------------------------------------------
 
+
 class CreateSessionRequest(BaseModel):
     session_type: str = Field(
         default="insight_chat",
@@ -28,6 +29,7 @@ class SessionListResponse(BaseModel):
 # ---------------------------------------------------------------------------
 # Chat
 # ---------------------------------------------------------------------------
+
 
 class MessageRequest(BaseModel):
     message: str = Field(..., min_length=1, max_length=8000)

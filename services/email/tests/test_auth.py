@@ -1,4 +1,5 @@
 """JWT auth dependency tests — verifies tokens against a (mocked) JWKS signing key."""
+
 from types import SimpleNamespace
 
 import jwt

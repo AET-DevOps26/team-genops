@@ -35,6 +35,7 @@ async def close_db() -> None:
 
 async def get_conn():
     """FastAPI dependency — yields a connection from the pool."""
+    assert pool is not None, "DB pool not initialised — init_db() must run first"
     async with pool.connection() as conn:
         yield conn
 

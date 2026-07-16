@@ -11,14 +11,13 @@ import com.jobready.application.generated.modelDto.Recommendation;
 import com.jobready.application.generated.modelDto.RecommendationList;
 import com.jobready.application.generated.modelDto.UpdateApplicationRequest;
 import com.jobready.application.service.ApplicationService;
+import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
 import org.springframework.web.bind.annotation.RestController;
-
-import java.util.UUID;
 
 @RestController
 @RequiredArgsConstructor
@@ -42,7 +41,8 @@ public class ApplicationController implements ApplicationsApi {
     }
 
     @Override
-    public ResponseEntity<JobApplication> updateApplication(UUID id, UpdateApplicationRequest updateApplicationRequest) {
+    public ResponseEntity<JobApplication> updateApplication(
+            UUID id, UpdateApplicationRequest updateApplicationRequest) {
         return ResponseEntity.ok(applicationService.update(currentUserId(), id, updateApplicationRequest));
     }
 
@@ -58,9 +58,10 @@ public class ApplicationController implements ApplicationsApi {
     }
 
     @Override
-    public ResponseEntity<Recommendation> createRecommendation(UUID id, CreateRecommendationRequest createRecommendationRequest) {
+    public ResponseEntity<Recommendation> createRecommendation(
+            UUID id, CreateRecommendationRequest createRecommendationRequest) {
         return ResponseEntity.status(201)
-            .body(applicationService.addRecommendation(currentUserId(), id, createRecommendationRequest));
+                .body(applicationService.addRecommendation(currentUserId(), id, createRecommendationRequest));
     }
 
     @Override
@@ -76,8 +77,8 @@ public class ApplicationController implements ApplicationsApi {
 
     /** The owner is always the JWT {@code sub} claim — never read from the request. */
     private UUID currentUserId() {
-        JwtAuthenticationToken auth = (JwtAuthenticationToken)
-            SecurityContextHolder.getContext().getAuthentication();
+        JwtAuthenticationToken auth =
+                (JwtAuthenticationToken) SecurityContextHolder.getContext().getAuthentication();
         String subject = auth.getToken().getSubject();
         try {
             return UUID.fromString(subject);

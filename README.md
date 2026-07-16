@@ -159,7 +159,3 @@ React · Spring Boot · Python / FastAPI · PostgreSQL · Redis · Docker Compos
 LLM backend selectable via `LLM_BACKEND` env var: `cloud` (OpenAI API) or `local` (LLaMA / GPT4All via Ollama).
 
 ## Team
-
-
-
-

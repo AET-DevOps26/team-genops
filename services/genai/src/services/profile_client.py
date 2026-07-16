@@ -10,9 +10,7 @@ import httpx
 
 from src.config import settings
 
-_NOT_ENABLED = (
-    "User profile not available yet — document service not connected."
-)
+_NOT_ENABLED = "User profile not available yet — document service not connected."
 
 _NO_PROFILE = (
     "The user has not created a career profile yet. Ask them for the details "
@@ -92,9 +90,7 @@ def _format_profile(data: dict) -> str:
 
     languages = data.get("languages") or []
     if languages:
-        formatted = ", ".join(
-            f"{lang.get('name')} ({lang.get('proficiency')})" for lang in languages
-        )
+        formatted = ", ".join(f"{lang.get('name')} ({lang.get('proficiency')})" for lang in languages)
         lines.append(f"Languages: {formatted}")
 
     return "\n".join(lines)

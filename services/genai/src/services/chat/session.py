@@ -16,6 +16,7 @@ async def create_session(
         (user_id, session_type),
     )
     row = await cur.fetchone()
+    assert row is not None  # INSERT ... RETURNING always yields a row
     return {
         "id": str(row[0]),
         "user_id": str(row[1]),
@@ -34,6 +35,7 @@ async def is_first_user_session(conn: AsyncConnection, user_id: str, session_id:
         (user_id, session_id),
     )
     row = await cur.fetchone()
+    assert row is not None  # COUNT(*) always yields a row
     return row[0] == 0
 
 
@@ -49,7 +51,7 @@ async def delete_session(conn: AsyncConnection, session_id: str, user_id: str) -
     return cur.rowcount == 1
 
 
-async def get_messages(conn: AsyncConnection, session_id: str, user_id: str) -> list[dict]:
+async def get_messages(conn: AsyncConnection, session_id: str, user_id: str) -> list[dict] | None:
     """Return all messages for a session, oldest first. Returns None if not found/not owned."""
     # Verify session exists and belongs to user (return None for both cases → 404)
     cur = await conn.execute(

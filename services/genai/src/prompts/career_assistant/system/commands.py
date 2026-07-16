@@ -38,9 +38,7 @@ COMMANDS: dict[str, str] = {
 # Matches any registered slash command, case-insensitive
 # Uses word boundary after the command to prevent partial matches (e.g., /cover_letter_draft)
 # but allows the leading / which doesn't work with \b on both sides
-_COMMAND_RE = re.compile(
-    r"(?i)(" + "|".join(re.escape(cmd) for cmd in COMMANDS) + r")\b"
-)
+_COMMAND_RE = re.compile(r"(?i)(" + "|".join(re.escape(cmd) for cmd in COMMANDS) + r")\b")
 
 
 def resolve_command(message: str) -> tuple[str, str]:

@@ -5,9 +5,7 @@ from src.services.document_client import save_generated_document as _save
 
 def make_save_document_tool(token: str):
     @tool
-    async def save_generated_document(
-        application_id: str, document_type: str, content: str
-    ) -> str:
+    async def save_generated_document(application_id: str, document_type: str, content: str) -> str:
         """
         Save a finished cover letter or resume to the user's account, attached to
         one of their job applications, so it shows up on that application's page.
@@ -22,10 +20,7 @@ def make_save_document_tool(token: str):
         try:
             await _save(token, application_id, document_type, content)
         except Exception:
-            return (
-                "Saving failed — the application id may be wrong or the document "
-                "service unavailable. Present the document to the user directly."
-            )
+            return "Saving failed — the application id may be wrong or the document service unavailable. Present the document to the user directly."
         return f"Saved {document_type} to application {application_id}."
 
     return save_generated_document

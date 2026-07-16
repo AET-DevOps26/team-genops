@@ -1,4 +1,3 @@
-
 package com.jobready.auth.config;
 
 import lombok.Data;

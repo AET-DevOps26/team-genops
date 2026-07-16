@@ -1,0 +1,10 @@
+# Purely mechanical reformat commits — skip in git blame.
+# Enable locally once: git config blame.ignoreRevsFile .git-blame-ignore-revs
+# (GitHub's blame view picks this file up automatically.)
+
+# chore: apply spotless to java services
+3b8afdf032ce10f07efefbcccd42ba6390a9baef
+# chore: apply ruff format to python services
+7d01cee37613d6ac683ab3a161c55c3ae8b14eed
+# chore: apply prettier to web-client
+12bbe4b6506cd69a78188018b1eaf09c79e3cd64

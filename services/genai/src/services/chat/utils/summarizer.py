@@ -33,7 +33,8 @@ async def maybe_summarize(conn: AsyncConnection, session_id: str, message_count:
         {"conversation": conversation},
         config=trace_config(session_id=session_id, tags=["summarization"]),
     )
-    new_summary = response.content.strip()
+    content = response.content
+    new_summary = content.strip() if isinstance(content, str) else str(content).strip()
 
     if new_summary == NO_SUMMARY:
         return

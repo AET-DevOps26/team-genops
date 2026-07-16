@@ -1,11 +1,10 @@
 package com.jobready.document.repository;
 
 import com.jobready.document.modelEntity.LanguageEntity;
-import org.springframework.data.jpa.repository.JpaRepository;
-
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface LanguageRepository extends JpaRepository<LanguageEntity, UUID> {
 

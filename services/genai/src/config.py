@@ -33,4 +33,4 @@ class Settings(BaseSettings):
     profile_enabled: bool = False
 
 
-settings = Settings()
+settings = Settings()  # type: ignore[call-arg]  # openrouter_api_key comes from the env

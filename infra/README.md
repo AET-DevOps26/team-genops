@@ -92,10 +92,11 @@ Fill those three into `values-prod.yaml`. (Student tokens can't list `clusteriss
 The chart pulls `ghcr.io/aet-devops26/jobready-{auth,web-client,gateway}`, which don't
 exist until CI runs.
 
-1. **Merge the PR to main.** That push triggers `build-images.yml` (Actions → *Build & Push Images*).
+1. **Merge the PR to main.** That push runs the `CI` workflow; when it succeeds,
+   `build-images.yml` fires via `workflow_run` (Actions → *Build & Push Images*).
 2. Confirm the three packages appear under the org's **Packages**.
 
-`build-images.yml` only fires once it's on the default branch — that's why merging is step 1.
+Images are only published after CI is green — a failing run on main never pushes images.
 
 > If the first push fails with a permissions error, allow Actions to publish packages in
 > the org's *Packages* settings. The workflow already requests `packages: write`.
@@ -160,12 +161,14 @@ In **GitHub → Settings**:
   ```
 - **Environments → `production`** → add yourself as a **Required reviewer**.
 
-Trigger: create a **GitHub Release** (tag `vX.Y.Z`). `build-images` builds semver images and
-`cd-prod` waits for your approval; approve → Ansible deploys.
+Trigger: create a **GitHub Release** (tag `vX.Y.Z`). `cd-prod`'s `promote-images` job retags
+the CI-tested `sha-<short>` images with the release version (no rebuild — prod ships the exact
+bytes dev ran), then the deploy job waits for your approval; approve → Ansible deploys.
 
-The approval gate is what serialises the release: both `build-images` and `cd-prod` fire on
-the release, and approving only after images finish stops the deploy pulling a missing tag.
-**Don't remove it.**
+Ordering is structural: the deploy job `needs: promote-images`, so it can't start before the
+semver tags exist. If the tagged commit never went through CI→build on main, promotion fails
+loudly (source `sha-` image missing) and nothing deploys. The approval gate remains as the
+human control on prod — **don't remove it.**
 
 ---
 
@@ -234,10 +237,10 @@ KUBECONFIG=<aks-kubeconfig> ansible-playbook -i inventories/dev/hosts.yml playbo
 ## Reference
 
 **Workflows**
-- `ci-*.yml` — build + test each service on PRs.
-- `build-images.yml` — on merge to main / tags → pushes `jobready-{auth,web-client,gateway}` (`sha-<short>` + `latest` + semver).
+- `ci.yml` — build + test what a PR/push touches; the single `ci-ok` gate.
+- `build-images.yml` — after CI succeeds on main (`workflow_run`) → pushes all service images (`sha-<short>` + `latest`).
 - `cd-dev.yml` — after images publish → `terraform apply` → Ansible bootstrap + deploy.
-- `cd-prod.yml` — on GitHub Release (manual-approval `production` env) → Ansible deploy.
+- `cd-prod.yml` — on GitHub Release → `promote-images` retags `sha-<short>` → semver (crane, no rebuild) → manual-approval `production` env → Ansible deploy.
 
 **GitHub secrets**
 

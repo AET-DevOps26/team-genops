@@ -7,6 +7,7 @@ service boots for local dev; using them is flagged loudly at startup (see
 `warn_on_dev_secrets`) and must never reach production per the project's
 secret-handling rules.
 """
+
 import logging
 from functools import lru_cache
 
@@ -48,15 +49,10 @@ class Settings(BaseSettings):
 
 def warn_on_dev_secrets(settings: Settings) -> None:
     """Loudly flag any security-sensitive key still set to the dev placeholder."""
-    insecure = [
-        name
-        for name in ("email_token_enc_key", "state_signing_key")
-        if getattr(settings, name) == _DEV_SECRET
-    ]
+    insecure = [name for name in ("email_token_enc_key", "state_signing_key") if getattr(settings, name) == _DEV_SECRET]
     if insecure:
         logger.warning(
-            "INSECURE: %s using the built-in dev default — set explicit env vars "
-            "before any non-local deployment.",
+            "INSECURE: %s using the built-in dev default — set explicit env vars before any non-local deployment.",
             ", ".join(insecure),
         )
 

@@ -39,6 +39,7 @@ async def chat(
     )
     if not await cur.fetchone():
         from fastapi import HTTPException, status
+
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Session not found")
 
     task_context, cleaned_input = resolve_command(message)
@@ -58,10 +59,12 @@ async def chat(
             make_save_document_tool(token),
         ]
 
-    system_msg = SystemMessage(content=SYSTEM_PROMPT.format(
-        user_memory=user_memory,
-        task_context=task_context,
-    ))
+    system_msg = SystemMessage(
+        content=SYSTEM_PROMPT.format(
+            user_memory=user_memory,
+            task_context=task_context,
+        )
+    )
 
     messages = [system_msg] + chat_history + [HumanMessage(content=cleaned_input)]
 

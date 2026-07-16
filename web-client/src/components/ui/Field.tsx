@@ -1,16 +1,23 @@
-import type { InputHTMLAttributes, ReactNode } from 'react'
+import type { InputHTMLAttributes, ReactNode } from "react";
 
 interface Props extends InputHTMLAttributes<HTMLInputElement> {
-  id: string
-  label: ReactNode
+  id: string;
+  label: ReactNode;
   /** Optional affordance rendered inside the field, right-aligned (e.g. a show/hide toggle). */
-  trailing?: ReactNode
+  trailing?: ReactNode;
   /** Optional control rendered next to the label (e.g. a "Forgot?" link). */
-  labelAside?: ReactNode
+  labelAside?: ReactNode;
 }
 
 // Wraps the semantic `.field` class so every input across services looks/focuses identically.
-export function Field({ id, label, trailing, labelAside, className = '', ...props }: Props) {
+export function Field({
+  id,
+  label,
+  trailing,
+  labelAside,
+  className = "",
+  ...props
+}: Props) {
   return (
     <div>
       <div className="mb-1.5 flex items-baseline justify-between">
@@ -24,5 +31,5 @@ export function Field({ id, label, trailing, labelAside, className = '', ...prop
         {trailing}
       </div>
     </div>
-  )
+  );
 }

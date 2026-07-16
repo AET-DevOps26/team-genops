@@ -1,0 +1,4 @@
+# OpenAPI codegen output — regenerated wholesale, never hand-formatted.
+src/generated/
+dist/
+package-lock.json

@@ -3,11 +3,55 @@ repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v5.0.0
     hooks:
+      # Never touch OpenAPI codegen output — fixing it up makes it drift from
+      # what `make -C api generate` produces.
       - id: trailing-whitespace
+        exclude: &generated ^(services/.*/src/main/java/.*/generated/|services/genai/client/|web-client/src/generated/)
       - id: end-of-file-fixer
+        exclude: *generated
       - id: check-yaml
+        # Helm templates are Go templates, not valid YAML — helm lint owns them.
+        exclude: ^infra/helm/.*/templates/
       - id: check-json
       - id: check-merge-conflict
       - id: check-added-large-files
         args: [--maxkb=500]
       - id: detect-private-key
+
+  # Workflow linting. actionlint has no project-local install, so the pin below
+  # is the single source of truth — CI's infra-lint job runs this same hook via
+  # `pre-commit run`. (Dockerfile linting is CI-only: hadolint's pre-commit hook
+  # needs docker at commit time, which not every dev machine has.)
+  - repo: https://github.com/rhysd/actionlint
+    rev: v1.7.12
+    hooks:
+      - id: actionlint
+
+  # Project-local commands — the same entry points CI runs, using the tool
+  # versions pinned in each service (uv.lock / requirements.txt / package.json).
+  # Java (Spotless/Checkstyle) and mypy are deliberately CI-only: JVM startup
+  # and a full typecheck are too slow for commit time.
+  - repo: local
+    hooks:
+      - id: ruff-check
+        name: ruff check --fix (python services)
+        language: system
+        entry: uv run --project services/genai --locked ruff check --fix --force-exclude
+        files: ^services/(genai|email)/.*\.py$
+      - id: ruff-format
+        name: ruff format (python services)
+        language: system
+        entry: uv run --project services/genai --locked ruff format --force-exclude
+        files: ^services/(genai|email)/.*\.py$
+      - id: prettier
+        name: prettier --write (web-client)
+        language: system
+        entry: npx --prefix web-client prettier --write --ignore-unknown
+        files: ^web-client/
+        exclude: ^web-client/(src/generated/|dist/|package-lock\.json$)
+      - id: eslint
+        name: eslint (web-client)
+        language: system
+        entry: npm --prefix web-client run lint
+        pass_filenames: false
+        files: ^web-client/.*\.(ts|tsx|js)$

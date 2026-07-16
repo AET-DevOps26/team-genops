@@ -13,7 +13,6 @@ import com.jobready.document.generated.modelDto.Skill;
 import com.jobready.document.generated.modelDto.SkillRequest;
 import com.jobready.document.generated.modelDto.WorkExperience;
 import com.jobready.document.generated.modelDto.WorkExperienceRequest;
-
 import java.util.List;
 import java.util.UUID;
 

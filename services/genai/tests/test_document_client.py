@@ -47,9 +47,7 @@ async def test_save_document_tool_rejects_bad_type(monkeypatch: pytest.MonkeyPat
     from src.tools.documents import make_save_document_tool
 
     tool = make_save_document_tool("the-jwt")
-    result = await tool.ainvoke(
-        {"application_id": "app-1", "document_type": "poem", "content": "x"}
-    )
+    result = await tool.ainvoke({"application_id": "app-1", "document_type": "poem", "content": "x"})
 
     assert result.startswith("Not saved")
 
@@ -62,9 +60,7 @@ async def test_save_document_tool_reports_failure_gracefully(monkeypatch: pytest
     _mock_async_client(monkeypatch, lambda request: httpx.Response(401, json={"code": "UNAUTHORIZED"}))
 
     tool = make_save_document_tool("bad-jwt")
-    result = await tool.ainvoke(
-        {"application_id": "app-1", "document_type": "resume", "content": "cv"}
-    )
+    result = await tool.ainvoke({"application_id": "app-1", "document_type": "resume", "content": "cv"})
 
     assert result.startswith("Saving failed")
 
@@ -74,13 +70,9 @@ async def test_save_document_tool_saves(monkeypatch: pytest.MonkeyPatch):
     monkeypatch.setenv("OPENROUTER_API_KEY", "test")
     from src.tools.documents import make_save_document_tool
 
-    _mock_async_client(
-        monkeypatch, lambda request: httpx.Response(201, json={"id": "d1"})
-    )
+    _mock_async_client(monkeypatch, lambda request: httpx.Response(201, json={"id": "d1"}))
 
     tool = make_save_document_tool("the-jwt")
-    result = await tool.ainvoke(
-        {"application_id": "app-1", "document_type": "resume", "content": "cv"}
-    )
+    result = await tool.ainvoke({"application_id": "app-1", "document_type": "resume", "content": "cv"})
 
     assert result == "Saved resume to application app-1."
