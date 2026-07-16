@@ -18,8 +18,8 @@
   --color-interview: #f5a623;
   --color-offer: #34d399;
 
-  --font-display: "Bricolage Grotesque", "Geist", ui-sans-serif, system-ui,
-    sans-serif;
+  --font-display:
+    "Bricolage Grotesque", "Geist", ui-sans-serif, system-ui, sans-serif;
   --font-sans: "Geist", ui-sans-serif, system-ui, -apple-system, sans-serif;
   --font-mono: "Geist Mono", ui-monospace, "SFMono-Regular", monospace;
 }
@@ -55,7 +55,9 @@ body {
 .field {
   background: color-mix(in oklab, var(--color-raised-2) 70%, transparent);
   border: 1px solid var(--color-line);
-  transition: border-color 0.18s ease, box-shadow 0.18s ease,
+  transition:
+    border-color 0.18s ease,
+    box-shadow 0.18s ease,
     background 0.18s ease;
 }
 .field:focus-within {
@@ -91,12 +93,17 @@ body {
   background: var(--color-offer);
   color: #052e1d;
   font-weight: 600;
-  transition: transform 0.12s ease, box-shadow 0.18s ease, filter 0.18s ease;
-  box-shadow: 0 8px 30px -10px color-mix(in oklab, var(--color-offer) 60%, transparent);
+  transition:
+    transform 0.12s ease,
+    box-shadow 0.18s ease,
+    filter 0.18s ease;
+  box-shadow: 0 8px 30px -10px
+    color-mix(in oklab, var(--color-offer) 60%, transparent);
 }
 .cta:hover:not(:disabled) {
   filter: brightness(1.06);
-  box-shadow: 0 12px 34px -10px color-mix(in oklab, var(--color-offer) 70%, transparent);
+  box-shadow: 0 12px 34px -10px
+    color-mix(in oklab, var(--color-offer) 70%, transparent);
 }
 .cta:active:not(:disabled) {
   transform: translateY(1px);
@@ -134,7 +141,8 @@ body {
     box-shadow: 0 0 0 0 color-mix(in oklab, var(--color-offer) 55%, transparent);
   }
   50% {
-    box-shadow: 0 0 0 5px color-mix(in oklab, var(--color-offer) 0%, transparent);
+    box-shadow: 0 0 0 5px
+      color-mix(in oklab, var(--color-offer) 0%, transparent);
   }
 }
 .anim-card {

@@ -145,6 +145,60 @@
 					</execution>
 				</executions>
 			</plugin>
+			<plugin>
+				<groupId>com.diffplug.spotless</groupId>
+				<artifactId>spotless-maven-plugin</artifactId>
+				<version>3.8.0</version>
+				<configuration>
+					<java>
+						<excludes>
+							<exclude>**/generated/**</exclude>
+						</excludes>
+						<palantirJavaFormat>
+							<version>2.68.0</version>
+						</palantirJavaFormat>
+						<importOrder/>
+						<removeUnusedImports>
+							<engine>cleanthat-javaparser-unnecessaryimport</engine>
+						</removeUnusedImports>
+						<formatAnnotations/>
+					</java>
+				</configuration>
+				<executions>
+					<execution>
+						<goals>
+							<goal>check</goal>
+						</goals>
+					</execution>
+				</executions>
+			</plugin>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-checkstyle-plugin</artifactId>
+				<version>3.6.0</version>
+				<dependencies>
+					<dependency>
+						<groupId>com.puppycrawl.tools</groupId>
+						<artifactId>checkstyle</artifactId>
+						<version>10.21.1</version>
+					</dependency>
+				</dependencies>
+				<configuration>
+					<configLocation>${project.basedir}/../../config/checkstyle.xml</configLocation>
+					<includeTestSourceDirectory>true</includeTestSourceDirectory>
+					<excludes>**/generated/**</excludes>
+					<consoleOutput>true</consoleOutput>
+				</configuration>
+				<executions>
+					<execution>
+						<id>checkstyle-check</id>
+						<phase>validate</phase>
+						<goals>
+							<goal>check</goal>
+						</goals>
+					</execution>
+				</executions>
+			</plugin>
 		</plugins>
 	</build>
 

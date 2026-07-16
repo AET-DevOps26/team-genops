@@ -6,6 +6,7 @@ JWKS (defense in depth) — see `.claude/rules/microservices.md`. The token arri
 header; services never read cookies between each other). `user_id` is taken ONLY from the
 `sub` claim — never from the body, query string, or any other header.
 """
+
 from __future__ import annotations
 
 import jwt

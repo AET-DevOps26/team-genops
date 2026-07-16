@@ -57,6 +57,7 @@ async def chat(
     )
     if not await cur.fetchone():
         from fastapi import HTTPException, status
+
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Session not found")
 
     task_context, cleaned_input = resolve_command(message)
@@ -83,11 +84,7 @@ async def chat(
     # out of the window costs detail, not the fact that something was said — without it, a
     # job description pasted 20 messages ago would simply cease to exist for the model.
     summary = await get_session_summary(conn, session_id)
-    session_memory = (
-        f"Earlier in this conversation (summary of messages no longer shown verbatim):\n{summary}"
-        if summary
-        else ""
-    )
+    session_memory = f"Earlier in this conversation (summary of messages no longer shown verbatim):\n{summary}" if summary else ""
 
     # Pushed above: who the user is, and the job this chat is about. Pulled here: everything
     # optional — other applications, past conversations. A tool only fires when the model
@@ -102,12 +99,14 @@ async def chat(
         *make_application_tools(token),
     ]
 
-    system_msg = SystemMessage(content=SYSTEM_PROMPT.format(
-        user_memory=user_memory,
-        job_context=job_context,
-        session_memory=session_memory,
-        task_context=task_context,
-    ))
+    system_msg = SystemMessage(
+        content=SYSTEM_PROMPT.format(
+            user_memory=user_memory,
+            job_context=job_context,
+            session_memory=session_memory,
+            task_context=task_context,
+        )
+    )
 
     messages = [system_msg] + chat_history + [HumanMessage(content=cleaned_input)]
 

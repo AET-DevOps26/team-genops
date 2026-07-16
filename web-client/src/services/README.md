@@ -26,25 +26,30 @@ A new service is a new folder + one file. You never touch existing services.
 2. Create `services/<resource>/<resource>Api.ts`:
 
 ```ts
-import { api } from '~/services/apiClient'
-import type { Schemas } from '~/api/schemas'
+import { api } from "~/services/apiClient";
+import type { Schemas } from "~/api/schemas";
 
-type Application = Schemas['Application'] // ← from the generated spec, never hand-written
+type Application = Schemas["Application"]; // ← from the generated spec, never hand-written
 
 export const applicationApi = api.injectEndpoints({
   endpoints: (build) => ({
     getApplications: build.query<Application[], void>({
-      query: () => '/applications',
-      providesTags: ['Application'],
+      query: () => "/applications",
+      providesTags: ["Application"],
     }),
     updateStatus: build.mutation<Application, { id: string; status: string }>({
-      query: ({ id, ...body }) => ({ url: `/applications/${id}`, method: 'PUT', body }),
-      invalidatesTags: ['Application'], // the list auto-refetches; no manual cache edits
+      query: ({ id, ...body }) => ({
+        url: `/applications/${id}`,
+        method: "PUT",
+        body,
+      }),
+      invalidatesTags: ["Application"], // the list auto-refetches; no manual cache edits
     }),
   }),
-})
+});
 
-export const { useGetApplicationsQuery, useUpdateStatusMutation } = applicationApi
+export const { useGetApplicationsQuery, useUpdateStatusMutation } =
+  applicationApi;
 ```
 
 3. Add any new `tagTypes` to `apiClient.ts`.

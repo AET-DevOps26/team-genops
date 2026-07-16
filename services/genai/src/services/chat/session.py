@@ -16,6 +16,7 @@ async def create_session(
         (user_id, session_type),
     )
     row = await cur.fetchone()
+    assert row is not None  # INSERT ... RETURNING always yields a row
     return {
         "id": str(row[0]),
         "user_id": str(row[1]),
@@ -36,9 +37,7 @@ async def get_session_application_id(conn: AsyncConnection, session_id: str) -> 
     return str(row[0]) if row and row[0] else None
 
 
-async def bind_session_application(
-    conn: AsyncConnection, session_id: str, application_id: str
-) -> None:
+async def bind_session_application(conn: AsyncConnection, session_id: str, application_id: str) -> None:
     """
     Attach an application to a session the first time one is referenced.
 
@@ -85,7 +84,7 @@ async def delete_session(conn: AsyncConnection, session_id: str, user_id: str) -
     return cur.rowcount == 1
 
 
-async def get_messages(conn: AsyncConnection, session_id: str, user_id: str) -> list[dict]:
+async def get_messages(conn: AsyncConnection, session_id: str, user_id: str) -> list[dict] | None:
     """Return all messages for a session, oldest first. Returns None if not found/not owned."""
     # Verify session exists and belongs to user (return None for both cases → 404)
     cur = await conn.execute(

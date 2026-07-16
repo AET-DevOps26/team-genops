@@ -36,4 +36,4 @@ class Settings(BaseSettings):
     application_service_url: str = "http://application:8080"
 
 
-settings = Settings()
+settings = Settings()  # type: ignore[call-arg]  # openrouter_api_key comes from the env

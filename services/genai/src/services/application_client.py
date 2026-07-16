@@ -20,15 +20,9 @@ logger = logging.getLogger(__name__)
 # every turn's system prompt once a session is bound to an application, so bound it.
 MAX_DESCRIPTION_CHARS = 4000
 
-_NOT_FOUND = (
-    "The referenced job application could not be found. Ask the user for the "
-    "role, company and job description directly."
-)
+_NOT_FOUND = "The referenced job application could not be found. Ask the user for the role, company and job description directly."
 
-_UNAVAILABLE = (
-    "The job application details could not be loaded right now. Ask the user for "
-    "the role, company and job description directly."
-)
+_UNAVAILABLE = "The job application details could not be loaded right now. Ask the user for the role, company and job description directly."
 
 
 async def get_application(token: str, application_id: str) -> str | None:
@@ -89,10 +83,7 @@ async def list_applications(token: str) -> str:
 
     items = data.get("items") or []
     if not items:
-        return (
-            "The user has no job applications tracked yet. Suggest adding one in the app so "
-            "documents can be tailored to it."
-        )
+        return "The user has no job applications tracked yet. Suggest adding one in the app so documents can be tailored to it."
 
     lines = [f"The user is tracking {len(items)} job application(s):"]
     for item in items:
@@ -130,9 +121,6 @@ def _format_application(data: dict) -> str:
             description = description[:MAX_DESCRIPTION_CHARS].rstrip() + "…"
         lines.append(f"Job description:\n{description}")
     else:
-        lines.append(
-            "Job description: not provided — ask the user to paste it before writing "
-            "the document."
-        )
+        lines.append("Job description: not provided — ask the user to paste it before writing the document.")
 
     return "\n".join(lines)

@@ -3,16 +3,15 @@ package com.jobready.auth.service;
 import com.jobready.auth.config.JwtProperties;
 import com.jobready.auth.exception.InvalidCredentialsException;
 import com.jobready.auth.modelEntity.User;
+import java.time.Duration;
+import java.time.Instant;
+import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.security.oauth2.jwt.JwtClaimsSet;
 import org.springframework.security.oauth2.jwt.JwtEncoder;
 import org.springframework.security.oauth2.jwt.JwtEncoderParameters;
 import org.springframework.stereotype.Service;
-
-import java.time.Duration;
-import java.time.Instant;
-import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -26,22 +25,20 @@ public class JwtServiceImpl implements JwtService {
     public String generateAccessToken(User user) {
         Instant now = Instant.now();
         JwtClaimsSet claims = JwtClaimsSet.builder()
-            .subject(user.getId().toString())
-            .claim("email", user.getEmail())
-            .issuedAt(now)
-            .expiresAt(now.plusSeconds(props.getAccessTokenExpiry()))
-            .build();
+                .subject(user.getId().toString())
+                .claim("email", user.getEmail())
+                .issuedAt(now)
+                .expiresAt(now.plusSeconds(props.getAccessTokenExpiry()))
+                .build();
         return jwtEncoder.encode(JwtEncoderParameters.from(claims)).getTokenValue();
     }
 
     @Override
     public String generateRefreshToken(User user) {
         String token = UUID.randomUUID().toString();
-        redisTemplate.opsForValue().set(
-            refreshKey(token),
-            user.getId().toString(),
-            Duration.ofSeconds(props.getRefreshTokenExpiry())
-        );
+        redisTemplate
+                .opsForValue()
+                .set(refreshKey(token), user.getId().toString(), Duration.ofSeconds(props.getRefreshTokenExpiry()));
         return token;
     }
 

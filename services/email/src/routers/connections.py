@@ -1,4 +1,5 @@
 """Gmail connection endpoints: authorize, OAuth callback, status, disconnect."""
+
 from __future__ import annotations
 
 import logging
@@ -77,9 +78,7 @@ def gmail_callback(code: str, state: str, db: Session = Depends(get_db)) -> Redi
 
 
 @router.get("")
-def get_status(
-    user_id: str = Depends(get_current_user_id), db: Session = Depends(get_db)
-) -> dict:
+def get_status(user_id: str = Depends(get_current_user_id), db: Session = Depends(get_db)) -> dict:
     conn = get_connection(db, user_id)
     if conn is None:
         return {"connected": False}
@@ -95,8 +94,6 @@ def get_status(
 
 
 @router.delete("", status_code=204, response_class=Response)
-def disconnect(
-    user_id: str = Depends(get_current_user_id), db: Session = Depends(get_db)
-) -> Response:
+def disconnect(user_id: str = Depends(get_current_user_id), db: Session = Depends(get_db)) -> Response:
     delete_connection(db, user_id)
     return Response(status_code=204)

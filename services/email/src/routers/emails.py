@@ -1,4 +1,5 @@
 """Read endpoint for stored emails."""
+
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends, Query

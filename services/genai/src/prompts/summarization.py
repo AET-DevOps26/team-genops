@@ -1,9 +1,10 @@
 from langchain_core.prompts import ChatPromptTemplate
 
-SUMMARIZATION_PROMPT = ChatPromptTemplate.from_messages([
-    (
-        "system",
-        """You are a memory curator for a career assistant. Your job is to extract \
+SUMMARIZATION_PROMPT = ChatPromptTemplate.from_messages(
+    [
+        (
+            "system",
+            """You are a memory curator for a career assistant. Your job is to extract \
 ONLY genuinely useful career-related information from a conversation segment.
 
 Be critical. Most conversations contain noise — greetings, filler, repetition. \
@@ -24,9 +25,10 @@ NO_SUMMARY
 
 Otherwise respond with a concise summary of 2-4 sentences capturing only \
 the information listed above. Be dense and specific. No filler.""",
-    ),
-    (
-        "human",
-        "Conversation segment to analyse:\n\n{conversation}",
-    ),
-])
+        ),
+        (
+            "human",
+            "Conversation segment to analyse:\n\n{conversation}",
+        ),
+    ]
+)

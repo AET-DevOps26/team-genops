@@ -10,6 +10,7 @@ locally without a Langfuse instance (mirrors the ephemeral-JWT fallback in auth)
 import logging
 
 from src.config import settings
+from langchain_core.runnables import RunnableConfig
 
 logger = logging.getLogger(__name__)
 
@@ -48,7 +49,7 @@ def trace_config(
     user_id: str | None = None,
     session_id: str | None = None,
     tags: list[str] | None = None,
-) -> dict:
+) -> RunnableConfig:
     """
     Build a LangChain RunnableConfig carrying the Langfuse handler and trace
     attributes. Returns an empty dict when tracing is disabled, so it can be

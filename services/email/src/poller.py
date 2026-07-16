@@ -8,10 +8,11 @@ NOTE: the scheduler runs per-process, so this is single-instance only. With >1 r
 each would poll independently (correctness is preserved by the dedupe, but Gmail quota is
 wasted). A multi-replica fix is a Redis leader lock — out of scope here.
 """
+
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timezone
+from datetime import datetime, UTC
 
 from apscheduler.schedulers.background import BackgroundScheduler
 from sqlalchemy.orm import Session
@@ -34,7 +35,7 @@ _scheduler: BackgroundScheduler | None = None
 
 def _fresh_access_token(db: Session, conn: Connection) -> str:
     """Return a valid access token, refreshing and persisting it if expired."""
-    if conn.token_expiry > datetime.now(tz=timezone.utc):
+    if conn.token_expiry > datetime.now(tz=UTC):
         return conn.access_token
     access_token, expiry = gmail_client.refresh_access_token(conn.refresh_token)
     update_tokens(db, user_id=conn.user_id, access_token=access_token, token_expiry=expiry)

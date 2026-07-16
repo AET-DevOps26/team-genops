@@ -27,6 +27,8 @@ async def _background_summarize(session_id: str, message_count: int, transcript:
     before this task runs.
     """
     from src.db.pool import pool
+
+    assert pool is not None, "DB pool not initialised — init_db() must run first"
     async with pool.connection() as conn:
         await maybe_summarize(conn, session_id, message_count, transcript)
 
@@ -48,7 +50,7 @@ async def list_chat_sessions(
 ):
     """List all sessions for the authenticated user."""
     sessions = await get_sessions(conn, user_id)
-    return SessionListResponse(sessions=sessions)
+    return SessionListResponse(sessions=[SessionResponse(**s) for s in sessions])
 
 
 @router.delete("/sessions/{session_id}", status_code=204)
@@ -93,6 +95,7 @@ async def send_message(
     # Capture message count and transcript NOW, before any concurrent messages can arrive
     from src.services.chat.utils.history import load_last_n_messages_as_text
     from src.services.chat.utils.summarizer import SUMMARY_EVERY
+
     total = await count_messages(conn, session_id)
     # Always capture the segment transcript, even if we won't summarize yet
     # (small overhead but ensures correctness)

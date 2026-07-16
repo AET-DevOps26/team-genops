@@ -25,22 +25,19 @@ public class SecurityConfig {
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
-        http
-            .csrf(csrf -> csrf.disable())
-            .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-            .authorizeHttpRequests(auth -> auth
-                .requestMatchers(
-                    AuthApi.PATH_REGISTER,
-                    AuthApi.PATH_LOGIN,
-                    AuthApi.PATH_REFRESH_TOKEN,
-                    JwksController.PATH,
-                    "/actuator/health/**"
-                ).permitAll()
-                .anyRequest().authenticated()
-            )
-            .oauth2ResourceServer(oauth2 -> oauth2
-                .bearerTokenResolver(cookieOrHeaderTokenResolver())
-                .jwt(Customizer.withDefaults()));
+        http.csrf(csrf -> csrf.disable())
+                .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .authorizeHttpRequests(auth -> auth.requestMatchers(
+                                AuthApi.PATH_REGISTER,
+                                AuthApi.PATH_LOGIN,
+                                AuthApi.PATH_REFRESH_TOKEN,
+                                JwksController.PATH,
+                                "/actuator/health/**")
+                        .permitAll()
+                        .anyRequest()
+                        .authenticated())
+                .oauth2ResourceServer(oauth2 -> oauth2.bearerTokenResolver(cookieOrHeaderTokenResolver())
+                        .jwt(Customizer.withDefaults()));
         return http.build();
     }
 
@@ -55,12 +52,11 @@ public class SecurityConfig {
      * request is rejected before reaching the controller — hence the early-return null.
      */
     private static final java.util.Set<String> PUBLIC_PATHS = java.util.Set.of(
-        AuthApi.PATH_LOGIN,
-        AuthApi.PATH_REGISTER,
-        AuthApi.PATH_REFRESH_TOKEN,
-        JwksController.PATH,
-        "/actuator/health"
-    );
+            AuthApi.PATH_LOGIN,
+            AuthApi.PATH_REGISTER,
+            AuthApi.PATH_REFRESH_TOKEN,
+            JwksController.PATH,
+            "/actuator/health");
 
     @Bean
     public BearerTokenResolver cookieOrHeaderTokenResolver() {

@@ -1,28 +1,35 @@
-import { useMemo, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { Markdown } from '~/components/Markdown'
-import type { GeneratedDocument, GeneratedDocumentType, JobApplication } from '~/api/schemas'
-import { useListApplicationsQuery } from '~/services/applications/applicationsApi'
-import { useDeleteDocumentMutation, useGetDocumentsQuery } from '~/services/documents/documentsApi'
+import { useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { Markdown } from "~/components/Markdown";
+import type {
+  GeneratedDocument,
+  GeneratedDocumentType,
+  JobApplication,
+} from "~/api/schemas";
+import { useListApplicationsQuery } from "~/services/applications/applicationsApi";
+import {
+  useDeleteDocumentMutation,
+  useGetDocumentsQuery,
+} from "~/services/documents/documentsApi";
 
-type Filter = 'all' | GeneratedDocumentType
+type Filter = "all" | GeneratedDocumentType;
 
 const FILTERS: { key: Filter; label: string }[] = [
-  { key: 'all', label: 'All' },
-  { key: 'cover_letter', label: 'Cover letters' },
-  { key: 'resume', label: 'Resumes' },
-]
+  { key: "all", label: "All" },
+  { key: "cover_letter", label: "Cover letters" },
+  { key: "resume", label: "Resumes" },
+];
 
 function typeLabel(type: GeneratedDocumentType) {
-  return type === 'cover_letter' ? 'Cover letter' : 'Resume'
+  return type === "cover_letter" ? "Cover letter" : "Resume";
 }
 
 function formatDate(iso: string) {
   return new Date(iso).toLocaleDateString(undefined, {
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric',
-  })
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
 }
 
 /**
@@ -34,24 +41,27 @@ function formatDate(iso: string) {
  * still appear on the application itself.
  */
 export default function DocumentsPage() {
-  const navigate = useNavigate()
-  const [filter, setFilter] = useState<Filter>('all')
-  const [openId, setOpenId] = useState<string | null>(null)
+  const navigate = useNavigate();
+  const [filter, setFilter] = useState<Filter>("all");
+  const [openId, setOpenId] = useState<string | null>(null);
 
-  const { data, isLoading } = useGetDocumentsQuery()
+  const { data, isLoading } = useGetDocumentsQuery();
   // Documents store only an application_id, so the job title/company are resolved here.
-  const { data: applicationsData } = useListApplicationsQuery()
-  const [deleteDocument] = useDeleteDocumentMutation()
+  const { data: applicationsData } = useListApplicationsQuery();
+  const [deleteDocument] = useDeleteDocumentMutation();
 
   const applicationsById = useMemo(() => {
-    const map = new Map<string, JobApplication>()
-    for (const app of applicationsData?.items ?? []) map.set(app.id, app)
-    return map
-  }, [applicationsData])
+    const map = new Map<string, JobApplication>();
+    for (const app of applicationsData?.items ?? []) map.set(app.id, app);
+    return map;
+  }, [applicationsData]);
 
-  const documents = (data?.items ?? []).filter((d) => filter === 'all' || d.type === filter)
+  const documents = (data?.items ?? []).filter(
+    (d) => filter === "all" || d.type === filter,
+  );
 
-  if (isLoading) return <p className="p-6 text-sm text-dim">Loading your documents…</p>
+  if (isLoading)
+    return <p className="p-6 text-sm text-dim">Loading your documents…</p>;
 
   // The shell's <main> is overflow-hidden, so each page owns its own scrolling — without
   // this an expanded document is simply clipped at the fold.
@@ -72,8 +82,8 @@ export default function DocumentsPage() {
               onClick={() => setFilter(f.key)}
               className={`text-xs px-3 py-1.5 rounded-lg border transition-colors ${
                 filter === f.key
-                  ? 'border-applied text-applied bg-applied/10'
-                  : 'border-line text-dim hover:text-fg'
+                  ? "border-applied text-applied bg-applied/10"
+                  : "border-line text-dim hover:text-fg"
               }`}
             >
               {f.label}
@@ -85,10 +95,11 @@ export default function DocumentsPage() {
           <div className="rounded-xl border border-line bg-raised px-6 py-10 text-center">
             <p className="text-sm text-dim">Nothing saved yet.</p>
             <p className="mt-1 text-xs text-faint">
-              Ask the assistant for a cover letter or a resume, then save the reply.
+              Ask the assistant for a cover letter or a resume, then save the
+              reply.
             </p>
             <button
-              onClick={() => navigate('/chat')}
+              onClick={() => navigate("/chat")}
               className="cta mt-4 rounded-xl px-4 py-2 text-sm"
             >
               Open the assistant
@@ -101,7 +112,9 @@ export default function DocumentsPage() {
                 key={doc.id}
                 document={doc}
                 application={
-                  doc.application_id ? applicationsById.get(doc.application_id) : undefined
+                  doc.application_id
+                    ? applicationsById.get(doc.application_id)
+                    : undefined
                 }
                 expanded={openId === doc.id}
                 onToggle={() => setOpenId(openId === doc.id ? null : doc.id)}
@@ -112,7 +125,7 @@ export default function DocumentsPage() {
         )}
       </div>
     </div>
-  )
+  );
 }
 
 function DocumentCard({
@@ -122,11 +135,11 @@ function DocumentCard({
   onToggle,
   onDelete,
 }: {
-  document: GeneratedDocument
-  application?: JobApplication
-  expanded: boolean
-  onToggle: () => void
-  onDelete: () => void
+  document: GeneratedDocument;
+  application?: JobApplication;
+  expanded: boolean;
+  onToggle: () => void;
+  onDelete: () => void;
 }) {
   return (
     <li className="rounded-xl border border-line bg-raised overflow-hidden">
@@ -145,7 +158,9 @@ function DocumentCard({
               <span className="tag text-faint border border-line">General</span>
             )}
 
-            <span className="text-xs text-faint">{formatDate(document.created_at)}</span>
+            <span className="text-xs text-faint">
+              {formatDate(document.created_at)}
+            </span>
           </span>
 
           {!expanded && (
@@ -159,7 +174,7 @@ function DocumentCard({
           onClick={onToggle}
           className="text-xs text-dim hover:text-fg transition-colors shrink-0"
         >
-          {expanded ? 'Hide' : 'View'}
+          {expanded ? "Hide" : "View"}
         </button>
         <button
           onClick={onDelete}
@@ -175,5 +190,5 @@ function DocumentCard({
         </div>
       )}
     </li>
-  )
+  );
 }

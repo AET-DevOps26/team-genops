@@ -44,7 +44,7 @@ replay_pid*
 node_modules
 
 # Internal Docs
-PLAN.md 
+PLAN.md
 FEATURES.md
 DB_SCHEMAS.md
 dist
