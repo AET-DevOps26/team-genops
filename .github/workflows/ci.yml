@@ -17,7 +17,7 @@ permissions:
 # New pushes to the same PR cancel the still-running CI of the old commit.
 concurrency:
   group: ci-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   # Detects which components the PR touches. Runs on every PR (no `paths:` on
@@ -129,13 +129,8 @@ jobs:
         with:
           java-version: 21
           distribution: temurin
-
-      - name: Cache Maven repository
-        uses: actions/cache@v6
-        with:
-          path: ~/.m2/repository
-          key: maven-${{ hashFiles(format('services/{0}/pom.xml', matrix.service)) }}
-          restore-keys: maven-
+          cache: maven
+          cache-dependency-path: services/${{ matrix.service }}/pom.xml
 
       - name: Build and test
         run: ./mvnw verify
@@ -162,6 +157,8 @@ jobs:
         uses: actions/setup-python@v6
         with:
           python-version: "3.12"
+          cache: "pip"
+          cache-dependency-path: services/email/requirements.txt
 
       - name: Install dependencies
         run: pip install -r requirements.txt

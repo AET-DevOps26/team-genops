@@ -89,9 +89,11 @@ jobs:
         id: tf
         working-directory: infra/terraform
         run: |
-          echo "ingress_ip=$(terraform output -raw ingress_ip)" >> "$GITHUB_OUTPUT"
-          echo "fqdn=$(terraform output -raw ingress_fqdn)" >> "$GITHUB_OUTPUT"
-          echo "rg=$(terraform output -raw resource_group_name)" >> "$GITHUB_OUTPUT"
+          {
+            echo "ingress_ip=$(terraform output -raw ingress_ip)"
+            echo "fqdn=$(terraform output -raw ingress_fqdn)"
+            echo "rg=$(terraform output -raw resource_group_name)"
+          } >> "$GITHUB_OUTPUT"
           terraform output -raw kube_config > "$RUNNER_TEMP/kubeconfig"
 
       # Trigger interpretation lives here, not in the action: a workflow_run
@@ -104,7 +106,7 @@ jobs:
         id: tag
         run: |
           if [ -n "${head_sha}" ]; then
-            echo "tag=sha-$(echo ${head_sha} | cut -c1-7)" >> "$GITHUB_OUTPUT"
+            echo "tag=sha-$(echo "${head_sha}" | cut -c1-7)" >> "$GITHUB_OUTPUT"
           else
             echo "tag=${image_tag}" >> "$GITHUB_OUTPUT"
           fi
