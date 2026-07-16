@@ -22,10 +22,9 @@ import jakarta.annotation.Generated;
  * ApplicationList
  */
 
-@Generated(value = "org.openapitools.codegen.languages.SpringCodegen", comments = "Generator version: 7.22.0")
+@Generated(value = "org.openapitools.codegen.languages.SpringCodegen", comments = "Generator version: 7.23.0")
 public class ApplicationList {
 
-  @Valid
   private List<@Valid JobApplication> items = new ArrayList<>();
 
   private Long total;

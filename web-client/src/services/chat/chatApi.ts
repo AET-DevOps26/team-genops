@@ -4,6 +4,8 @@ export interface Session {
   id: string;
   user_id: string;
   session_type: string;
+  /** The application this chat is about, bound on first reference; null for a general chat. */
+  application_id: string | null;
   summary: string | null;
   first_message: string | null;
   created_at: string;

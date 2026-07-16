@@ -93,11 +93,12 @@ async def send_message(
     """
     response = await chat(conn, session_id, user_id, body.message, token)
     # Capture message count and transcript NOW, before any concurrent messages can arrive
-    from src.services.chat.utils.history import HISTORY_WINDOW, load_last_n_messages_as_text
+    from src.services.chat.utils.history import load_last_n_messages_as_text
+    from src.services.chat.utils.summarizer import SUMMARY_EVERY
 
     total = await count_messages(conn, session_id)
-    # Always capture the window transcript, even if we won't summarize yet
+    # Always capture the segment transcript, even if we won't summarize yet
     # (small overhead but ensures correctness)
-    transcript = await load_last_n_messages_as_text(conn, session_id, HISTORY_WINDOW)
+    transcript = await load_last_n_messages_as_text(conn, session_id, SUMMARY_EVERY)
     background_tasks.add_task(_background_summarize, session_id, total, transcript)
     return MessageResponse(response=response)

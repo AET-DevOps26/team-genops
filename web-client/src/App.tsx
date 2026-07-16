@@ -9,6 +9,7 @@ import AuthPage from "~/pages/AuthPage";
 import ChatPage from "~/pages/ChatPage";
 import DashboardPage from "~/pages/DashboardPage";
 import ApplicationsPage from "~/pages/ApplicationsPage";
+import DocumentsPage from "~/pages/DocumentsPage";
 import JobsPage from "~/pages/JobsPage";
 import ProfilePage from "~/pages/ProfilePage";
 import OnboardingWizard from "~/pages/onboarding/OnboardingWizard";
@@ -33,6 +34,7 @@ function App() {
         <Route element={<AppShell />}>
           <Route index path="/" element={<DashboardPage />} />
           <Route path="/applications" element={<ApplicationsPage />} />
+          <Route path="/documents" element={<DocumentsPage />} />
           <Route path="/jobs" element={<JobsPage />} />
           <Route path="/profile" element={<ProfilePage />} />
           <Route path="/chat" element={<ChatPage />} />

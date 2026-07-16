@@ -32,5 +32,8 @@ class Settings(BaseSettings):
     document_service_url: str = "http://document:8080"
     profile_enabled: bool = False
 
+    # Application service (job/company context for tailored documents)
+    application_service_url: str = "http://application:8080"
+
 
 settings = Settings()  # type: ignore[call-arg]  # openrouter_api_key comes from the env

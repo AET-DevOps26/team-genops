@@ -83,6 +83,9 @@ spec:
             # authenticated by forwarding the calling user's JWT.
             - name: DOCUMENT_SERVICE_URL
               value: "http://document:{{ .Values.document.port }}"
+            # Job/company context for tailored documents, same JWT-forwarding pattern.
+            - name: APPLICATION_SERVICE_URL
+              value: "http://application:{{ .Values.application.port }}"
             - name: PROFILE_ENABLED
               value: "true"
             {{- if .Values.genai.openrouterSecret }}

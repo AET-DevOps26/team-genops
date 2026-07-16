@@ -221,9 +221,11 @@ class DocumentServiceImplTest {
         when(coverLetterRepository.saveAndFlush(any(CoverLetterEntity.class))).thenAnswer(inv -> inv.getArgument(0));
         UUID applicationId = UUID.randomUUID();
 
-        GeneratedDocument result = service.createDocument(
-                userId,
-                new CreateGeneratedDocumentRequest(applicationId, GeneratedDocumentType.COVER_LETTER, "Dear team"));
+        CreateGeneratedDocumentRequest request =
+                new CreateGeneratedDocumentRequest(GeneratedDocumentType.COVER_LETTER, "Dear team");
+        request.setApplicationId(applicationId);
+
+        GeneratedDocument result = service.createDocument(userId, request);
 
         ArgumentCaptor<CoverLetterEntity> saved = ArgumentCaptor.forClass(CoverLetterEntity.class);
         verify(coverLetterRepository).saveAndFlush(saved.capture());
@@ -237,11 +239,29 @@ class DocumentServiceImplTest {
     void createDocument_resume_landsInResumesTable() {
         when(resumeRepository.saveAndFlush(any(ResumeEntity.class))).thenAnswer(inv -> inv.getArgument(0));
 
-        GeneratedDocument result = service.createDocument(
-                userId, new CreateGeneratedDocumentRequest(UUID.randomUUID(), GeneratedDocumentType.RESUME, "..."));
+        CreateGeneratedDocumentRequest request =
+                new CreateGeneratedDocumentRequest(GeneratedDocumentType.RESUME, "...");
+        request.setApplicationId(UUID.randomUUID());
+
+        GeneratedDocument result = service.createDocument(userId, request);
 
         assertThat(result.getType()).isEqualTo(GeneratedDocumentType.RESUME);
         verify(coverLetterRepository, never()).save(any());
+    }
+
+    /** A document need not target a job — "just tidy up my general resume" must be storable. */
+    @Test
+    void createDocument_withoutApplication_savesStandaloneDocument() {
+        when(resumeRepository.saveAndFlush(any(ResumeEntity.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        GeneratedDocument result = service.createDocument(
+                userId, new CreateGeneratedDocumentRequest(GeneratedDocumentType.RESUME, "General resume"));
+
+        ArgumentCaptor<ResumeEntity> saved = ArgumentCaptor.forClass(ResumeEntity.class);
+        verify(resumeRepository).saveAndFlush(saved.capture());
+        assertThat(saved.getValue().getUserId()).isEqualTo(userId);
+        assertThat(saved.getValue().getApplicationId()).isNull();
+        assertThat(result.getApplicationId()).isNull();
     }
 
     @Test

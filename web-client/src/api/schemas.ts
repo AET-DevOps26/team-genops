@@ -43,3 +43,5 @@ export type LanguageProficiency = Schemas["LanguageProficiency"];
 export type GeneratedDocument = Schemas["GeneratedDocument"];
 export type GeneratedDocumentList = Schemas["GeneratedDocumentList"];
 export type GeneratedDocumentType = Schemas["GeneratedDocumentType"];
+export type CreateGeneratedDocumentRequest =
+  Schemas["CreateGeneratedDocumentRequest"];
