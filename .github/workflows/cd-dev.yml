@@ -11,7 +11,7 @@ on:
   workflow_dispatch:
     inputs:
       image_tag:
-        description: "Image tag to deploy (defaults to latest, which build-images.yml always publishes from main)"
+        description: "Image tag to deploy (e.g. 1.4.2 or sha-abc1234, defaults to latest)"
         required: false
         default: latest
 
@@ -34,9 +34,7 @@ jobs:
     environment: dev
     # Terraform (backend + provider) authenticates on its own via GitHub OIDC,
     # minting a fresh token per auth. It must NOT ride on the az CLI login:
-    # that assertion expires 5 min after azure/login, and the wake step can run
-    # 10+ min when the cluster is stopped (AADSTS700024). az CLI steps are fine
-    # only right after azure/login — re-login before adding one later in the job.
+    # that assertion expires 5 min after azure/login.
     env:
       ARM_USE_OIDC: "true"
       ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
@@ -57,10 +55,6 @@ jobs:
       # any deploy must wake the cluster first. The script auto-discovers the
       # cluster by its Terraform tags, so no RG/name secrets are needed.
       # Absent is fine: Terraform creates it on first run.
-      # Allowlist the exact strings cluster.sh emits (powerState.code is only
-      # ever Running/Stopped; "does not exist"/"absent" mean no cluster yet)
-      # and fail loudly on anything else — a clear error here beats a
-      # confusing Terraform failure two steps later.
       - name: Wake cluster if stopped
         env:
           SUBSCRIPTION: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
