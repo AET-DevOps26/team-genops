@@ -33,6 +33,7 @@ jobs:
       web-client: ${{ steps.filter.outputs.web-client }}
       openapi: ${{ steps.filter.outputs.openapi }}
       infra: ${{ steps.filter.outputs.infra }}
+      e2e: ${{ steps.filter.outputs.e2e }}
     steps:
       - uses: actions/checkout@v7
         with:
@@ -77,6 +78,16 @@ jobs:
               - .github/workflows/**
               - "**/Dockerfile"
               - .pre-commit-config.yaml
+            # The e2e suite drives the whole stack through the gateway, so any service
+            # (or the compose wiring that stands them up) can break it.
+            e2e:
+              - *shared
+              - services/auth/**
+              - services/application/**
+              - services/document/**
+              - services/gateway/**
+              - tests/**
+              - docker-compose.yml
 
       - name: Build java matrix
         id: java
@@ -305,11 +316,70 @@ jobs:
           chmod +x /usr/local/bin/hadolint
           git ls-files '*Dockerfile*' | xargs hadolint
 
+  # Black-box tests through the gateway against the real stack. These cover the seams
+  # the per-service suites structurally cannot: the jr_access cookie really becoming the
+  # bearer header a downstream service accepts, refresh tokens really being single-use in
+  # Redis, and ownership really holding with two users in one database.
+  #
+  # genai is deliberately not started — it calls a live LLM, which costs money per run and
+  # is not deterministic. Its logic is covered by unit tests in services/genai/tests.
+  e2e:
+    needs: changes
+    if: needs.changes.outputs.e2e == 'true'
+    runs-on: ubuntu-latest
+    # Four Spring services are built from source before anything can run.
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Write compose env
+        # Throwaway CI credentials. Compose interpolates vars for every service in the
+        # file — including ones this job never starts — but none are required-style
+        # (${VAR:?}), so the unset ones only warn. JWT keys are left blank on purpose:
+        # auth then generates an ephemeral pair at startup, which is correct for a
+        # single-replica stack that is torn down at the end of the job.
+        run: |
+          cat > .env <<'EOF'
+          POSTGRES_USER=jobready
+          POSTGRES_PASSWORD=jobready
+          POSTGRES_DB=jobready
+          JWT_PRIVATE_KEY=
+          JWT_PUBLIC_KEY=
+          JWT_KEY_ID=auth-key-1
+          EOF
+
+      - name: Start the stack
+        run: |
+          docker compose up -d --wait --quiet-pull \
+            postgres-db redis auth application document gateway
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
+        with:
+          version: "0.11.18"
+
+      - name: Run end-to-end tests
+        env:
+          # Without this the suite would skip when the stack is down, and a skipped
+          # suite reports green — a stack that failed to boot must fail the build.
+          E2E_REQUIRE_STACK: "1"
+        run: uv run --with pytest --with httpx python -m pytest tests/ -v
+
+      - name: Service logs on failure
+        if: failure()
+        run: docker compose logs --tail=120 auth application document gateway
+
+      - name: Tear down
+        if: always()
+        run: docker compose down -v --remove-orphans
+
   # The single check branch protection should require. `if: always()` is
   # load-bearing: without it a failed dependency would SKIP this job, and
   # skipped counts as passing — a gate must always run to be a gate.
   ci-ok:
-    needs: [changes, java, email, genai, web-client, openapi, infra-lint]
+    needs: [changes, java, email, genai, web-client, openapi, infra-lint, e2e]
     if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 5
