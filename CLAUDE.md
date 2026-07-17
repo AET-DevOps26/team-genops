@@ -61,6 +61,7 @@ All services are containerised and orchestrated locally with **Docker Compose** 
 
 ```sh
 cp .env.example .env      # fill in secrets
+pre-commit install        # one-time — enables the shared git hooks (auto-fix ruff/prettier, eslint, actionlint)
 docker compose up --build
 ```
 
@@ -111,8 +112,11 @@ Run from inside the service directory (e.g. `services/auth`):
 ./mvnw test                  # run all tests
 ./mvnw test -Dtest=ClassName # run a single test class
 ./mvnw spring-boot:run       # start locally
-./mvnw verify                # build + test + package (mirrors CI)
+./mvnw verify                # build + test + package (mirrors CI — includes Spotless + Checkstyle)
+./mvnw spotless:apply        # auto-fix formatting (palantir-java-format)
 ```
+
+> Java tooling requires **JDK 21** (`JAVA_HOME`) — palantir-java-format crashes on newer JDKs.
 
 Each microservice exposes OpenAPI docs at `/swagger-ui.html` and `/v3/api-docs`.
 

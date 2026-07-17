@@ -1,8 +1,11 @@
-from langchain_core.messages import AIMessage, HumanMessage
+from langchain_core.messages import AIMessage, BaseMessage, HumanMessage
 from psycopg import AsyncConnection
 
 
-HISTORY_WINDOW = 10  # number of most recent messages passed to the LLM
+# How many recent messages are replayed verbatim to the LLM. Anything older is covered by
+# the session's rolling summary (see summarizer), which the chain injects into the prompt —
+# so falling out of this window compresses context rather than losing it.
+HISTORY_WINDOW = 15
 
 
 async def load_history(conn: AsyncConnection, session_id: str) -> list:
@@ -25,7 +28,7 @@ async def load_history(conn: AsyncConnection, session_id: str) -> list:
         (session_id, HISTORY_WINDOW),
     )
     rows = await cur.fetchall()
-    messages = []
+    messages: list[BaseMessage] = []
     for role, content in rows:
         if role == "user":
             messages.append(HumanMessage(content=content))
@@ -52,12 +55,11 @@ async def count_messages(conn: AsyncConnection, session_id: str) -> int:
         (session_id,),
     )
     row = await cur.fetchone()
+    assert row is not None  # COUNT(*) always yields a row
     return row[0]
 
 
-async def load_last_n_messages_as_text(
-    conn: AsyncConnection, session_id: str, n: int
-) -> str:
+async def load_last_n_messages_as_text(conn: AsyncConnection, session_id: str, n: int) -> str:
     """
     Load the last N messages as a plain text block for summarization.
     Format: 'User: ...\nAssistant: ...'

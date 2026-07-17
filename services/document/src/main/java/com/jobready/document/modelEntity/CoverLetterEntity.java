@@ -6,13 +6,12 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import java.time.OffsetDateTime;
+import java.util.UUID;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 import org.hibernate.annotations.CreationTimestamp;
-
-import java.time.OffsetDateTime;
-import java.util.UUID;
 
 /**
  * An AI-generated cover letter persisted by the genai service. {@code application_id} points at
@@ -32,7 +31,8 @@ public class CoverLetterEntity {
     @Column(name = "user_id", nullable = false)
     private UUID userId;
 
-    @Column(name = "application_id", nullable = false)
+    /** Null for a standalone document — one the user polished without a target job. */
+    @Column(name = "application_id")
     private UUID applicationId;
 
     @Column(nullable = false, columnDefinition = "text")

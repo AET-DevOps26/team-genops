@@ -151,6 +151,14 @@ spec:
       ports:
         - protocol: TCP
           port: {{ .Values.genai.port }}
+    # Proxy /api/v1/profile/** and /api/v1/documents/** to document.
+    - to:
+        - podSelector:
+            matchLabels:
+              app: document
+      ports:
+        - protocol: TCP
+          port: {{ .Values.document.port }}
 ---
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
@@ -176,6 +184,9 @@ spec:
         - podSelector:
             matchLabels:
               app: application
+        - podSelector:
+            matchLabels:
+              app: document
         - podSelector:
             matchLabels:
               app: genai
@@ -259,6 +270,58 @@ spec:
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
+  name: document
+  namespace: {{ .Values.global.namespace }}
+  labels:
+    {{- include "jobready.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      app: document
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    # Callers of document: the gateway (proxies /api/v1/profile|documents) and
+    # genai (profile reads + generated-document writes via DOCUMENT_SERVICE_URL).
+    - from:
+        - podSelector:
+            matchLabels:
+              app: gateway
+        - podSelector:
+            matchLabels:
+              app: genai
+      ports:
+        - protocol: TCP
+          port: {{ .Values.document.port }}
+    {{- if .Values.networkPolicy.probeCidr }}
+    - from:
+        - ipBlock:
+            cidr: {{ .Values.networkPolicy.probeCidr }}
+      ports:
+        - protocol: TCP
+          port: {{ .Values.document.port }}
+    {{- end }}
+  egress:
+    - to:
+        - podSelector:
+            matchLabels:
+              app: postgres
+      ports:
+        - protocol: TCP
+          port: 5432
+    # Fetch auth's JWKS to verify tokens locally (defense in depth).
+    - to:
+        - podSelector:
+            matchLabels:
+              app: auth
+      ports:
+        - protocol: TCP
+          port: {{ .Values.auth.port }}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
   name: genai
   namespace: {{ .Values.global.namespace }}
   labels:
@@ -304,6 +367,14 @@ spec:
       ports:
         - protocol: TCP
           port: {{ .Values.auth.port }}
+    # Profile reads + generated-document writes go to the document service.
+    - to:
+        - podSelector:
+            matchLabels:
+              app: document
+      ports:
+        - protocol: TCP
+          port: {{ .Values.document.port }}
     # External HTTPS: OpenRouter (LLM calls) + Langfuse Cloud (tracing).
     # Restricted to :443 and excluding in-cluster/private ranges so this
     # cannot become a side door to other pods or cluster infrastructure.
@@ -383,6 +454,9 @@ spec:
         - podSelector:
             matchLabels:
               app: application
+        - podSelector:
+            matchLabels:
+              app: document
         - podSelector:
             matchLabels:
               app: genai

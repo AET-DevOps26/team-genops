@@ -1,3 +1,4 @@
+from pgvector import Vector
 from psycopg import AsyncConnection
 
 from src.services.chat.utils.embeddings import embed_text
@@ -17,7 +18,11 @@ async def search_past_sessions(
     Excludes the current session.
     Returns a formatted string ready to inject into the LLM context.
     """
-    query_embedding = await embed_text(query)
+    # Bind as Vector, not a bare list: psycopg adapts a list[float] to float8[], and there is
+    # no `vector <=> double precision[]` operator — the query raised UndefinedFunction, which
+    # LangGraph surfaced as a failed tool call and a 500. Writes were unaffected (an assignment
+    # cast to vector exists), so embeddings stored fine while every search blew up.
+    query_embedding = Vector(await embed_text(query))
 
     cur = await conn.execute(
         """

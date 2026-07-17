@@ -1,5 +1,13 @@
 package com.jobready.document.service;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
 import com.jobready.document.exception.ProfileNotFoundException;
 import com.jobready.document.exception.ResourceNotFoundException;
 import com.jobready.document.generated.modelDto.CreateGeneratedDocumentRequest;
@@ -24,6 +32,11 @@ import com.jobready.document.repository.ProfileRepository;
 import com.jobready.document.repository.ResumeRepository;
 import com.jobready.document.repository.SkillRepository;
 import com.jobready.document.repository.WorkExperienceRepository;
+import java.time.LocalDate;
+import java.time.OffsetDateTime;
+import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -32,35 +45,27 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.dao.DataIntegrityViolationException;
 
-import java.time.LocalDate;
-import java.time.OffsetDateTime;
-import java.util.List;
-import java.util.Optional;
-import java.util.UUID;
-
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
-
 @ExtendWith(MockitoExtension.class)
 class DocumentServiceImplTest {
 
     @Mock
     private ProfileRepository profileRepository;
+
     @Mock
     private WorkExperienceRepository workExperienceRepository;
+
     @Mock
     private EducationRepository educationRepository;
+
     @Mock
     private SkillRepository skillRepository;
+
     @Mock
     private LanguageRepository languageRepository;
+
     @Mock
     private CoverLetterRepository coverLetterRepository;
+
     @Mock
     private ResumeRepository resumeRepository;
 
@@ -77,15 +82,14 @@ class DocumentServiceImplTest {
     void getProfile_whenNoProfile_throwsNotFound() {
         when(profileRepository.findByUserId(userId)).thenReturn(Optional.empty());
 
-        assertThatThrownBy(() -> service.getProfile(userId))
-            .isInstanceOf(ProfileNotFoundException.class);
+        assertThatThrownBy(() -> service.getProfile(userId)).isInstanceOf(ProfileNotFoundException.class);
     }
 
     @Test
     void getProfile_returnsAggregateWithAllSubResources() {
         when(profileRepository.findByUserId(userId)).thenReturn(Optional.of(profile(userId)));
         when(workExperienceRepository.findByUserIdOrderByStartDateDesc(userId))
-            .thenReturn(List.of(workExperience(userId)));
+                .thenReturn(List.of(workExperience(userId)));
         when(educationRepository.findByUserIdOrderByStartDateDesc(userId)).thenReturn(List.of());
         when(skillRepository.findByUserIdOrderByCreatedAtAsc(userId)).thenReturn(List.of());
         when(languageRepository.findByUserIdOrderByCreatedAtAsc(userId)).thenReturn(List.of());
@@ -104,8 +108,7 @@ class DocumentServiceImplTest {
         when(profileRepository.findByUserId(userId)).thenReturn(Optional.empty());
         when(profileRepository.saveAndFlush(any(ProfileEntity.class))).thenAnswer(inv -> inv.getArgument(0));
 
-        Profile result = service.upsertProfile(userId,
-            new ProfileRequest("Jane", "Doe").location("Munich"));
+        Profile result = service.upsertProfile(userId, new ProfileRequest("Jane", "Doe").location("Munich"));
 
         ArgumentCaptor<ProfileEntity> saved = ArgumentCaptor.forClass(ProfileEntity.class);
         verify(profileRepository).saveAndFlush(saved.capture());
@@ -132,11 +135,11 @@ class DocumentServiceImplTest {
         // Retry: the winner's row is visible now and gets updated instead.
         ProfileEntity winner = profile(userId);
         when(profileRepository.findByUserId(userId))
-            .thenReturn(Optional.empty())
-            .thenReturn(Optional.of(winner));
+                .thenReturn(Optional.empty())
+                .thenReturn(Optional.of(winner));
         when(profileRepository.saveAndFlush(any(ProfileEntity.class)))
-            .thenThrow(new DataIntegrityViolationException("duplicate key: profiles_user_id_key"))
-            .thenAnswer(inv -> inv.getArgument(0));
+                .thenThrow(new DataIntegrityViolationException("duplicate key: profiles_user_id_key"))
+                .thenAnswer(inv -> inv.getArgument(0));
 
         Profile result = service.upsertProfile(userId, new ProfileRequest("Janet", "Doe"));
 
@@ -153,11 +156,10 @@ class DocumentServiceImplTest {
     void createWorkExperience_whenNoProfile_throwsNotFound() {
         when(profileRepository.existsByUserId(userId)).thenReturn(false);
 
-        WorkExperienceRequest request =
-            new WorkExperienceRequest("Acme", "Engineer", LocalDate.of(2023, 1, 1));
+        WorkExperienceRequest request = new WorkExperienceRequest("Acme", "Engineer", LocalDate.of(2023, 1, 1));
 
         assertThatThrownBy(() -> service.createWorkExperience(userId, request))
-            .isInstanceOf(ProfileNotFoundException.class);
+                .isInstanceOf(ProfileNotFoundException.class);
         verify(workExperienceRepository, never()).save(any());
     }
 
@@ -165,10 +167,10 @@ class DocumentServiceImplTest {
     void createWorkExperience_setsOwnerFromArgument() {
         when(profileRepository.existsByUserId(userId)).thenReturn(true);
         when(workExperienceRepository.saveAndFlush(any(WorkExperienceEntity.class)))
-            .thenAnswer(inv -> inv.getArgument(0));
+                .thenAnswer(inv -> inv.getArgument(0));
 
-        WorkExperience result = service.createWorkExperience(userId,
-            new WorkExperienceRequest("Acme", "Engineer", LocalDate.of(2023, 1, 1)).isCurrent(true));
+        WorkExperience result = service.createWorkExperience(
+                userId, new WorkExperienceRequest("Acme", "Engineer", LocalDate.of(2023, 1, 1)).isCurrent(true));
 
         ArgumentCaptor<WorkExperienceEntity> saved = ArgumentCaptor.forClass(WorkExperienceEntity.class);
         verify(workExperienceRepository).saveAndFlush(saved.capture());
@@ -182,11 +184,10 @@ class DocumentServiceImplTest {
         UUID id = UUID.randomUUID();
         when(workExperienceRepository.findByIdAndUserId(id, userId)).thenReturn(Optional.empty());
 
-        WorkExperienceRequest request =
-            new WorkExperienceRequest("Acme", "Engineer", LocalDate.of(2023, 1, 1));
+        WorkExperienceRequest request = new WorkExperienceRequest("Acme", "Engineer", LocalDate.of(2023, 1, 1));
 
         assertThatThrownBy(() -> service.updateWorkExperience(userId, id, request))
-            .isInstanceOf(ResourceNotFoundException.class);
+                .isInstanceOf(ResourceNotFoundException.class);
     }
 
     @Test
@@ -194,8 +195,7 @@ class DocumentServiceImplTest {
         UUID id = UUID.randomUUID();
         when(skillRepository.findByIdAndUserId(id, userId)).thenReturn(Optional.empty());
 
-        assertThatThrownBy(() -> service.deleteSkill(userId, id))
-            .isInstanceOf(ResourceNotFoundException.class);
+        assertThatThrownBy(() -> service.deleteSkill(userId, id)).isInstanceOf(ResourceNotFoundException.class);
         verify(skillRepository, never()).delete(any());
     }
 
@@ -218,12 +218,14 @@ class DocumentServiceImplTest {
 
     @Test
     void createDocument_coverLetter_landsInCoverLettersTable() {
-        when(coverLetterRepository.saveAndFlush(any(CoverLetterEntity.class)))
-            .thenAnswer(inv -> inv.getArgument(0));
+        when(coverLetterRepository.saveAndFlush(any(CoverLetterEntity.class))).thenAnswer(inv -> inv.getArgument(0));
         UUID applicationId = UUID.randomUUID();
 
-        GeneratedDocument result = service.createDocument(userId,
-            new CreateGeneratedDocumentRequest(applicationId, GeneratedDocumentType.COVER_LETTER, "Dear team"));
+        CreateGeneratedDocumentRequest request =
+                new CreateGeneratedDocumentRequest(GeneratedDocumentType.COVER_LETTER, "Dear team");
+        request.setApplicationId(applicationId);
+
+        GeneratedDocument result = service.createDocument(userId, request);
 
         ArgumentCaptor<CoverLetterEntity> saved = ArgumentCaptor.forClass(CoverLetterEntity.class);
         verify(coverLetterRepository).saveAndFlush(saved.capture());
@@ -237,22 +239,41 @@ class DocumentServiceImplTest {
     void createDocument_resume_landsInResumesTable() {
         when(resumeRepository.saveAndFlush(any(ResumeEntity.class))).thenAnswer(inv -> inv.getArgument(0));
 
-        GeneratedDocument result = service.createDocument(userId,
-            new CreateGeneratedDocumentRequest(UUID.randomUUID(), GeneratedDocumentType.RESUME, "..."));
+        CreateGeneratedDocumentRequest request =
+                new CreateGeneratedDocumentRequest(GeneratedDocumentType.RESUME, "...");
+        request.setApplicationId(UUID.randomUUID());
+
+        GeneratedDocument result = service.createDocument(userId, request);
 
         assertThat(result.getType()).isEqualTo(GeneratedDocumentType.RESUME);
         verify(coverLetterRepository, never()).save(any());
     }
 
+    /** A document need not target a job — "just tidy up my general resume" must be storable. */
+    @Test
+    void createDocument_withoutApplication_savesStandaloneDocument() {
+        when(resumeRepository.saveAndFlush(any(ResumeEntity.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        GeneratedDocument result = service.createDocument(
+                userId, new CreateGeneratedDocumentRequest(GeneratedDocumentType.RESUME, "General resume"));
+
+        ArgumentCaptor<ResumeEntity> saved = ArgumentCaptor.forClass(ResumeEntity.class);
+        verify(resumeRepository).saveAndFlush(saved.capture());
+        assertThat(saved.getValue().getUserId()).isEqualTo(userId);
+        assertThat(saved.getValue().getApplicationId()).isNull();
+        assertThat(result.getApplicationId()).isNull();
+    }
+
     @Test
     void listDocuments_mergesBothTypesNewestFirst_scopedToApplication() {
         UUID applicationId = UUID.randomUUID();
-        CoverLetterEntity older = coverLetter(userId, applicationId, OffsetDateTime.now().minusHours(2));
+        CoverLetterEntity older =
+                coverLetter(userId, applicationId, OffsetDateTime.now().minusHours(2));
         ResumeEntity newer = resume(userId, applicationId, OffsetDateTime.now());
         when(coverLetterRepository.findByUserIdAndApplicationIdOrderByCreatedAtDesc(userId, applicationId))
-            .thenReturn(List.of(older));
+                .thenReturn(List.of(older));
         when(resumeRepository.findByUserIdAndApplicationIdOrderByCreatedAtDesc(userId, applicationId))
-            .thenReturn(List.of(newer));
+                .thenReturn(List.of(newer));
 
         List<GeneratedDocument> result = service.listDocuments(userId, applicationId);
 
@@ -267,8 +288,7 @@ class DocumentServiceImplTest {
         when(coverLetterRepository.findByIdAndUserId(id, userId)).thenReturn(Optional.empty());
         when(resumeRepository.findByIdAndUserId(id, userId)).thenReturn(Optional.empty());
 
-        assertThatThrownBy(() -> service.deleteDocument(userId, id))
-            .isInstanceOf(ResourceNotFoundException.class);
+        assertThatThrownBy(() -> service.deleteDocument(userId, id)).isInstanceOf(ResourceNotFoundException.class);
         verify(coverLetterRepository, never()).delete(any());
         verify(resumeRepository, never()).delete(any());
     }

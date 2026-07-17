@@ -4,11 +4,12 @@ Wraps `google-auth-oauthlib` (consent flow + token exchange) and the Gmail API c
 (list/fetch messages, token refresh). Network-touching functions are small and free of
 DB/web concerns so they can be mocked in tests.
 """
+
 from __future__ import annotations
 
 import os
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import datetime, UTC
 
 # Google frequently returns a scope set that differs (order/extras, e.g. an added
 # `openid`) from what was requested, which makes oauthlib raise "Scope has changed"
@@ -107,17 +108,13 @@ def refresh_access_token(refresh_token: str) -> tuple[str, datetime]:
     """Use a refresh token to obtain a fresh access token + expiry."""
     creds = _credentials(access_token="", refresh_token=refresh_token)
     creds.refresh(GoogleRequest())
+    assert creds.token is not None  # refresh() populates the token
     return creds.token, _as_utc(creds.expiry)
 
 
 def list_recent_message_ids(access_token: str, refresh_token: str) -> list[str]:
     service = _gmail(access_token, refresh_token)
-    resp = (
-        service.users()
-        .messages()
-        .list(userId="me", maxResults=_settings.gmail_max_results)
-        .execute()
-    )
+    resp = service.users().messages().list(userId="me", maxResults=_settings.gmail_max_results).execute()
     return [m["id"] for m in resp.get("messages", [])]
 
 
@@ -139,7 +136,7 @@ def fetch_message(access_token: str, refresh_token: str, message_id: str) -> dic
     received_at = None
     internal = msg.get("internalDate")
     if internal is not None:
-        received_at = datetime.fromtimestamp(int(internal) / 1000, tz=timezone.utc)
+        received_at = datetime.fromtimestamp(int(internal) / 1000, tz=UTC)
     return {
         "message_id": msg["id"],
         "subject": headers.get("subject"),
@@ -161,7 +158,7 @@ def _gmail(access_token: str, refresh_token: str):
 def _as_utc(value: datetime | None) -> datetime:
     """Google credentials expose a naive UTC expiry; make it timezone-aware."""
     if value is None:
-        return datetime.now(tz=timezone.utc)
+        return datetime.now(tz=UTC)
     if value.tzinfo is None:
-        return value.replace(tzinfo=timezone.utc)
+        return value.replace(tzinfo=UTC)
     return value

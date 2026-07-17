@@ -9,7 +9,6 @@ import com.jobready.application.generated.modelDto.JobApplication;
 import com.jobready.application.generated.modelDto.Recommendation;
 import com.jobready.application.generated.modelDto.RecommendationList;
 import com.jobready.application.generated.modelDto.UpdateApplicationRequest;
-
 import java.util.UUID;
 
 public interface ApplicationService {

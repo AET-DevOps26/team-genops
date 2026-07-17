@@ -1,7 +1,8 @@
 name: CD - Dev (AKS)
 
-# Runs after images are published to GHCR on main — i.e. when a PR is merged.
-# PR builds still publish images but do NOT deploy.
+# Last link of the deploy chain: CI (tests green on main) → Build & Push
+# Images (workflow_run on CI) → this workflow. Fires only after images for
+# the merged commit are actually in GHCR.
 on:
   workflow_run:
     workflows: ["Build & Push Images"]
@@ -10,7 +11,7 @@ on:
   workflow_dispatch:
     inputs:
       image_tag:
-        description: "Image tag to deploy (defaults to latest, which build-images.yml always publishes from main)"
+        description: "Image tag to deploy (e.g. 1.4.2 or sha-abc1234, defaults to latest)"
         required: false
         default: latest
 
@@ -31,6 +32,14 @@ jobs:
     if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
     environment: dev
+    # Terraform (backend + provider) authenticates on its own via GitHub OIDC,
+    # minting a fresh token per auth. It must NOT ride on the az CLI login:
+    # that assertion expires 5 min after azure/login.
+    env:
+      ARM_USE_OIDC: "true"
+      ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+      ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+      ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
     steps:
       - uses: actions/checkout@v7
 
@@ -50,18 +59,18 @@ jobs:
         env:
           SUBSCRIPTION: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
         run: |
-          if ./scripts/cluster.sh status | grep -q "Stopped"; then
-            ./scripts/cluster.sh start
-          else
-            echo "Cluster running or not created yet — nothing to wake."
-          fi
+          STATE=$(./scripts/cluster.sh status)
+          echo "$STATE"
+          case "$STATE" in
+            *Running*|*"does not exist"*|*absent*) echo "Nothing to wake." ;;
+            *Stopped*)                             ./scripts/cluster.sh start ;;
+            *) echo "::error::Unexpected cluster.sh output — not proceeding: $STATE"; exit 1 ;;
+          esac
 
       - uses: hashicorp/setup-terraform@v3
 
       - name: Terraform apply
         working-directory: infra/terraform
-        env:
-          ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
         run: |
           terraform init \
             -backend-config="resource_group_name=${{ secrets.TFSTATE_RG }}" \
@@ -74,42 +83,38 @@ jobs:
         id: tf
         working-directory: infra/terraform
         run: |
-          echo "ingress_ip=$(terraform output -raw ingress_ip)" >> "$GITHUB_OUTPUT"
-          echo "fqdn=$(terraform output -raw ingress_fqdn)" >> "$GITHUB_OUTPUT"
-          echo "rg=$(terraform output -raw resource_group_name)" >> "$GITHUB_OUTPUT"
+          {
+            echo "ingress_ip=$(terraform output -raw ingress_ip)"
+            echo "fqdn=$(terraform output -raw ingress_fqdn)"
+            echo "rg=$(terraform output -raw resource_group_name)"
+          } >> "$GITHUB_OUTPUT"
           terraform output -raw kube_config > "$RUNNER_TEMP/kubeconfig"
 
-      - uses: actions/setup-python@v6
-        with:
-          python-version: '3.12'
-
-      - name: Install Ansible + collections
+      # Trigger interpretation lives here, not in the action: a workflow_run
+      # deploy pins the exact sha- tag that build just published; a manual
+      # dispatch uses the given input.
+      - name: Compute image tag
+        env:
+          head_sha: ${{ github.event.workflow_run.head_sha }}
+          image_tag: ${{ inputs.image_tag }}
+        id: tag
         run: |
-          pip install ansible-core kubernetes
-          ansible-galaxy collection install -r infra/ansible/requirements.yml
+          if [ -n "${head_sha}" ]; then
+            echo "tag=sha-$(echo "${head_sha}" | cut -c1-7)" >> "$GITHUB_OUTPUT"
+          else
+            echo "tag=${image_tag}" >> "$GITHUB_OUTPUT"
+          fi
 
-      - name: Set up Helm
-        uses: azure/setup-helm@v4
-        with:
-          version: v3.16.0
-
-      - name: Bootstrap + deploy
-        working-directory: infra/ansible
+      - name: Deploy via Ansible
+        uses: ./.github/actions/ansible-deploy
         env:
           KUBECONFIG: ${{ runner.temp }}/kubeconfig
-        run: |
-          trap 'rm -f vault-pass' EXIT
-          echo "${{ secrets.ANSIBLE_VAULT_PASSWORD_DEV }}" > vault-pass
-          if [ -n "${{ github.event.workflow_run.head_sha }}" ]; then
-            IMAGE_TAG="sha-$(echo ${{ github.event.workflow_run.head_sha }} | cut -c1-7)"
-          else
-            IMAGE_TAG="${{ inputs.image_tag }}"
-          fi
-          ansible-playbook -i inventories/dev/hosts.yml playbooks/bootstrap.yml \
-            --vault-password-file vault-pass \
-            -e ingress_ip=${{ steps.tf.outputs.ingress_ip }} \
-            -e azure_lb_resource_group=${{ steps.tf.outputs.rg }}
-          ansible-playbook -i inventories/dev/hosts.yml playbooks/deploy.yml \
-            --vault-password-file vault-pass \
-            -e image_tag=${IMAGE_TAG} \
-            -e ingress_host=${{ steps.tf.outputs.fqdn }}
+        with:
+          inventory: inventories/dev/hosts.yml
+          image_tag: ${{ steps.tag.outputs.tag }}
+          vault_password: ${{ secrets.ANSIBLE_VAULT_PASSWORD_DEV }}
+          bootstrap: "true"
+          ingress_ip: ${{ steps.tf.outputs.ingress_ip }}
+          azure_lb_resource_group: ${{ steps.tf.outputs.rg }}
+          app_url: https://${{ steps.tf.outputs.fqdn }}
+          extra_args: -e ingress_host=${{ steps.tf.outputs.fqdn }}

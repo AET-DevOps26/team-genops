@@ -1,4 +1,4 @@
-import { api } from '~/services/apiClient'
+import { api } from "~/services/apiClient";
 import type {
   ApplicationList,
   CreateApplicationRequest,
@@ -6,36 +6,44 @@ import type {
   JobPostingExtraction,
   JobPostingExtractRequest,
   UpdateApplicationRequest,
-} from '~/api/schemas'
+} from "~/api/schemas";
 
 const applicationsApi = api.injectEndpoints({
   endpoints: (build) => ({
     listApplications: build.query<ApplicationList, void>({
-      query: () => '/applications',
-      providesTags: ['Application'],
+      query: () => "/applications",
+      providesTags: ["Application"],
     }),
 
     getApplication: build.query<JobApplication, string>({
       query: (id) => `/applications/${id}`,
-      providesTags: (_result, _error, id) => [{ type: 'Application', id }],
+      providesTags: (_result, _error, id) => [{ type: "Application", id }],
     }),
 
-    createApplication: build.mutation<JobApplication, CreateApplicationRequest>({
-      query: (body) => ({
-        url: '/applications',
-        method: 'POST',
-        body,
-      }),
-      invalidatesTags: ['Application'],
-    }),
+    createApplication: build.mutation<JobApplication, CreateApplicationRequest>(
+      {
+        query: (body) => ({
+          url: "/applications",
+          method: "POST",
+          body,
+        }),
+        invalidatesTags: ["Application"],
+      },
+    ),
 
-    updateApplication: build.mutation<JobApplication, { id: string; body: UpdateApplicationRequest }>({
+    updateApplication: build.mutation<
+      JobApplication,
+      { id: string; body: UpdateApplicationRequest }
+    >({
       query: ({ id, body }) => ({
         url: `/applications/${id}`,
-        method: 'PUT',
+        method: "PUT",
         body,
       }),
-      invalidatesTags: (_result, _error, { id }) => ['Application', { type: 'Application', id }],
+      invalidatesTags: (_result, _error, { id }) => [
+        "Application",
+        { type: "Application", id },
+      ],
     }),
 
     extractJobPosting: build.mutation<JobPostingExtraction, JobPostingExtractRequest>({
@@ -49,13 +57,13 @@ const applicationsApi = api.injectEndpoints({
     deleteApplication: build.mutation<void, string>({
       query: (id) => ({
         url: `/applications/${id}`,
-        method: 'DELETE',
-        responseHandler: 'text', // 204 No Content has no body; JSON.parse('') throws PARSING_ERROR
+        method: "DELETE",
+        responseHandler: "text", // 204 No Content has no body; JSON.parse('') throws PARSING_ERROR
       }),
-      invalidatesTags: ['Application'],
+      invalidatesTags: ["Application"],
     }),
   }),
-})
+});
 
 export const {
   useListApplicationsQuery,
@@ -64,4 +72,4 @@ export const {
   useUpdateApplicationMutation,
   useExtractJobPostingMutation,
   useDeleteApplicationMutation,
-} = applicationsApi
+} = applicationsApi;

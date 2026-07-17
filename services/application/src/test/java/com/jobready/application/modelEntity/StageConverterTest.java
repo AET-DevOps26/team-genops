@@ -1,9 +1,9 @@
 package com.jobready.application.modelEntity;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 import com.jobready.application.generated.modelDto.ApplicationStage;
 import org.junit.jupiter.api.Test;
-
-import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Guards the stage enum's consistency across the OpenAPI / Java / DB layers: persistence must use
@@ -18,7 +18,8 @@ class StageConverterTest {
 
     @Test
     void persistsWireValue_notEnumName() {
-        assertThat(converter.convertToDatabaseColumn(ApplicationStage.FOLLOW_UP)).isEqualTo("follow_up");
+        assertThat(converter.convertToDatabaseColumn(ApplicationStage.FOLLOW_UP))
+                .isEqualTo("follow_up");
         assertThat(converter.convertToDatabaseColumn(ApplicationStage.APPLIED)).isEqualTo("applied");
     }
 

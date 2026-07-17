@@ -3,6 +3,7 @@
 Matches the shared `Error` schema in `api/openapi.yaml`. `ApiError` is raised anywhere
 in the service; `register_error_handlers` wires it (and FastAPI's built-ins) to that body.
 """
+
 from __future__ import annotations
 
 from fastapi import FastAPI, Request

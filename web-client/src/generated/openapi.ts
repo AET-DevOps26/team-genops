@@ -974,17 +974,20 @@ export interface components {
             id: string;
             /**
              * Format: uuid
-             * @description The application this document was generated for (no cross-service FK)
+             * @description The application this document was tailored for (no cross-service FK), or null for a standalone document — a user may polish a general resume without a target job. A document is owned by its user; being filed under an application is optional.
              */
-            application_id: string;
+            application_id?: string | null;
             type: components["schemas"]["GeneratedDocumentType"];
             content: string;
             /** Format: date-time */
             created_at: string;
         };
         CreateGeneratedDocumentRequest: {
-            /** Format: uuid */
-            application_id: string;
+            /**
+             * Format: uuid
+             * @description Omit to save a standalone document not tied to any application.
+             */
+            application_id?: string | null;
             type: components["schemas"]["GeneratedDocumentType"];
             content: string;
         };
@@ -1004,6 +1007,11 @@ export interface components {
             id: string;
             /** Format: uuid */
             user_id: string;
+            /**
+             * Format: uuid
+             * @description The job application this conversation is about, bound the first time one is referenced. Present when the chat was started from an application or one was chosen for a document command; null for a general chat. The UI uses it to know where a generated cover letter or resume would be saved.
+             */
+            application_id?: string | null;
             /** @enum {string} */
             session_type: "insight_chat" | "cover_letter_chat" | "fit_analysis_chat";
             /** @description AI-generated memory summary, set after enough messages accumulate */

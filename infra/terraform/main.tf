@@ -38,7 +38,7 @@ resource "azurerm_kubernetes_cluster" "aks" {
   tags = var.tags
 }
 
-# Reserved, STABLE public IP for the ingress. Lives in the main Resource Group 
+# Reserved, STABLE public IP for the ingress. Lives in the main Resource Group
 #(NOT the node RG that gets deleted with the cluster) and is protected from destroy.
 # domain_name_label gives a free, stable FQDN: <label>.<region>.cloudapp.azure.com
 resource "azurerm_public_ip" "ingress" {

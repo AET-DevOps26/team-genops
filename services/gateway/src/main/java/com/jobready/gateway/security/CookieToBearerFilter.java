@@ -6,14 +6,13 @@ import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletRequestWrapper;
 import jakarta.servlet.http.HttpServletResponse;
-import org.springframework.http.HttpHeaders;
-import org.springframework.web.filter.OncePerRequestFilter;
-
 import java.io.IOException;
 import java.util.Collections;
 import java.util.Enumeration;
 import java.util.List;
 import java.util.Set;
+import org.springframework.http.HttpHeaders;
+import org.springframework.web.filter.OncePerRequestFilter;
 
 /**
  * Translates the split-token BFF cookie into a standard bearer header.
@@ -44,12 +43,11 @@ public class CookieToBearerFilter extends OncePerRequestFilter {
     }
 
     @Override
-    protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response,
-                                    FilterChain chain) throws ServletException, IOException {
+    protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain)
+            throws ServletException, IOException {
         // An explicit Authorization header always wins — never override a caller that already
         // speaks the mesh contract (e.g. service-to-service or a test harness).
-        if (request.getHeader(HttpHeaders.AUTHORIZATION) == null
-                && !skipPaths.contains(request.getRequestURI())) {
+        if (request.getHeader(HttpHeaders.AUTHORIZATION) == null && !skipPaths.contains(request.getRequestURI())) {
             String token = accessCookie(request);
             if (token != null && !token.isBlank()) {
                 chain.doFilter(new BearerHeaderRequest(request, BEARER_PREFIX + token), response);

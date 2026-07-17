@@ -3,6 +3,7 @@
 On startup it applies pending SQL migrations against `email_db` and starts the background
 poller; on shutdown it stops the poller. Routers are mounted under `/api/v1/email`.
 """
+
 from __future__ import annotations
 
 import logging

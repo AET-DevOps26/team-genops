@@ -1,26 +1,27 @@
-import { useEffect } from 'react'
-import { Navigate, Route, Routes } from 'react-router-dom'
-import { useAppDispatch } from '~/store/hooks'
-import { fetchMe } from '~/services/auth/authSlice'
-import { ProtectedRoute } from '~/components/routing/ProtectedRoute'
-import { PublicOnlyRoute } from '~/components/routing/PublicOnlyRoute'
-import { AppShell } from '~/components/layout/AppShell'
-import AuthPage from '~/pages/AuthPage'
-import ChatPage from '~/pages/ChatPage'
-import DashboardPage from '~/pages/DashboardPage'
-import ApplicationsPage from '~/pages/ApplicationsPage'
-import JobsPage from '~/pages/JobsPage'
-import ProfilePage from '~/pages/ProfilePage'
-import OnboardingWizard from '~/pages/onboarding/OnboardingWizard'
+import { useEffect } from "react";
+import { Navigate, Route, Routes } from "react-router-dom";
+import { useAppDispatch } from "~/store/hooks";
+import { fetchMe } from "~/services/auth/authSlice";
+import { ProtectedRoute } from "~/components/routing/ProtectedRoute";
+import { PublicOnlyRoute } from "~/components/routing/PublicOnlyRoute";
+import { AppShell } from "~/components/layout/AppShell";
+import AuthPage from "~/pages/AuthPage";
+import ChatPage from "~/pages/ChatPage";
+import DashboardPage from "~/pages/DashboardPage";
+import ApplicationsPage from "~/pages/ApplicationsPage";
+import DocumentsPage from "~/pages/DocumentsPage";
+import JobsPage from "~/pages/JobsPage";
+import ProfilePage from "~/pages/ProfilePage";
+import OnboardingWizard from "~/pages/onboarding/OnboardingWizard";
 
 function App() {
-  const dispatch = useAppDispatch()
+  const dispatch = useAppDispatch();
 
   // Session bootstrap: ask /me once on mount. Until it resolves the gates show a Splash
   // (status === 'unknown'), so a refreshing user is never bounced to /login prematurely.
   useEffect(() => {
-    dispatch(fetchMe())
-  }, [dispatch])
+    dispatch(fetchMe());
+  }, [dispatch]);
 
   return (
     <Routes>
@@ -33,6 +34,7 @@ function App() {
         <Route element={<AppShell />}>
           <Route index path="/" element={<DashboardPage />} />
           <Route path="/applications" element={<ApplicationsPage />} />
+          <Route path="/documents" element={<DocumentsPage />} />
           <Route path="/jobs" element={<JobsPage />} />
           <Route path="/profile" element={<ProfilePage />} />
           <Route path="/chat" element={<ChatPage />} />
@@ -40,7 +42,7 @@ function App() {
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
-  )
+  );
 }
 
-export default App
+export default App;

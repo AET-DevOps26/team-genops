@@ -14,15 +14,14 @@ import com.jobready.application.modelEntity.Recommendation;
 import com.jobready.application.repository.ApplicationRepository;
 import com.jobready.application.repository.OffsetPageRequest;
 import com.jobready.application.repository.RecommendationRepository;
-import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.Pageable;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
+import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Pageable;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
@@ -56,9 +55,7 @@ public class ApplicationServiceImpl implements ApplicationService {
     public ApplicationList list(UUID userId, ApplicationStage stage, Integer limit, Integer offset) {
         long from = offset == null ? 0 : offset;
         // No limit means "everything after the offset" — cap by the row count instead of a magic number.
-        long total = stage == null
-            ? repository.countByUserId(userId)
-            : repository.countByUserIdAndStage(userId, stage);
+        long total = stage == null ? repository.countByUserId(userId) : repository.countByUserIdAndStage(userId, stage);
         int pageSize = limit != null ? limit : (int) Math.max(1, total - from);
 
         List<Application> page;
@@ -67,12 +64,12 @@ public class ApplicationServiceImpl implements ApplicationService {
         } else {
             Pageable pageable = new OffsetPageRequest(from, pageSize);
             page = stage == null
-                ? repository.findByUserIdOrderByAppliedAtDesc(userId, pageable)
-                : repository.findByUserIdAndStageOrderByAppliedAtDesc(userId, stage, pageable);
+                    ? repository.findByUserIdOrderByAppliedAtDesc(userId, pageable)
+                    : repository.findByUserIdAndStageOrderByAppliedAtDesc(userId, stage, pageable);
         }
         return new ApplicationList()
-            .items(page.stream().map(this::toDto).toList())
-            .total(total);
+                .items(page.stream().map(this::toDto).toList())
+                .total(total);
     }
 
     @Override
@@ -108,8 +105,8 @@ public class ApplicationServiceImpl implements ApplicationService {
     @Transactional(readOnly = true)
     public ApplicationSummary summary(UUID userId) {
         Map<ApplicationStage, Long> counts = repository.countByUserIdGroupedByStage(userId).stream()
-            .collect(Collectors.toMap(ApplicationRepository.StageCount::getStage,
-                                      ApplicationRepository.StageCount::getCount));
+                .collect(Collectors.toMap(
+                        ApplicationRepository.StageCount::getStage, ApplicationRepository.StageCount::getCount));
         long draft = counts.getOrDefault(ApplicationStage.DRAFT, 0L);
         long applied = counts.getOrDefault(ApplicationStage.APPLIED, 0L);
         long followUp = counts.getOrDefault(ApplicationStage.FOLLOW_UP, 0L);
@@ -117,13 +114,13 @@ public class ApplicationServiceImpl implements ApplicationService {
         long offer = counts.getOrDefault(ApplicationStage.OFFER, 0L);
         long closed = counts.getOrDefault(ApplicationStage.CLOSED, 0L);
         return new ApplicationSummary()
-            .draft(draft)
-            .applied(applied)
-            .followUp(followUp)
-            .interview(interview)
-            .offer(offer)
-            .closed(closed)
-            .total(draft + applied + followUp + interview + offer + closed);
+                .draft(draft)
+                .applied(applied)
+                .followUp(followUp)
+                .interview(interview)
+                .offer(offer)
+                .closed(closed)
+                .total(draft + applied + followUp + interview + offer + closed);
     }
 
     @Override
@@ -143,47 +140,51 @@ public class ApplicationServiceImpl implements ApplicationService {
     @Transactional(readOnly = true)
     public RecommendationList listRecommendations(UUID userId, UUID applicationId) {
         require(userId, applicationId);
-        return new RecommendationList().items(
-            recommendationRepository.findByApplicationIdAndUserIdOrderByCreatedAtDesc(applicationId, userId)
-                .stream().map(this::toDto).toList());
+        return new RecommendationList()
+                .items(
+                        recommendationRepository
+                                .findByApplicationIdAndUserIdOrderByCreatedAtDesc(applicationId, userId)
+                                .stream()
+                                .map(this::toDto)
+                                .toList());
     }
 
     @Override
     @Transactional
     public void deleteRecommendation(UUID userId, UUID applicationId, UUID recommendationId) {
         require(userId, applicationId);
-        Recommendation recommendation = recommendationRepository.findByIdAndUserId(recommendationId, userId)
-            .filter(r -> r.getApplicationId().equals(applicationId))
-            .orElseThrow(ApplicationNotFoundException::new);
+        Recommendation recommendation = recommendationRepository
+                .findByIdAndUserId(recommendationId, userId)
+                .filter(r -> r.getApplicationId().equals(applicationId))
+                .orElseThrow(ApplicationNotFoundException::new);
         recommendationRepository.delete(recommendation);
     }
 
     private Application require(UUID userId, UUID id) {
-        return repository.findByIdAndUserId(id, userId)
-            .orElseThrow(ApplicationNotFoundException::new);
+        return repository.findByIdAndUserId(id, userId).orElseThrow(ApplicationNotFoundException::new);
     }
 
     private JobApplication toDto(Application a) {
         return new JobApplication()
-            .id(a.getId())
-            .company(a.getCompany())
-            .jobTitle(a.getJobTitle())
-            .jobDescription(a.getJobDescription())
-            .jobUrl(a.getJobUrl())
-            .companyWebsite(a.getCompanyWebsite())
-            .linkedinUrl(a.getLinkedinUrl())
-            .stage(a.getStage())
-            .notes(a.getNotes())
-            .appliedAt(a.getAppliedAt())
-            .updatedAt(a.getUpdatedAt());
+                .id(a.getId())
+                .company(a.getCompany())
+                .jobTitle(a.getJobTitle())
+                .jobDescription(a.getJobDescription())
+                .jobUrl(a.getJobUrl())
+                .companyWebsite(a.getCompanyWebsite())
+                .linkedinUrl(a.getLinkedinUrl())
+                .stage(a.getStage())
+                .notes(a.getNotes())
+                .appliedAt(a.getAppliedAt())
+                .updatedAt(a.getUpdatedAt());
     }
 
     private com.jobready.application.generated.modelDto.Recommendation toDto(Recommendation r) {
         return new com.jobready.application.generated.modelDto.Recommendation()
-            .id(r.getId())
-            .applicationId(r.getApplicationId())
-            .insight(r.getInsight())
-            .recommendedAction(r.getRecommendedAction())
-            .createdAt(r.getCreatedAt());
+                .id(r.getId())
+                .applicationId(r.getApplicationId())
+                .insight(r.getInsight())
+                .recommendedAction(r.getRecommendedAction())
+                .createdAt(r.getCreatedAt());
     }
 }
