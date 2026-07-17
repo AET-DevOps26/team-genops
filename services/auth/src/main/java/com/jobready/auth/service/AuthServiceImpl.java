@@ -3,6 +3,7 @@ package com.jobready.auth.service;
 import com.jobready.auth.config.JwtProperties;
 import com.jobready.auth.exception.EmailAlreadyTakenException;
 import com.jobready.auth.exception.InvalidCredentialsException;
+import com.jobready.auth.exception.TooManyAttemptsException;
 import com.jobready.auth.generated.modelDto.LoginRequest;
 import com.jobready.auth.generated.modelDto.RegisterRequest;
 import com.jobready.auth.generated.modelDto.UserResponse;
@@ -19,43 +20,82 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 public class AuthServiceImpl implements AuthService {
 
+    /**
+     * Any valid BCrypt hash works here — it only equalizes login timing for
+     * nonexistent accounts; nothing can log in with it (the null-user check wins).
+     */
+    private static final String DUMMY_HASH =
+            new org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder().encode("timing-equalizer");
+
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
     private final JwtProperties jwtProperties;
+    private final LoginAttemptService loginAttemptService;
+    private final SecurityAuditLog auditLog;
 
     @Override
-    public IssuedSession register(RegisterRequest request) {
-        if (userRepository.existsByEmail(request.getEmail())) {
-            throw new EmailAlreadyTakenException(request.getEmail());
+    public IssuedSession register(RegisterRequest request, String clientIp) {
+        String email = request.getEmail();
+        try {
+            loginAttemptService.recordRegisterAttempt(clientIp);
+        } catch (TooManyAttemptsException e) {
+            auditLog.registerRejected(email, clientIp, "rate_limited");
+            throw e;
+        }
+        if (userRepository.existsByEmail(email)) {
+            auditLog.registerRejected(email, clientIp, "email_taken");
+            throw new EmailAlreadyTakenException(email);
         }
         User user = new User();
-        user.setEmail(request.getEmail());
+        user.setEmail(email);
         user.setPasswordHash(passwordEncoder.encode(request.getPassword()));
         userRepository.save(user);
+        auditLog.registerSucceeded(email, clientIp);
         return issueSession(user);
     }
 
     @Override
-    public IssuedSession login(LoginRequest request) {
-        User user = userRepository.findByEmail(request.getEmail()).orElseThrow(InvalidCredentialsException::new);
-        if (!passwordEncoder.matches(request.getPassword(), user.getPasswordHash())) {
+    public IssuedSession login(LoginRequest request, String clientIp) {
+        String email = request.getEmail();
+        try {
+            loginAttemptService.checkLoginAllowed(email, clientIp);
+        } catch (TooManyAttemptsException e) {
+            auditLog.loginBlocked(email, clientIp);
+            throw e;
+        }
+        User user = userRepository.findByEmail(email).orElse(null);
+        // Exactly one BCrypt comparison on every path: without the dummy compare, a
+        // missing user returns ~100ms faster and response timing enumerates accounts.
+        boolean matches =
+                passwordEncoder.matches(request.getPassword(), user != null ? user.getPasswordHash() : DUMMY_HASH);
+        if (user == null || !matches) {
+            loginAttemptService.recordLoginFailure(email, clientIp);
+            auditLog.loginFailed(email, clientIp);
             throw new InvalidCredentialsException();
         }
+        loginAttemptService.resetLoginFailures(email, clientIp);
+        auditLog.loginSucceeded(email, clientIp);
         return issueSession(user);
     }
 
     @Override
     public void logout(String refreshToken) {
         jwtService.revokeRefreshToken(refreshToken);
+        auditLog.logout();
     }
 
     @Override
     public IssuedSession refresh(String refreshToken) {
-        UUID userId = jwtService.validateRefreshToken(refreshToken);
-        jwtService.revokeRefreshToken(refreshToken);
-        User user = userRepository.findById(userId).orElseThrow(InvalidCredentialsException::new);
-        return issueSession(user);
+        try {
+            UUID userId = jwtService.validateRefreshToken(refreshToken);
+            jwtService.revokeRefreshToken(refreshToken);
+            User user = userRepository.findById(userId).orElseThrow(InvalidCredentialsException::new);
+            return issueSession(user);
+        } catch (InvalidCredentialsException e) {
+            auditLog.refreshRejected();
+            throw e;
+        }
     }
 
     @Override

@@ -7,9 +7,11 @@ import com.jobready.auth.model.IssuedSession;
 import java.util.UUID;
 
 public interface AuthService {
-    IssuedSession register(RegisterRequest request);
+    /** {@code clientIp} feeds the register throttle; resolved from XFF at the controller. */
+    IssuedSession register(RegisterRequest request, String clientIp);
 
-    IssuedSession login(LoginRequest request);
+    /** {@code clientIp} feeds the login lockout; resolved from XFF at the controller. */
+    IssuedSession login(LoginRequest request, String clientIp);
 
     void logout(String refreshToken);
 

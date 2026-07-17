@@ -2,15 +2,21 @@ package com.jobready.auth.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.catchThrowable;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.jobready.auth.config.JwtProperties;
 import com.jobready.auth.exception.EmailAlreadyTakenException;
 import com.jobready.auth.exception.InvalidCredentialsException;
+import com.jobready.auth.exception.TooManyAttemptsException;
 import com.jobready.auth.generated.modelDto.LoginRequest;
 import com.jobready.auth.generated.modelDto.RegisterRequest;
 import com.jobready.auth.model.IssuedSession;
@@ -35,6 +41,9 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 @MockitoSettings(strictness = Strictness.LENIENT)
 class AuthServiceImplTest {
 
+    private static final String EMAIL = "jane@example.com";
+    private static final String IP = "203.0.113.7";
+
     @Mock
     private UserRepository userRepository;
 
@@ -46,6 +55,12 @@ class AuthServiceImplTest {
 
     @Mock
     private JwtProperties jwtProperties;
+
+    @Mock
+    private LoginAttemptService loginAttemptService;
+
+    @Mock
+    private SecurityAuditLog auditLog;
 
     @InjectMocks
     private AuthServiceImpl service;
@@ -75,10 +90,10 @@ class AuthServiceImplTest {
 
     @Test
     void register_storesOnlyTheHash_neverTheRawPassword() {
-        when(userRepository.existsByEmail("jane@example.com")).thenReturn(false);
+        when(userRepository.existsByEmail(EMAIL)).thenReturn(false);
         when(passwordEncoder.encode("s3cret-plaintext")).thenReturn("$2a$10$hashed");
 
-        service.register(new RegisterRequest("jane@example.com", "s3cret-plaintext"));
+        service.register(new RegisterRequest(EMAIL, "s3cret-plaintext"), IP);
 
         ArgumentCaptor<User> saved = ArgumentCaptor.forClass(User.class);
         verify(userRepository).save(saved.capture());
@@ -87,25 +102,27 @@ class AuthServiceImplTest {
     }
 
     @Test
-    void register_rejectsAnEmailThatIsAlreadyTaken() {
+    void register_rejectsAnEmailThatIsAlreadyTakenAndAudits() {
         when(userRepository.existsByEmail("taken@example.com")).thenReturn(true);
 
-        assertThatThrownBy(() -> service.register(new RegisterRequest("taken@example.com", "pw")))
+        assertThatThrownBy(() -> service.register(new RegisterRequest("taken@example.com", "pw"), IP))
                 .isInstanceOf(EmailAlreadyTakenException.class);
 
         verify(userRepository, never()).save(any());
+        verify(auditLog).registerRejected("taken@example.com", IP, "email_taken");
     }
 
     @Test
-    void register_issuesASessionForTheNewUser() {
+    void register_issuesASessionForTheNewUserAndAudits() {
         when(userRepository.existsByEmail(any())).thenReturn(false);
         when(passwordEncoder.encode(any())).thenReturn("$2a$10$hashed");
 
-        IssuedSession session = service.register(new RegisterRequest("jane@example.com", "pw"));
+        IssuedSession session = service.register(new RegisterRequest(EMAIL, "pw"), IP);
 
         assertThat(session.accessToken()).isEqualTo("access-token");
         assertThat(session.refreshToken()).isEqualTo("refresh-token");
-        assertThat(session.user().getEmail()).isEqualTo("jane@example.com");
+        assertThat(session.user().getEmail()).isEqualTo(EMAIL);
+        verify(auditLog).registerSucceeded(EMAIL, IP);
     }
 
     @Test
@@ -113,9 +130,20 @@ class AuthServiceImplTest {
         when(userRepository.existsByEmail(any())).thenReturn(false);
         when(passwordEncoder.encode(any())).thenReturn("$2a$10$hashed");
 
-        IssuedSession session = service.register(new RegisterRequest("jane@example.com", "pw"));
+        IssuedSession session = service.register(new RegisterRequest(EMAIL, "pw"), IP);
 
         assertThat(session.user().toString()).doesNotContain("$2a$10$hashed");
+    }
+
+    @Test
+    void register_throttledIsRejectedBeforeTouchingTheDatabase() {
+        doThrow(new TooManyAttemptsException(900)).when(loginAttemptService).recordRegisterAttempt(IP);
+
+        assertThatThrownBy(() -> service.register(new RegisterRequest(EMAIL, "x"), IP))
+                .isInstanceOf(TooManyAttemptsException.class);
+
+        verify(auditLog).registerRejected(EMAIL, IP, "rate_limited");
+        verify(userRepository, never()).existsByEmail(anyString());
     }
 
     // ------------------------------------------------------------------
@@ -123,34 +151,50 @@ class AuthServiceImplTest {
     // ------------------------------------------------------------------
 
     @Test
-    void login_succeedsWhenThePasswordMatches() {
-        User user = user("jane@example.com");
-        when(userRepository.findByEmail("jane@example.com")).thenReturn(Optional.of(user));
+    void login_succeedsWhenThePasswordMatches_resetsCounterAndAudits() {
+        when(userRepository.findByEmail(EMAIL)).thenReturn(Optional.of(user(EMAIL)));
         when(passwordEncoder.matches("right-password", "$2a$10$storedhash")).thenReturn(true);
 
-        IssuedSession session = service.login(new LoginRequest("jane@example.com", "right-password"));
+        IssuedSession session = service.login(new LoginRequest(EMAIL, "right-password"), IP);
 
         assertThat(session.accessToken()).isEqualTo("access-token");
         assertThat(session.user().getId()).isEqualTo(userId);
+        verify(loginAttemptService).resetLoginFailures(EMAIL, IP);
+        verify(auditLog).loginSucceeded(EMAIL, IP);
     }
 
     @Test
-    void login_rejectsAWrongPassword() {
-        when(userRepository.findByEmail("jane@example.com")).thenReturn(Optional.of(user("jane@example.com")));
+    void login_rejectsAWrongPassword_recordsFailureAndAudits() {
+        when(userRepository.findByEmail(EMAIL)).thenReturn(Optional.of(user(EMAIL)));
         when(passwordEncoder.matches(any(), any())).thenReturn(false);
 
-        assertThatThrownBy(() -> service.login(new LoginRequest("jane@example.com", "wrong")))
+        assertThatThrownBy(() -> service.login(new LoginRequest(EMAIL, "wrong"), IP))
                 .isInstanceOf(InvalidCredentialsException.class);
 
         verify(jwtService, never()).generateAccessToken(any());
+        verify(loginAttemptService).recordLoginFailure(EMAIL, IP);
+        verify(auditLog).loginFailed(EMAIL, IP);
+        verify(loginAttemptService, never()).resetLoginFailures(anyString(), anyString());
     }
 
     @Test
     void login_rejectsAnUnknownEmail() {
         when(userRepository.findByEmail("nobody@example.com")).thenReturn(Optional.empty());
 
-        assertThatThrownBy(() -> service.login(new LoginRequest("nobody@example.com", "pw")))
+        assertThatThrownBy(() -> service.login(new LoginRequest("nobody@example.com", "pw"), IP))
                 .isInstanceOf(InvalidCredentialsException.class);
+    }
+
+    @Test
+    void login_lockedOutIsBlockedBeforeAnyCredentialWork() {
+        doThrow(new TooManyAttemptsException(900)).when(loginAttemptService).checkLoginAllowed(EMAIL, IP);
+
+        assertThatThrownBy(() -> service.login(new LoginRequest(EMAIL, "secret"), IP))
+                .isInstanceOf(TooManyAttemptsException.class);
+
+        verify(auditLog).loginBlocked(EMAIL, IP);
+        verify(userRepository, never()).findByEmail(anyString());
+        verify(passwordEncoder, never()).matches(anyString(), anyString());
     }
 
     /**
@@ -160,18 +204,29 @@ class AuthServiceImplTest {
     @Test
     void login_doesNotRevealWhetherTheAccountExists() {
         when(userRepository.findByEmail("nobody@example.com")).thenReturn(Optional.empty());
-        when(userRepository.findByEmail("jane@example.com")).thenReturn(Optional.of(user("jane@example.com")));
+        when(userRepository.findByEmail(EMAIL)).thenReturn(Optional.of(user(EMAIL)));
         when(passwordEncoder.matches(any(), any())).thenReturn(false);
 
-        Throwable unknownEmail = org.assertj.core.api.Assertions.catchThrowable(
-                () -> service.login(new LoginRequest("nobody@example.com", "pw")));
-        Throwable wrongPassword = org.assertj.core.api.Assertions.catchThrowable(
-                () -> service.login(new LoginRequest("jane@example.com", "pw")));
+        Throwable unknownEmail = catchThrowable(() -> service.login(new LoginRequest("nobody@example.com", "pw"), IP));
+        Throwable wrongPassword = catchThrowable(() -> service.login(new LoginRequest(EMAIL, "pw"), IP));
 
         assertThat(unknownEmail).isInstanceOf(InvalidCredentialsException.class);
         assertThat(wrongPassword).isInstanceOf(InvalidCredentialsException.class);
         assertThat(unknownEmail).hasSameClassAs(wrongPassword);
         assertThat(unknownEmail.getMessage()).isEqualTo(wrongPassword.getMessage());
+    }
+
+    @Test
+    void login_unknownUserStillRunsExactlyOneHashComparison() {
+        when(userRepository.findByEmail(EMAIL)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.login(new LoginRequest(EMAIL, "secret"), IP))
+                .isInstanceOf(InvalidCredentialsException.class);
+
+        // The timing-equalizing dummy compare: same BCrypt cost as the found-user path.
+        verify(passwordEncoder, times(1)).matches(eq("secret"), anyString());
+        verify(loginAttemptService).recordLoginFailure(EMAIL, IP);
+        verify(auditLog).loginFailed(EMAIL, IP);
     }
 
     // ------------------------------------------------------------------
@@ -186,7 +241,7 @@ class AuthServiceImplTest {
     @Test
     void refresh_revokesThePresentedTokenAndIssuesANewOne() {
         when(jwtService.validateRefreshToken("old-refresh")).thenReturn(userId);
-        when(userRepository.findById(userId)).thenReturn(Optional.of(user("jane@example.com")));
+        when(userRepository.findById(userId)).thenReturn(Optional.of(user(EMAIL)));
 
         IssuedSession session = service.refresh("old-refresh");
 
@@ -197,7 +252,7 @@ class AuthServiceImplTest {
     @Test
     void refresh_revokesTheOldTokenBeforeIssuingTheReplacement() {
         when(jwtService.validateRefreshToken("old-refresh")).thenReturn(userId);
-        when(userRepository.findById(userId)).thenReturn(Optional.of(user("jane@example.com")));
+        when(userRepository.findById(userId)).thenReturn(Optional.of(user(EMAIL)));
 
         service.refresh("old-refresh");
 
@@ -208,12 +263,13 @@ class AuthServiceImplTest {
     }
 
     @Test
-    void refresh_rejectsAnUnknownToken() {
+    void refresh_rejectsAnUnknownTokenAndAudits() {
         when(jwtService.validateRefreshToken("bogus")).thenThrow(new InvalidCredentialsException());
 
         assertThatThrownBy(() -> service.refresh("bogus")).isInstanceOf(InvalidCredentialsException.class);
 
         verify(jwtService, never()).generateAccessToken(any());
+        verify(auditLog).refreshRejected();
     }
 
     /** A token valid in Redis but whose user has since been deleted must not mint a session. */
@@ -232,17 +288,18 @@ class AuthServiceImplTest {
     // ------------------------------------------------------------------
 
     @Test
-    void logout_revokesTheRefreshToken() {
+    void logout_revokesTheRefreshTokenAndAudits() {
         service.logout("some-refresh");
 
         verify(jwtService).revokeRefreshToken("some-refresh");
+        verify(auditLog).logout();
     }
 
     @Test
     void getMe_returnsTheUser() {
-        when(userRepository.findById(userId)).thenReturn(Optional.of(user("jane@example.com")));
+        when(userRepository.findById(userId)).thenReturn(Optional.of(user(EMAIL)));
 
-        assertThat(service.getMe(userId).getEmail()).isEqualTo("jane@example.com");
+        assertThat(service.getMe(userId).getEmail()).isEqualTo(EMAIL);
     }
 
     @Test
