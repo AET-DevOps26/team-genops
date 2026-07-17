@@ -11,7 +11,6 @@ as out of scope for this threat model.
 
 import asyncio
 import ipaddress
-from urllib.parse import urlparse
 
 import httpx
 from bs4 import BeautifulSoup
@@ -66,9 +65,15 @@ async def _assert_public_url(url: httpx.URL) -> None:
 
 async def fetch_page_text(url: str) -> str:
     """Fetch a public job-posting page and return its visible text, size-capped."""
-    parsed = urlparse(url)
-    if not parsed.scheme or not parsed.netloc:
+    try:
+        validated_url = httpx.URL(url)
+    except Exception:
+        raise _invalid("The URL is malformed — expected e.g. https://example.com/jobs/123.") from None
+
+    if not validated_url.scheme or not validated_url.host:
         raise _invalid("The URL is malformed — expected e.g. https://example.com/jobs/123.")
+
+    await _assert_public_url(validated_url)
 
     async def _guard_hop(request: httpx.Request) -> None:
         # Runs for the initial request and for every redirect httpx follows.
@@ -83,7 +88,7 @@ async def fetch_page_text(url: str) -> str:
                 headers={"User-Agent": _USER_AGENT},
                 event_hooks={"request": [_guard_hop]},
             ) as client,
-            client.stream("GET", url) as response,
+            client.stream("GET", validated_url) as response,
         ):
             if response.status_code >= 400:
                 raise _fetch_failed(f"The page responded with HTTP {response.status_code}.")
