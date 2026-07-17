@@ -152,12 +152,12 @@ async def test_oversized_page_fails_fetch(client, monkeypatch):
 @pytest.mark.asyncio
 async def test_empty_extraction_reports_extraction_failed(client, monkeypatch):
     import src.routers.job_postings as router_module
-    from src.services.job_posting.fetcher import JobPostingError
+    import src.services.job_posting.fetcher as fetcher
 
     _mock_http(monkeypatch, lambda req: httpx.Response(200, headers={"content-type": "text/html"}, text=JOB_HTML))
 
     async def fake_extract(page_text: str, user_id: str):
-        raise JobPostingError("EXTRACTION_FAILED", "No job-posting fields could be identified on that page.", 422)
+        raise fetcher.JobPostingError("EXTRACTION_FAILED", "No job-posting fields could be identified on that page.", 422)
 
     monkeypatch.setattr(router_module, "extract_job_posting", fake_extract)
 
