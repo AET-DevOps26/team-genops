@@ -46,10 +46,13 @@ const applicationsApi = api.injectEndpoints({
       ],
     }),
 
-    extractJobPosting: build.mutation<JobPostingExtraction, JobPostingExtractRequest>({
+    extractJobPosting: build.mutation<
+      JobPostingExtraction,
+      JobPostingExtractRequest
+    >({
       query: (body) => ({
-        url: '/job-postings/extract',
-        method: 'POST',
+        url: "/job-postings/extract",
+        method: "POST",
         body,
       }),
     }),

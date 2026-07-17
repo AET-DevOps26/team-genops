@@ -27,8 +27,8 @@ export type CreateApplicationRequest = Schemas["CreateApplicationRequest"];
 export type UpdateApplicationRequest = Schemas["UpdateApplicationRequest"];
 
 // Job-posting extraction (genai service)
-export type JobPostingExtractRequest = Schemas['JobPostingExtractRequest']
-export type JobPostingExtraction = Schemas['JobPostingExtraction']
+export type JobPostingExtractRequest = Schemas["JobPostingExtractRequest"];
+export type JobPostingExtraction = Schemas["JobPostingExtraction"];
 
 // Profile & generated documents (document service)
 export type Profile = Schemas["Profile"];
