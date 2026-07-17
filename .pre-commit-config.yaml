@@ -37,12 +37,12 @@ repos:
         name: ruff check --fix (python services)
         language: system
         entry: uv run --project services/genai --locked ruff check --fix --force-exclude
-        files: ^services/(genai|email)/.*\.py$
+        files: ^services/genai/.*\.py$
       - id: ruff-format
         name: ruff format (python services)
         language: system
         entry: uv run --project services/genai --locked ruff format --force-exclude
-        files: ^services/(genai|email)/.*\.py$
+        files: ^services/genai/.*\.py$
       - id: prettier
         name: prettier --write (web-client)
         language: system
