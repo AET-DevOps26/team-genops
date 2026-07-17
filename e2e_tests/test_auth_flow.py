@@ -9,7 +9,7 @@ pieces; only this proves the cookies a real server sets are the cookies a real g
 import httpx
 import pytest
 
-from tests.conftest import BrowserSession, User, new_email
+from e2e_tests.conftest import BrowserSession, User, new_email
 
 ACCESS_COOKIE = "jr_access"
 REFRESH_COOKIE = "jr_refresh"

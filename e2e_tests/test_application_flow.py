@@ -9,7 +9,7 @@ by the application service have to line up for real.
 
 import httpx
 
-from tests.conftest import BrowserSession, User
+from e2e_tests.conftest import BrowserSession, User
 
 
 def _create(user: User, **overrides) -> httpx.Response:

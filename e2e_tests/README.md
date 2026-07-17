@@ -14,13 +14,13 @@ Bring the stack up first, from the repo root:
 
 ```sh
 docker compose up -d --wait     # postgres, redis, auth, application, document, gateway
-pytest tests/ -v
+pytest e2e_tests/ -v
 ```
 
 Point them somewhere else with `E2E_BASE_URL` (defaults to `http://localhost:8081`, the gateway):
 
 ```sh
-E2E_BASE_URL=https://jobready.example pytest tests/ -v
+E2E_BASE_URL=https://jobready.example pytest e2e_tests/ -v
 ```
 
 If the stack is not reachable, the suite **skips** rather than fails — a red suite should mean

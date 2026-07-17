@@ -86,7 +86,7 @@ jobs:
               - services/application/**
               - services/document/**
               - services/gateway/**
-              - tests/**
+              - e2e_tests/**
               - docker-compose.yml
 
       - name: Build java matrix
@@ -365,7 +365,7 @@ jobs:
           # Without this the suite would skip when the stack is down, and a skipped
           # suite reports green — a stack that failed to boot must fail the build.
           E2E_REQUIRE_STACK: "1"
-        run: uv run --with pytest --with httpx python -m pytest tests/ -v
+        run: uv run --with pytest --with httpx python -m pytest e2e_tests/ -v
 
       - name: Service logs on failure
         if: failure()
