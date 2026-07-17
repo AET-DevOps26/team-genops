@@ -60,8 +60,9 @@ All services are containerised and orchestrated locally with **Docker Compose** 
 ### Local setup
 
 ```sh
-cp .env.example .env      # fill in secrets
-pre-commit install        # one-time — enables the shared git hooks (auto-fix ruff/prettier, eslint, actionlint)
+cp .env.example .env              # fill in secrets
+./scripts/gen-jwt-keys.sh >> .env # one-time — auth REQUIRES JWT keys (no self-gen fallback; it refuses to start without them)
+pre-commit install                # one-time — enables the shared git hooks (auto-fix ruff/prettier, eslint, actionlint)
 docker compose up --build
 ```
 
