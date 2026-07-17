@@ -55,3 +55,16 @@ FEATURES.md
 DB_SCHEMAS.md
 dist
 deploy.md
+
+# Coverage artefacts
+.coverage
+.coverage.*
+htmlcov/
+coverage.xml
+
+# Tooling caches. Each of these tools also writes its own .gitignore inside the cache
+# directory, so this is belt-and-braces — it keeps the intent explicit and survives a
+# tool that stops doing that.
+**/.pytest_cache/
+**/.mypy_cache/
+**/.ruff_cache/

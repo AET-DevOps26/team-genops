@@ -21,7 +21,7 @@ declare -A SPRING_SERVICES=(
   [auth]="Auth"
   # [profile]="Profile"
   [application]="Applications"
-  # [email]="Email"
+  [email]="Email"
   [document]="Documents"
 )
 
