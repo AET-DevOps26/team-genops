@@ -36,9 +36,11 @@ export default function ChatPage() {
 
   // Hand-off from another page: a prepared assistant command (prefill), or a request to open
   // the interview tab (optionally with an application pre-selected for the start modal).
-  const nav = useLocation().state as
-    | { prefill?: string; tab?: Tab; presetApplicationId?: string }
-    | null;
+  const nav = useLocation().state as {
+    prefill?: string;
+    tab?: Tab;
+    presetApplicationId?: string;
+  } | null;
   const prefill = nav?.prefill;
 
   const { data: sessionsData, isLoading: sessionsLoading } =
@@ -46,7 +48,8 @@ export default function ChatPage() {
   const sessions = sessionsData?.sessions ?? [];
   const assistantSessions = sessions.filter((s) => !isInterview(s));
   const interviewSessions = sessions.filter(isInterview);
-  const visibleSessions = tab === "interview" ? interviewSessions : assistantSessions;
+  const visibleSessions =
+    tab === "interview" ? interviewSessions : assistantSessions;
 
   const activeSession = sessions.find((s) => s.id === activeSessionId);
   const interviewDone =
@@ -89,7 +92,14 @@ export default function ChatPage() {
         .then((s) => setActiveSessionId(s.id))
         .catch(() => {});
     }
-  }, [tab, sessionsData, sessionsLoading, activeSessionId, assistantSessions, createSession]);
+  }, [
+    tab,
+    sessionsData,
+    sessionsLoading,
+    activeSessionId,
+    assistantSessions,
+    createSession,
+  ]);
 
   // Sync message history when switching sessions
   useEffect(() => {
@@ -125,7 +135,9 @@ export default function ChatPage() {
       setShowStart(true);
       return;
     }
-    const session = await createSession({ session_type: "insight_chat" }).unwrap();
+    const session = await createSession({
+      session_type: "insight_chat",
+    }).unwrap();
     setActiveSessionId(session.id);
     setMessages([]);
   }
@@ -163,7 +175,10 @@ export default function ChatPage() {
       if (activeSessionId === sessionId) {
         setMessages((prev) => [
           ...prev,
-          { role: "assistant", content: "Something went wrong. Please try again." },
+          {
+            role: "assistant",
+            content: "Something went wrong. Please try again.",
+          },
         ]);
       }
     }
@@ -234,7 +249,9 @@ export default function ChatPage() {
               </button>
             )}
             {user?.email && (
-              <span className="tag text-faint hidden md:block">{user.email}</span>
+              <span className="tag text-faint hidden md:block">
+                {user.email}
+              </span>
             )}
           </div>
 
@@ -242,10 +259,12 @@ export default function ChatPage() {
           <div className="flex-1 space-y-4 overflow-y-auto px-6 py-4">
             {tab === "interview" && !activeSessionId && (
               <div className="flex h-full flex-col items-center justify-center gap-4 text-center">
-                <p className="text-sm font-medium text-fg">Practice makes ready</p>
+                <p className="text-sm font-medium text-fg">
+                  Practice makes ready
+                </p>
                 <p className="max-w-sm text-xs text-faint">
-                  Run a realistic interview tailored to one of your applications.
-                  You'll get a score and feedback at the end.
+                  Run a realistic interview tailored to one of your
+                  applications. You'll get a score and feedback at the end.
                 </p>
                 <button
                   onClick={() => {
@@ -272,7 +291,9 @@ export default function ChatPage() {
                 role={msg.role}
                 content={msg.content}
                 applicationId={
-                  tab === "interview" ? undefined : activeSession?.application_id
+                  tab === "interview"
+                    ? undefined
+                    : activeSession?.application_id
                 }
               />
             ))}
@@ -280,7 +301,9 @@ export default function ChatPage() {
             {sending && (
               <div className="flex justify-start">
                 <div className="rounded-2xl rounded-bl-sm bg-raised-2 px-4 py-3 text-sm text-dim">
-                  {tab === "interview" ? "The interviewer is thinking…" : "Thinking…"}
+                  {tab === "interview"
+                    ? "The interviewer is thinking…"
+                    : "Thinking…"}
                 </div>
               </div>
             )}

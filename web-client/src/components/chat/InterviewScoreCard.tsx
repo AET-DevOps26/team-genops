@@ -21,7 +21,9 @@ export function InterviewScoreCard({ result }: { result: InterviewResult }) {
           )}
         </div>
         <div className="text-right">
-          <span className={`font-display text-4xl font-semibold ${scoreTone(result.score)}`}>
+          <span
+            className={`font-display text-4xl font-semibold ${scoreTone(result.score)}`}
+          >
             {result.score}
           </span>
           <span className="text-faint text-sm">/100</span>
@@ -31,12 +33,15 @@ export function InterviewScoreCard({ result }: { result: InterviewResult }) {
       {result.ended_early && (
         <p className="mt-4 rounded-lg border border-interview/30 bg-interview/10 px-3 py-2 text-xs text-interview">
           You ended the interview early ({result.questions_answered} of{" "}
-          {result.questions_total} questions answered), which lowered your score.
+          {result.questions_total} questions answered), which lowered your
+          score.
         </p>
       )}
 
       {result.summary && (
-        <p className="mt-4 text-sm leading-relaxed text-dim">{result.summary}</p>
+        <p className="mt-4 text-sm leading-relaxed text-dim">
+          {result.summary}
+        </p>
       )}
 
       {result.competencies.length > 0 && (

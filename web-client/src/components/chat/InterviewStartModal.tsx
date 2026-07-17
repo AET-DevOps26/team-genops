@@ -21,10 +21,16 @@ interface Props {
  * profile, enforced server-side): applications without one are shown disabled, and any
  * server-side precondition failure (422) surfaces its message inline.
  */
-export function InterviewStartModal({ onClose, onStarted, presetApplicationId }: Props) {
+export function InterviewStartModal({
+  onClose,
+  onStarted,
+  presetApplicationId,
+}: Props) {
   const { data, isLoading } = useListApplicationsQuery();
   const [createSession, { isLoading: creating }] = useCreateSessionMutation();
-  const [selected, setSelected] = useState<string | null>(presetApplicationId ?? null);
+  const [selected, setSelected] = useState<string | null>(
+    presetApplicationId ?? null,
+  );
   const [error, setError] = useState<NormalizedError | null>(null);
 
   const applications = data?.items ?? [];
@@ -74,7 +80,9 @@ export function InterviewStartModal({ onClose, onStarted, presetApplicationId }:
           </div>
         )}
 
-        {isLoading && <p className="text-sm text-faint">Loading applications…</p>}
+        {isLoading && (
+          <p className="text-sm text-faint">Loading applications…</p>
+        )}
 
         {!isLoading && applications.length === 0 && (
           <p className="text-sm text-faint">
@@ -102,7 +110,9 @@ export function InterviewStartModal({ onClose, onStarted, presetApplicationId }:
                 <p className="text-sm font-medium text-fg">{app.job_title}</p>
                 <p className="text-xs text-faint">{app.company}</p>
                 {!hasJd && (
-                  <p className="mt-1 text-xs text-interview">No job description</p>
+                  <p className="mt-1 text-xs text-interview">
+                    No job description
+                  </p>
                 )}
               </button>
             );
