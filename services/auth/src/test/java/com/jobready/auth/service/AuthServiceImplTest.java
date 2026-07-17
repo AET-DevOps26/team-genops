@@ -163,10 +163,10 @@ class AuthServiceImplTest {
         when(userRepository.findByEmail("jane@example.com")).thenReturn(Optional.of(user("jane@example.com")));
         when(passwordEncoder.matches(any(), any())).thenReturn(false);
 
-        Throwable unknownEmail =
-                org.assertj.core.api.Assertions.catchThrowable(() -> service.login(new LoginRequest("nobody@example.com", "pw")));
-        Throwable wrongPassword =
-                org.assertj.core.api.Assertions.catchThrowable(() -> service.login(new LoginRequest("jane@example.com", "pw")));
+        Throwable unknownEmail = org.assertj.core.api.Assertions.catchThrowable(
+                () -> service.login(new LoginRequest("nobody@example.com", "pw")));
+        Throwable wrongPassword = org.assertj.core.api.Assertions.catchThrowable(
+                () -> service.login(new LoginRequest("jane@example.com", "pw")));
 
         assertThat(unknownEmail).isInstanceOf(InvalidCredentialsException.class);
         assertThat(wrongPassword).isInstanceOf(InvalidCredentialsException.class);
