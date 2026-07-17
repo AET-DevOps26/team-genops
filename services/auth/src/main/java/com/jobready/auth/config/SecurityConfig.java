@@ -3,8 +3,13 @@ package com.jobready.auth.config;
 import com.jobready.auth.controller.JwksController;
 import com.jobready.auth.generated.api.AuthApi;
 import jakarta.servlet.http.Cookie;
+import java.util.List;
+import java.util.Set;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
+import org.springframework.boot.security.autoconfigure.web.servlet.SecurityFilterProperties;
+import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.Customizer;
@@ -84,5 +89,20 @@ public class SecurityConfig {
     @Bean
     public PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();
+    }
+
+    /**
+     * CSRF origin check (see {@link OriginValidationFilter}). Registered ahead of
+     * Spring Security so forged cross-origin requests are rejected before any
+     * authentication work runs. Spring's token-based CSRF protection stays disabled
+     * on purpose — this filter plus SameSite=Strict cookies is the CSRF posture.
+     */
+    @Bean
+    public FilterRegistrationBean<OriginValidationFilter> originValidationFilter(
+            @Value("${auth.security.allowed-origins}") List<String> allowedOrigins) {
+        FilterRegistrationBean<OriginValidationFilter> registration =
+                new FilterRegistrationBean<>(new OriginValidationFilter(Set.copyOf(allowedOrigins)));
+        registration.setOrder(SecurityFilterProperties.DEFAULT_FILTER_ORDER - 1);
+        return registration;
     }
 }
