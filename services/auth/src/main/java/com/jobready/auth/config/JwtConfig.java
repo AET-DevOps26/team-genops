@@ -7,17 +7,20 @@ import com.nimbusds.jose.jwk.source.JWKSource;
 import com.nimbusds.jose.proc.SecurityContext;
 import java.io.ByteArrayInputStream;
 import java.nio.charset.StandardCharsets;
-import java.security.KeyPair;
-import java.security.KeyPairGenerator;
 import java.security.interfaces.RSAPrivateKey;
 import java.security.interfaces.RSAPublicKey;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.converter.RsaKeyConverters;
+import org.springframework.security.oauth2.core.DelegatingOAuth2TokenValidator;
+import org.springframework.security.oauth2.jwt.JwtClaimNames;
+import org.springframework.security.oauth2.jwt.JwtClaimValidator;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.oauth2.jwt.JwtEncoder;
+import org.springframework.security.oauth2.jwt.JwtValidators;
 import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 import org.springframework.security.oauth2.jwt.NimbusJwtEncoder;
 
@@ -29,15 +32,13 @@ public class JwtConfig {
     private final JwtProperties props;
 
     @Bean
-    public RSAKey rsaKey() throws Exception {
-        if (props.getPrivateKey() == null || props.getPrivateKey().isBlank()) {
-            KeyPairGenerator gen = KeyPairGenerator.getInstance("RSA");
-            gen.initialize(2048);
-            KeyPair keyPair = gen.generateKeyPair();
-            return new RSAKey.Builder((RSAPublicKey) keyPair.getPublic())
-                    .privateKey((RSAPrivateKey) keyPair.getPrivate())
-                    .keyID(props.getKeyId())
-                    .build();
+    public RSAKey rsaKey() {
+        // No fallback by design: a self-generated keypair invalidates every token
+        // on restart and breaks multi-replica JWKS.
+        if (isBlank(props.getPrivateKey()) || isBlank(props.getPublicKey())) {
+            throw new IllegalStateException(
+                "JWT signing keys are required: set JWT_PRIVATE_KEY (PKCS#8 PEM) and JWT_PUBLIC_KEY "
+                    + "(X.509 PEM).");
         }
         RSAPrivateKey privateKey = RsaKeyConverters.pkcs8()
                 .convert(new ByteArrayInputStream(
@@ -49,6 +50,10 @@ public class JwtConfig {
                 .privateKey(privateKey)
                 .keyID(props.getKeyId())
                 .build();
+    }
+
+    private static boolean isBlank(String value) {
+        return value == null || value.isBlank();
     }
 
     @Bean
@@ -63,6 +68,14 @@ public class JwtConfig {
 
     @Bean
     public JwtDecoder jwtDecoder(RSAKey rsaKey) throws Exception {
-        return NimbusJwtDecoder.withPublicKey(rsaKey.toRSAPublicKey()).build();
+        NimbusJwtDecoder decoder =
+                NimbusJwtDecoder.withPublicKey(rsaKey.toRSAPublicKey()).build();
+        // Enforce iss + aud on top of the default signature/expiry checks, so a
+        // token minted for another system never authenticates here.
+        decoder.setJwtValidator(new DelegatingOAuth2TokenValidator<>(
+                JwtValidators.createDefaultWithIssuer(props.getIssuer()),
+                new JwtClaimValidator<List<String>>(
+                        JwtClaimNames.AUD, aud -> aud != null && aud.contains(props.getAudience()))));
+        return decoder;
     }
 }

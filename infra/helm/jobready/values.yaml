@@ -77,9 +77,9 @@ auth:
   port: 8080
 
 
-  # If left blank, auth self-generates an EPHEMERAL keypair at startup —
-  # tokens are invalidated on every restart and differ across replicas.
-  # Set this for stable sessions / >1 replica.
+  # Secret holding JWT_PRIVATE_KEY + JWT_PUBLIC_KEY. REQUIRED — auth fails
+  # fast at startup if the keys are blank (no self-generated fallback).
+  # Generate values with scripts/gen-jwt-keys.sh.
   jwtSecret: auth-jwt
 
   # Session cookies use Secure=true → browsers only send them over HTTPS.
