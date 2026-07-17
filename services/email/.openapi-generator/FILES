@@ -17,6 +17,8 @@ src/main/java/com/jobready/email/generated/modelDto/GeneratedDocument.java
 src/main/java/com/jobready/email/generated/modelDto/GeneratedDocumentList.java
 src/main/java/com/jobready/email/generated/modelDto/GeneratedDocumentType.java
 src/main/java/com/jobready/email/generated/modelDto/GmailAuthorizeResponse.java
+src/main/java/com/jobready/email/generated/modelDto/InterviewCompetency.java
+src/main/java/com/jobready/email/generated/modelDto/InterviewResult.java
 src/main/java/com/jobready/email/generated/modelDto/JobApplication.java
 src/main/java/com/jobready/email/generated/modelDto/Language.java
 src/main/java/com/jobready/email/generated/modelDto/LanguageProficiency.java

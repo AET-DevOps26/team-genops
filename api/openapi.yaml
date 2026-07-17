@@ -1414,8 +1414,60 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+        '409':
+          description: The interview has already ended (mock_interview sessions only)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
         '422':
           description: Validation error (e.g. message exceeds 8000 chars)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/v1/chat/sessions/{session_id}/end-interview:
+    post:
+      tags: [Chat]
+      summary: End a mock interview early and score it
+      description: |
+        Ends an in-progress mock_interview before the final question and returns the score
+        card. Ending early is penalised in proportion to how many questions went unanswered,
+        and the result flags it (`ended_early`) so the UI can tell the user their score was
+        lowered. Only valid for a mock_interview that has not already ended.
+      operationId: endInterview
+      security:
+        - CookieAuth: []
+        - BearerAuth: []
+      parameters:
+        - name: session_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Interview ended and scored
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InterviewResult'
+        '401':
+          description: Missing or expired access token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Interview not found, not owned, or not a mock_interview
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: The interview has already ended
           content:
             application/json:
               schema:
@@ -2038,9 +2090,17 @@ components:
       properties:
         session_type:
           type: string
-          enum: [insight_chat, cover_letter_chat, fit_analysis_chat]
+          enum: [insight_chat, cover_letter_chat, fit_analysis_chat, mock_interview]
           default: insight_chat
           description: Type of chat session
+        application_id:
+          type: ['string', 'null']
+          format: uuid
+          description: >-
+            Required for a mock_interview (the interview is tailored to one job application,
+            which must have a job description; the user's profile must also be complete).
+            Optional for other session types, where an application is bound later on first
+            reference. A 422 is returned if a mock_interview's preconditions are not met.
 
     SessionResponse:
       type: object
@@ -2062,13 +2122,20 @@ components:
             where a generated cover letter or resume would be saved.
         session_type:
           type: string
-          enum: [insight_chat, cover_letter_chat, fit_analysis_chat]
+          enum: [insight_chat, cover_letter_chat, fit_analysis_chat, mock_interview]
         summary:
           type: ['string', 'null']
           description: AI-generated memory summary, set after enough messages accumulate
         first_message:
           type: ['string', 'null']
           description: First user message in the session — used as the display title in the UI
+        interview_status:
+          type: ['string', 'null']
+          enum: [in_progress, completed, null]
+          description: Lifecycle of a mock interview; null for every other session type
+        interview_score:
+          type: ['integer', 'null']
+          description: Final mock-interview score (0-100), set once the interview is completed
         created_at:
           type: string
           format: date-time
@@ -2122,3 +2189,54 @@ components:
       properties:
         response:
           type: string
+        interview:
+          description: >-
+            Present only on the turn that ends a mock interview (the arc's last answer) — the
+            final score card. Null on every other turn.
+          oneOf:
+            - $ref: '#/components/schemas/InterviewResult'
+            - type: 'null'
+
+    InterviewResult:
+      type: object
+      description: Structured outcome of a finished mock interview — the score card.
+      required: [score]
+      properties:
+        score:
+          type: integer
+          description: Final score 0-100, after any early-exit penalty
+        verdict:
+          type: ['string', 'null']
+          description: One short phrase, e.g. "Strong hire signal"
+        summary:
+          type: ['string', 'null']
+        competencies:
+          type: array
+          items:
+            $ref: '#/components/schemas/InterviewCompetency'
+        strengths:
+          type: array
+          items:
+            type: string
+        improvements:
+          type: array
+          items:
+            type: string
+        ended_early:
+          type: boolean
+          description: True if the candidate ended before the final question (which lowers the score)
+        questions_answered:
+          type: integer
+        questions_total:
+          type: integer
+
+    InterviewCompetency:
+      type: object
+      required: [name, score]
+      properties:
+        name:
+          type: string
+        score:
+          type: integer
+        comment:
+          type: ['string', 'null']
