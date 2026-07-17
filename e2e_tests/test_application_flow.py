@@ -82,7 +82,12 @@ def test_update_persists(user: User):
 
     updated = user.client.put(
         f"/api/v1/applications/{application_id}",
-        json={"company": "Zalando", "job_title": "Staff Engineer", "stage": "interview"},
+        json={
+            "company": "Zalando",
+            "job_title": "Staff Engineer",
+            "job_description": "Lead backend systems.",
+            "stage": "interview",
+        },
     )
 
     assert updated.status_code == 200
