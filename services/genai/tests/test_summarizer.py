@@ -18,7 +18,7 @@ class _Response:
 
 def _fake_llm(monkeypatch: pytest.MonkeyPatch, content: str) -> list:
     """Replace the module-level llm with a runnable, recording each invocation."""
-    import src.services.chat.utils.summarizer as summarizer
+    from src.services.chat.utils import summarizer
 
     calls: list = []
 

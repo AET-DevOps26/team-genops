@@ -68,7 +68,7 @@ def _request(cookies: dict | None = None, headers: dict | None = None) -> Any:
 @pytest.fixture(autouse=True)
 def _reset_jwks_cache():
     """The JWKS cache is module state; leaking it across tests hides refetch bugs."""
-    import src.auth as auth
+    from src import auth
 
     auth._jwks_cache = None
     auth._jwks_cache_time = 0
@@ -216,7 +216,7 @@ async def test_stale_cache_is_refreshed_once_after_key_rotation(mock_http):
     The signing key rotating must not require a restart: the first decode fails against
     the cached JWKS, and the retry re-fetches and succeeds.
     """
-    import src.auth as auth
+    from src import auth
 
     rotated_private, rotated_public = _keypair()
     rotated_jwks = _jwks_for(rotated_public, kid="k2")
@@ -236,7 +236,7 @@ async def test_stale_cache_is_refreshed_once_after_key_rotation(mock_http):
 
 @pytest.mark.asyncio
 async def test_expired_cache_triggers_a_refetch(mock_http):
-    import src.auth as auth
+    from src import auth
 
     auth._jwks_cache = JWKS
     auth._jwks_cache_time = time.time() - (auth._JWKS_CACHE_TTL + 1)

@@ -90,7 +90,8 @@ def test_update_persists(user: User):
 def test_delete_removes_it(user: User):
     application_id = _create(user).json()["id"]
 
-    assert user.client.delete(f"/api/v1/applications/{application_id}").status_code in (200, 204)
+    delete_response = user.client.delete(f"/api/v1/applications/{application_id}")
+    assert delete_response.status_code in (200, 204)
     assert user.client.get(f"/api/v1/applications/{application_id}").status_code == 404
 
 
