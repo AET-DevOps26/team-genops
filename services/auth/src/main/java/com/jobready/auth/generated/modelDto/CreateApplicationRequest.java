@@ -4,6 +4,8 @@ import java.net.URI;
 import java.util.Objects;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonValue;
+import com.jobready.auth.generated.modelDto.ApplicationStage;
 import org.springframework.lang.Nullable;
 import java.time.OffsetDateTime;
 import jakarta.validation.Valid;
@@ -25,7 +27,9 @@ public class CreateApplicationRequest {
 
   private String jobTitle;
 
-  private @Nullable String jobDescription;
+  private String jobDescription;
+
+  private @Nullable ApplicationStage stage;
 
   private @Nullable String jobUrl;
 
@@ -42,9 +46,10 @@ public class CreateApplicationRequest {
   /**
    * Constructor with only required parameters
    */
-  public CreateApplicationRequest(String company, String jobTitle) {
+  public CreateApplicationRequest(String company, String jobTitle, String jobDescription) {
     this.company = company;
     this.jobTitle = jobTitle;
+    this.jobDescription = jobDescription;
   }
 
   public CreateApplicationRequest company(String company) {
@@ -89,7 +94,7 @@ public class CreateApplicationRequest {
     this.jobTitle = jobTitle;
   }
 
-  public CreateApplicationRequest jobDescription(@Nullable String jobDescription) {
+  public CreateApplicationRequest jobDescription(String jobDescription) {
     this.jobDescription = jobDescription;
     return this;
   }
@@ -98,16 +103,37 @@ public class CreateApplicationRequest {
    * Get jobDescription
    * @return jobDescription
    */
-  
-  @Schema(name = "job_description", requiredMode = Schema.RequiredMode.NOT_REQUIRED)
+  @NotNull @Size(min = 1) 
+  @Schema(name = "job_description", requiredMode = Schema.RequiredMode.REQUIRED)
   @JsonProperty("job_description")
-  public @Nullable String getJobDescription() {
+  public String getJobDescription() {
     return jobDescription;
   }
 
   @JsonProperty("job_description")
-  public void setJobDescription(@Nullable String jobDescription) {
+  public void setJobDescription(String jobDescription) {
     this.jobDescription = jobDescription;
+  }
+
+  public CreateApplicationRequest stage(@Nullable ApplicationStage stage) {
+    this.stage = stage;
+    return this;
+  }
+
+  /**
+   * Stage to create the application in. Defaults to `draft` when omitted.
+   * @return stage
+   */
+  @Valid 
+  @Schema(name = "stage", description = "Stage to create the application in. Defaults to `draft` when omitted.", requiredMode = Schema.RequiredMode.NOT_REQUIRED)
+  @JsonProperty("stage")
+  public @Nullable ApplicationStage getStage() {
+    return stage;
+  }
+
+  @JsonProperty("stage")
+  public void setStage(@Nullable ApplicationStage stage) {
+    this.stage = stage;
   }
 
   public CreateApplicationRequest jobUrl(@Nullable String jobUrl) {
@@ -206,6 +232,7 @@ public class CreateApplicationRequest {
     return Objects.equals(this.company, createApplicationRequest.company) &&
         Objects.equals(this.jobTitle, createApplicationRequest.jobTitle) &&
         Objects.equals(this.jobDescription, createApplicationRequest.jobDescription) &&
+        Objects.equals(this.stage, createApplicationRequest.stage) &&
         Objects.equals(this.jobUrl, createApplicationRequest.jobUrl) &&
         Objects.equals(this.companyWebsite, createApplicationRequest.companyWebsite) &&
         Objects.equals(this.linkedinUrl, createApplicationRequest.linkedinUrl) &&
@@ -214,7 +241,7 @@ public class CreateApplicationRequest {
 
   @Override
   public int hashCode() {
-    return Objects.hash(company, jobTitle, jobDescription, jobUrl, companyWebsite, linkedinUrl, notes);
+    return Objects.hash(company, jobTitle, jobDescription, stage, jobUrl, companyWebsite, linkedinUrl, notes);
   }
 
   @Override
@@ -224,6 +251,7 @@ public class CreateApplicationRequest {
     sb.append("    company: ").append(toIndentedString(company)).append("\n");
     sb.append("    jobTitle: ").append(toIndentedString(jobTitle)).append("\n");
     sb.append("    jobDescription: ").append(toIndentedString(jobDescription)).append("\n");
+    sb.append("    stage: ").append(toIndentedString(stage)).append("\n");
     sb.append("    jobUrl: ").append(toIndentedString(jobUrl)).append("\n");
     sb.append("    companyWebsite: ").append(toIndentedString(companyWebsite)).append("\n");
     sb.append("    linkedinUrl: ").append(toIndentedString(linkedinUrl)).append("\n");

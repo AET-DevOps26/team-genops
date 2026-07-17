@@ -1154,9 +1154,20 @@ export interface operations {
                     "application/json": components["schemas"]["Error"];
                 };
             };
-            /** @description Validation error (e.g. password too short) */
+            /** @description Validation error (e.g. password too short or missing a required character class) */
             422: {
                 headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Too many registration attempts from this address; retry after the period in the Retry-After header */
+            429: {
+                headers: {
+                    /** @description Seconds until registration may be retried */
+                    "Retry-After"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -1191,6 +1202,17 @@ export interface operations {
             /** @description Invalid credentials */
             401: {
                 headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Account temporarily locked after too many failed attempts; retry after the period in the Retry-After header */
+            429: {
+                headers: {
+                    /** @description Seconds until login may be retried */
+                    "Retry-After"?: number;
                     [name: string]: unknown;
                 };
                 content: {
