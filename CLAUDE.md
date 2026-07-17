@@ -17,14 +17,14 @@ The system is composed of five services in a single mono-repo:
 | `auth` | Spring Boot | Identity — credentials, JWT issuance | 8080 |
 | `application` | Spring Boot | Job application tracking + recommendations | 8082 |
 | `document` | Spring Boot | Candidate profile + generated documents (cover letters, resumes) | 8083 |
-| `email` | Python / FastAPI | Email integration (Gmail/Outlook adapter) | 8001 |
+| `email` | Spring Boot | Email integration (Gmail/Outlook adapter) | 8001 |
 | `genai` | Python / FastAPI | GenAI generation — LLM chat agent (persists chat sessions, RAG, user memory) | 8000 |
 
 **Edge/support components:** a `gateway` (Spring Cloud Gateway) fronts the services in-cluster (JWT authentication + `/api` routing), and **Redis** backs auth session/refresh handling. Both run in Docker Compose and the Helm chart alongside PostgreSQL.
 
 One shared PostgreSQL instance with schema-per-service isolation (each service has its own DB user with access only to its schema). Each service owns its schema migrations in `src/main/resources/db/migration/` (Spring Boot/Flyway) or `alembic/versions/` (Python services — raw `.sql` files applied on startup by a small version-tracked runner).
 
-> **Note:** `email` was moved from Spring Boot to Python/FastAPI. OAuth2 integration with Gmail and Outlook is significantly easier with Python libraries (`google-auth-oauthlib`, `msal`). The project still meets the requirement of at least 3 Spring Boot microservices (`auth`, `application`, `document`).
+> **Note:** `email` was reimplemented in Spring Boot (it was briefly Python/FastAPI) to satisfy the course language requirements — only `genai` is allowed to be Python. Gmail OAuth2 is done over plain REST (Spring `RestClient` against Google's token/userinfo/Gmail endpoints), with tokens encrypted at rest via an AES-GCM JPA converter.
 
 **Frontend:** React + Vite + TypeScript + Tailwind CSS (`web-client/`, port 5173)
 
@@ -120,10 +120,10 @@ Run from inside the service directory (e.g. `services/auth`):
 
 Each microservice exposes OpenAPI docs at `/swagger-ui.html` and `/v3/api-docs`.
 
-### Python services (genai + email)
+### Python service (genai)
 
 ```sh
-cd services/genai   # or services/email
+cd services/genai
 pip install -r requirements.txt
 uvicorn src.main:app --reload --port 8000  # start locally
 pytest                                      # run tests
@@ -169,7 +169,7 @@ This regenerates Java DTOs for Spring Boot services and TypeScript types for the
 │   ├── auth/            # Spring Boot — Identity
 │   ├── application/     # Spring Boot — Job application tracking
 │   ├── document/        # Spring Boot — Profile & document storage
-│   ├── email/           # Python FastAPI — Email integration (Gmail/Outlook)
+│   ├── email/           # Spring Boot — Email integration (Gmail/Outlook)
 │   └── genai/           # Python FastAPI — GenAI generation
 ├── api/
 │   └── openapi.yaml     # Single source of truth for all REST contracts
@@ -217,10 +217,10 @@ Skill files live in `.claude/skills/<name>/SKILL.md`.
 
 Service implementation status:
 - `auth` — ✅ functional (Spring Boot): register/login/refresh/logout/me, RS256 JWT issuer + JWKS, httpOnly cookies, Redis-backed sessions.
-- `application` — ✅ functional (Spring Boot): applications CRUD with stage filter + pagination + optional company website/LinkedIn fields, per-stage `/summary` endpoint, stored per-application `Recommendation` items (persistence only), unit + web-layer security tests, verify-only JWT (owner from `sub`). Mandatory fields: company, job title, **job description**. Stage lifecycle starts at **`draft`** (default on create; an explicit `stage` in the create request overrides it) — pre-`draft` databases need the one-off SQL in `services/application/src/main/resources/db/migration/README.md`.
-- `email` — ✅ functional (Python/FastAPI): Gmail OAuth2 connect/disconnect, background poller, JWT auth, tests.
-- `genai` — ✅ functional (Python/FastAPI): LangGraph chat agent with sessions, pgvector RAG over past sessions, background summarization, JWKS auth, Langfuse tracing. Delivers cover-letter/resume/fit via chat commands. `POST /api/v1/job-postings/extract` fetches a public job-posting URL (SSRF-guarded) and extracts company/title/description for form autofill. Gaps: cloud-only LLM (OpenRouter — no local model yet), thin tests.
-- `web-client` — ✅ product shell (React + Vite + RTK Query): auth, dashboard with pipeline, applications board with URL-autofill create form, detail drawer + generated-document tabs, profile editor, onboarding wizard, assistant chat. Jobs page is a static placeholder. No client tests yet.
+- `application` — ✅ functional (Spring Boot): applications CRUD with stage filter + pagination + optional company website/LinkedIn fields, per-stage `/summary` endpoint, stored per-application `Recommendation` items (persistence only), unit + web-layer security tests, verify-only JWT (owner from `sub`).
+- `email` — ✅ functional (Spring Boot): Gmail OAuth2 connect/disconnect (signed single-use state, tokens AES-GCM-encrypted at rest), `@Scheduled` background poller, verify-only JWT (owner from `sub`), Flyway schema, unit + web-layer security tests. Single-instance assumptions (in-process nonce store + poller) — needs Redis for multi-replica.
+- `genai` — ✅ functional (Python/FastAPI): LangGraph chat agent with sessions, pgvector RAG over past sessions, background summarization, JWKS auth, Langfuse tracing. Delivers cover-letter/resume/fit via chat commands. Gaps: cloud-only LLM (OpenRouter — no local model yet), thin tests.
+- `web-client` — ✅ product shell (React + Vite + RTK Query): auth, dashboard with pipeline, applications board with detail drawer + generated-document tabs, profile editor, onboarding wizard, assistant chat. Jobs page is a static placeholder. No client tests yet.
 - `gateway` — ✅ Spring Cloud Gateway (JWT auth + routing), in compose/Helm.
 - `document` — ✅ functional (Spring Boot): profile aggregate + sub-resource CRUD (work experiences, educations, skills, languages), generated-document storage (cover letters/resumes per application), Flyway schema (`ddl-auto=validate`), verify-only JWT (owner from `sub`); port 8083 local.
 - **Monitoring** — ⛔ Prometheus/Grafana metrics pending (only `genai` emits metrics today); LLM observability via Langfuse is in place.
@@ -229,7 +229,7 @@ PostgreSQL schemas designed and migration files written for all services:
 - `auth` — schema auto-generated by Hibernate (`ddl-auto=update`) from `@Entity` classes
 - `document` — Flyway migration at `src/main/resources/db/migration/`
 - `application` — **currently** uses Hibernate `ddl-auto=update` (schema `application`, `create_namespaces=true`), a deliberate temporary deviation from the Flyway approach the other Spring services use. The SQL under `db/migration/` is unexecuted reference documentation kept in sync with the entities by hand (`applications` + `recommendations` tables). Revisit before this service stabilises: either move to Flyway like `document`/`auth`-adjacent services or keep this note current.
-- `email` — raw `.sql` migrations at `alembic/versions/`, applied on startup by `src/migrate.py`
+- `email` — Flyway migration at `src/main/resources/db/migration/` (`ddl-auto=validate`)
 - `genai` — Alembic migration at `alembic/versions/`
 
-`docker-compose.yml` runs `postgres` + `pgadmin` (dev) + `redis` + `web-client` + `auth` + `application` + `document` + `genai` (`email` currently commented out; `gateway` not yet added). A Helm chart at `infra/helm/jobready/` deploys the system to Kubernetes — Azure AKS (auto on merge to main) and TUM Rancher (release-gated). LLM observability is in place via **Langfuse** — self-hosted locally under `monitoring/langfuse/` (opt-in `monitoring` compose profile) and Langfuse Cloud for deployed envs (wired through the Helm chart + Ansible vault). Prometheus/Grafana metrics config (dashboards/alerts) is still pending — see the readiness plan.
+`docker-compose.yml` runs `postgres` + `pgadmin` (dev) + `redis` + `web-client` + `auth` + `application` + `document` + `email` + `genai` (`gateway` not yet added). A Helm chart at `infra/helm/jobready/` deploys the system to Kubernetes — Azure AKS (auto on merge to main) and TUM Rancher (release-gated). LLM observability is in place via **Langfuse** — self-hosted locally under `monitoring/langfuse/` (opt-in `monitoring` compose profile) and Langfuse Cloud for deployed envs (wired through the Helm chart + Ansible vault). Prometheus/Grafana metrics config (dashboards/alerts) is still pending — see the readiness plan.
