@@ -86,12 +86,13 @@ jobs:
           if [ "${{ steps.filter.outputs.application }}" = "true" ]; then services+=('"application"'); fi
           if [ "${{ steps.filter.outputs.document }}" = "true" ]; then services+=('"document"'); fi
           if [ "${{ steps.filter.outputs.gateway }}" = "true" ]; then services+=('"gateway"'); fi
+          if [ "${{ steps.filter.outputs.email }}" = "true" ]; then services+=('"email"'); fi
           matrix="[$(IFS=,; echo "${services[*]}")]"
           echo "matrix=$matrix" >> "$GITHUB_OUTPUT"
           echo "java matrix: $matrix"
 
   # One leg per changed Spring service. Postgres is provided to every leg —
-  # auth/application/document run their test suites against it; gateway
+  # auth/application/document/email run their test suites against it; gateway
   # simply ignores it (cheaper than templating the container per leg).
   java:
     name: java (${{ matrix.service }})
@@ -139,41 +140,6 @@ jobs:
           SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5432/jobready
           SPRING_DATASOURCE_USERNAME: jobready
           SPRING_DATASOURCE_PASSWORD: jobready
-
-  email:
-    needs: changes
-    if: needs.changes.outputs.email == 'true'
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    defaults:
-      run:
-        working-directory: services/email
-    steps:
-      - uses: actions/checkout@v7
-        with:
-          persist-credentials: false
-
-      - name: Set up Python 3.12
-        uses: actions/setup-python@v6
-        with:
-          python-version: "3.12"
-          cache: "pip"
-          cache-dependency-path: services/email/requirements.txt
-
-      - name: Install dependencies
-        run: pip install -r requirements.txt
-
-      - name: Lint (Ruff)
-        run: ruff check .
-
-      - name: Format check (Ruff)
-        run: ruff format --check .
-
-      - name: Typecheck (mypy)
-        run: mypy src/ tests/
-
-      - name: Test
-        run: pytest
 
   genai:
     needs: changes
@@ -307,7 +273,7 @@ jobs:
   # load-bearing: without it a failed dependency would SKIP this job, and
   # skipped counts as passing — a gate must always run to be a gate.
   ci-ok:
-    needs: [changes, java, email, genai, web-client, openapi, infra-lint]
+    needs: [changes, java, genai, web-client, openapi, infra-lint]
     if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 5

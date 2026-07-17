@@ -1,20 +1,14 @@
-FROM python:3.12-slim
-
-RUN addgroup --system app && adduser --system --ingroup app app
-
+FROM maven:3.9-eclipse-temurin-21 AS build
 WORKDIR /app
-
-# Install dependencies first for better layer caching.
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
-
-# Application code and SQL migrations (applied on startup by src/migrate.py).
+COPY pom.xml .
+RUN mvn dependency:go-offline -q
 COPY src ./src
-COPY alembic ./alembic
-RUN chown -R app:app /app
+RUN mvn package -DskipTests -Dcheckstyle.skip=true -Dspotless.check.skip=true -q
 
-USER app
-
-EXPOSE 8001
-
-CMD ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8001"]
+FROM eclipse-temurin:21-jre
+WORKDIR /app
+RUN useradd --system --create-home --uid 10001 appuser
+COPY --from=build --chown=10001:10001 /app/target/*.jar app.jar
+USER appuser
+EXPOSE 8080
+ENTRYPOINT ["java", "-jar", "app.jar"]
