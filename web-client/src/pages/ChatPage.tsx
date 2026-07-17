@@ -4,40 +4,75 @@ import { useAppSelector } from "~/store/hooks";
 import { SessionList } from "~/components/chat/SessionList";
 import { MessageBubble } from "~/components/chat/MessageBubble";
 import { ChatInput } from "~/components/chat/ChatInput";
+import { InterviewScoreCard } from "~/components/chat/InterviewScoreCard";
+import { InterviewStartModal } from "~/components/chat/InterviewStartModal";
 import {
   useCreateSessionMutation,
   useDeleteSessionMutation,
+  useEndInterviewMutation,
   useGetMessagesQuery,
   useGetSessionsQuery,
   useSendMessageMutation,
+  type InterviewResult,
   type Message,
+  type Session,
 } from "~/services/chat/chatApi";
 
+type Tab = "assistant" | "interview";
+
+const isInterview = (s: Session) => s.session_type === "mock_interview";
+
 export default function ChatPage() {
+  const [tab, setTab] = useState<Tab>("assistant");
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
+  // The live score card for the active interview — set when it finishes or is ended early.
+  const [result, setResult] = useState<InterviewResult | null>(null);
+  const [showStart, setShowStart] = useState(false);
+  const [presetAppId, setPresetAppId] = useState<string | undefined>();
   const bottomRef = useRef<HTMLDivElement>(null);
   const bootstrapped = useRef(false);
   const user = useAppSelector((s) => s.auth.user);
-  // An application page can hand off a prepared command (e.g. "/cover_letter …
-  // application id: <uuid>") via router state — it lands in the input, the user sends it.
-  const prefill = (useLocation().state as { prefill?: string } | null)?.prefill;
+
+  // Hand-off from another page: a prepared assistant command (prefill), or a request to open
+  // the interview tab (optionally with an application pre-selected for the start modal).
+  const nav = useLocation().state as
+    | { prefill?: string; tab?: Tab; presetApplicationId?: string }
+    | null;
+  const prefill = nav?.prefill;
 
   const { data: sessionsData, isLoading: sessionsLoading } =
     useGetSessionsQuery();
-  const activeSession = sessionsData?.sessions.find(
-    (s) => s.id === activeSessionId,
-  );
+  const sessions = sessionsData?.sessions ?? [];
+  const assistantSessions = sessions.filter((s) => !isInterview(s));
+  const interviewSessions = sessions.filter(isInterview);
+  const visibleSessions = tab === "interview" ? interviewSessions : assistantSessions;
+
+  const activeSession = sessions.find((s) => s.id === activeSessionId);
+  const interviewDone =
+    tab === "interview" && activeSession?.interview_status === "completed";
+
   const { data: historyData } = useGetMessagesQuery(activeSessionId ?? "", {
     skip: !activeSessionId,
   });
   const [createSession] = useCreateSessionMutation();
   const [deleteSession] = useDeleteSessionMutation();
   const [sendMessage, { isLoading: sending }] = useSendMessageMutation();
+  const [endInterview, { isLoading: ending }] = useEndInterviewMutation();
 
-  // Auto-select the latest session, or create one, so the input is ready immediately
+  // Open straight into the interview tab when routed there (e.g. "Practice interview").
+  useEffect(() => {
+    if (nav?.tab !== "interview") return;
+    setTab("interview");
+    setPresetAppId(nav.presetApplicationId);
+    setShowStart(true);
+  }, [nav?.tab, nav?.presetApplicationId]);
+
+  // On the assistant tab, auto-select the latest chat or create one so the input is ready.
+  // The interview tab never auto-creates — an interview needs an application chosen first.
   useEffect(() => {
     if (
+      tab !== "assistant" ||
       sessionsLoading ||
       !sessionsData ||
       activeSessionId ||
@@ -46,16 +81,15 @@ export default function ChatPage() {
       return;
     bootstrapped.current = true;
 
-    const sessions = sessionsData.sessions;
-    if (sessions.length > 0) {
-      setActiveSessionId(sessions[0].id);
+    if (assistantSessions.length > 0) {
+      setActiveSessionId(assistantSessions[0].id);
     } else {
       createSession({ session_type: "insight_chat" })
         .unwrap()
         .then((s) => setActiveSessionId(s.id))
         .catch(() => {});
     }
-  }, [sessionsData, sessionsLoading, activeSessionId, createSession]);
+  }, [tab, sessionsData, sessionsLoading, activeSessionId, assistantSessions, createSession]);
 
   // Sync message history when switching sessions
   useEffect(() => {
@@ -65,164 +99,228 @@ export default function ChatPage() {
     );
   }, [historyData]);
 
-  // Auto-scroll on new messages
+  // Auto-scroll on new messages / a new score card
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+  }, [messages, result]);
+
+  function switchTab(next: Tab) {
+    if (next === tab) return;
+    setTab(next);
+    setResult(null);
+    setMessages([]);
+    const list = next === "interview" ? interviewSessions : assistantSessions;
+    setActiveSessionId(list[0]?.id ?? null);
+  }
+
+  function selectSession(id: string) {
+    setMessages([]);
+    setResult(null);
+    setActiveSessionId(id);
+  }
 
   async function handleNewSession() {
-    const session = await createSession({
-      session_type: "insight_chat",
-    }).unwrap();
+    if (tab === "interview") {
+      setPresetAppId(undefined);
+      setShowStart(true);
+      return;
+    }
+    const session = await createSession({ session_type: "insight_chat" }).unwrap();
     setActiveSessionId(session.id);
     setMessages([]);
   }
 
-  function handleSelectSession(id: string) {
+  function handleInterviewStarted(session: Session) {
+    setShowStart(false);
+    setResult(null);
     setMessages([]);
-    setActiveSessionId(id);
+    setActiveSessionId(session.id);
   }
 
   async function handleDeleteSession(id: string) {
     await deleteSession(id).unwrap();
     if (id !== activeSessionId) return;
-
-    // Deleted the active session — prevent bootstrap effect from reselecting stale data
-    // by resetting the bootstrap flag so it waits for fresh data after invalidation
     bootstrapped.current = false;
     setMessages([]);
+    setResult(null);
     setActiveSessionId(null);
-
-    // The bootstrap effect will run again after RTK Query invalidates and refetches sessions,
-    // selecting the first available session or creating a new one from fresh data
   }
 
   async function handleSend(message: string) {
     if (!activeSessionId) return;
-
-    // Capture session id before async call to ensure late-arriving responses
-    // don't get appended to the wrong chat if user switches sessions mid-flight
     const sessionId = activeSessionId;
-
     setMessages((prev) => [...prev, { role: "user", content: message }]);
 
     try {
-      const result = await sendMessage({ sessionId, message }).unwrap();
-      // Only append if user is still viewing the same session
-      if (activeSessionId === sessionId) {
-        setMessages((prev) => [
-          ...prev,
-          { role: "assistant", content: result.response },
-        ]);
-      }
+      const res = await sendMessage({ sessionId, message }).unwrap();
+      if (activeSessionId !== sessionId) return;
+      setMessages((prev) => [
+        ...prev,
+        { role: "assistant", content: res.response },
+      ]);
+      if (res.interview) setResult(res.interview);
     } catch {
-      // Only append error if user is still viewing the same session
       if (activeSessionId === sessionId) {
         setMessages((prev) => [
           ...prev,
-          {
-            role: "assistant",
-            content: "Something went wrong. Please try again.",
-          },
+          { role: "assistant", content: "Something went wrong. Please try again." },
         ]);
       }
     }
   }
 
+  async function handleEndInterview() {
+    if (!activeSessionId) return;
+    try {
+      const res = await endInterview(activeSessionId).unwrap();
+      setResult(res);
+    } catch {
+      // Non-fatal: the score card just won't appear; the session stays as-is.
+    }
+  }
+
   return (
-    <div className="flex h-full bg-ink text-fg">
-      <SessionList
-        sessions={sessionsData?.sessions ?? []}
-        activeId={activeSessionId}
-        onSelect={handleSelectSession}
-        onNew={handleNewSession}
-        onDelete={handleDeleteSession}
-        loading={sessionsLoading}
-      />
-
-      <div className="flex flex-col flex-1 min-w-0">
-        {/* Header */}
-        <div className="flex items-center gap-3 px-6 py-4 border-b border-line">
-          <h1 className="text-sm font-medium text-dim truncate max-w-md mr-auto">
-            {activeSession?.first_message ?? "New conversation"}
-          </h1>
-          {user?.email && (
-            <span className="tag text-faint hidden md:block">{user.email}</span>
-          )}
-        </div>
-
-        {/* Messages */}
-        <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
-          {!activeSessionId && (
-            <div className="flex flex-col items-center justify-center h-full gap-3 text-center">
-              <span className="w-2 h-2 rounded-full bg-offer dot-live" />
-              <p className="text-faint text-sm">Setting up your session…</p>
-            </div>
-          )}
-          {activeSessionId && messages.length === 0 && (
-            <div className="flex flex-col items-center justify-center h-full gap-4 text-center anim-rise">
-              <div className="grid h-12 w-12 place-items-center rounded-full bg-offer/15 text-offer">
-                <svg
-                  width="22"
-                  height="22"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  aria-hidden
-                >
-                  <path
-                    d="M12 3C6.48 3 2 6.92 2 11.75c0 2.6 1.28 4.94 3.32 6.6L4 21l3.5-1.75A11.3 11.3 0 0 0 12 20.5c5.52 0 10-3.92 10-8.75S17.52 3 12 3Z"
-                    stroke="currentColor"
-                    strokeWidth="1.6"
-                    strokeLinejoin="round"
-                  />
-                </svg>
-              </div>
-              <div className="space-y-1">
-                <p className="text-fg text-sm font-medium">
-                  How can I help you today?
-                </p>
-                <p className="text-faint text-xs">
-                  Try a command or just ask a question
-                </p>
-              </div>
-              <div className="flex flex-wrap gap-2 justify-center">
-                {["/cover_letter", "/resume_tailor", "/fit_analysis"].map(
-                  (cmd) => (
-                    <span
-                      key={cmd}
-                      className="font-mono text-xs bg-raised border border-line text-applied px-3 py-1.5 rounded-lg"
-                    >
-                      {cmd}
-                    </span>
-                  ),
-                )}
-              </div>
-            </div>
-          )}
-          {messages.map((msg, i) => (
-            <MessageBubble
-              key={i}
-              role={msg.role}
-              content={msg.content}
-              applicationId={activeSession?.application_id}
-            />
-          ))}
-          {sending && (
-            <div className="flex justify-start">
-              <div className="bg-raised-2 rounded-2xl rounded-bl-sm px-4 py-3 text-sm text-dim">
-                Thinking…
-              </div>
-            </div>
-          )}
-          <div ref={bottomRef} />
-        </div>
-
-        <ChatInput
-          onSend={handleSend}
-          disabled={!activeSessionId || sending}
-          prefill={prefill}
-        />
+    <div className="flex h-full flex-col bg-ink text-fg">
+      {/* Tabs */}
+      <div className="flex items-center gap-1 border-b border-line px-4">
+        {(["assistant", "interview"] as Tab[]).map((t) => (
+          <button
+            key={t}
+            onClick={() => switchTab(t)}
+            className={`-mb-px border-b-2 px-4 py-3 text-sm font-medium transition ${
+              tab === t
+                ? "border-offer text-fg"
+                : "border-transparent text-dim hover:text-fg"
+            }`}
+          >
+            {t === "assistant" ? "Assistant" : "Mock Interview"}
+          </button>
+        ))}
       </div>
+
+      <div className="flex min-h-0 flex-1">
+        <SessionList
+          sessions={visibleSessions}
+          activeId={activeSessionId}
+          onSelect={selectSession}
+          onNew={handleNewSession}
+          onDelete={handleDeleteSession}
+          loading={sessionsLoading}
+          newLabel={tab === "interview" ? "+ New interview" : "+ New chat"}
+          emptyHint={
+            tab === "interview"
+              ? "No interviews yet. Start one to practise against a job application."
+              : undefined
+          }
+        />
+
+        <div className="flex min-w-0 flex-1 flex-col">
+          {/* Header */}
+          <div className="flex items-center gap-3 border-b border-line px-6 py-4">
+            <h1 className="mr-auto max-w-md truncate text-sm font-medium text-dim">
+              {tab === "interview"
+                ? activeSession
+                  ? "Mock interview"
+                  : "Start a mock interview"
+                : (activeSession?.first_message ?? "New conversation")}
+            </h1>
+            {tab === "interview" && activeSession && !interviewDone && (
+              <button
+                onClick={handleEndInterview}
+                disabled={ending}
+                className="tag rounded-lg border border-line bg-raised-2 px-3 py-1.5 text-dim transition hover:text-fg disabled:opacity-50"
+              >
+                {ending ? "Ending…" : "End interview"}
+              </button>
+            )}
+            {user?.email && (
+              <span className="tag text-faint hidden md:block">{user.email}</span>
+            )}
+          </div>
+
+          {/* Messages */}
+          <div className="flex-1 space-y-4 overflow-y-auto px-6 py-4">
+            {tab === "interview" && !activeSessionId && (
+              <div className="flex h-full flex-col items-center justify-center gap-4 text-center">
+                <p className="text-sm font-medium text-fg">Practice makes ready</p>
+                <p className="max-w-sm text-xs text-faint">
+                  Run a realistic interview tailored to one of your applications.
+                  You'll get a score and feedback at the end.
+                </p>
+                <button
+                  onClick={() => {
+                    setPresetAppId(undefined);
+                    setShowStart(true);
+                  }}
+                  className="cta rounded-lg px-4 py-2 text-sm font-medium"
+                >
+                  Start a mock interview
+                </button>
+              </div>
+            )}
+
+            {tab === "assistant" && !activeSessionId && (
+              <div className="flex h-full flex-col items-center justify-center gap-3 text-center">
+                <span className="dot-live h-2 w-2 rounded-full bg-offer" />
+                <p className="text-sm text-faint">Setting up your session…</p>
+              </div>
+            )}
+
+            {messages.map((msg, i) => (
+              <MessageBubble
+                key={i}
+                role={msg.role}
+                content={msg.content}
+                applicationId={
+                  tab === "interview" ? undefined : activeSession?.application_id
+                }
+              />
+            ))}
+
+            {sending && (
+              <div className="flex justify-start">
+                <div className="rounded-2xl rounded-bl-sm bg-raised-2 px-4 py-3 text-sm text-dim">
+                  {tab === "interview" ? "The interviewer is thinking…" : "Thinking…"}
+                </div>
+              </div>
+            )}
+
+            {result && <InterviewScoreCard result={result} />}
+
+            {!result && interviewDone && (
+              <p className="mx-auto w-full max-w-2xl rounded-xl border border-line bg-raised-2/40 px-4 py-3 text-center text-sm text-dim">
+                Interview completed — score{" "}
+                <span className="font-medium text-fg">
+                  {activeSession?.interview_score}/100
+                </span>
+                .
+              </p>
+            )}
+
+            <div ref={bottomRef} />
+          </div>
+
+          {tab === "interview" && interviewDone ? (
+            <div className="border-t border-line px-6 py-4 text-center text-xs text-faint">
+              This interview has ended. Start a new one to practise again.
+            </div>
+          ) : (
+            <ChatInput
+              onSend={handleSend}
+              disabled={!activeSessionId || sending}
+              prefill={tab === "interview" ? undefined : prefill}
+            />
+          )}
+        </div>
+      </div>
+
+      {showStart && (
+        <InterviewStartModal
+          onClose={() => setShowStart(false)}
+          onStarted={handleInterviewStarted}
+          presetApplicationId={presetAppId}
+        />
+      )}
     </div>
   );
 }

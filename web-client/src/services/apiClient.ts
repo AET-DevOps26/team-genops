@@ -22,11 +22,14 @@ function normalize(error: FetchBaseQueryError): NormalizedError {
     // FETCH_ERROR / TIMEOUT_ERROR / PARSING_ERROR — no HTTP response.
     return { status: 0, code: "NETWORK", message: "Network error" };
   }
-  const body = (error.data ?? {}) as Partial<ApiError>;
+  // Spring services use the unified {code, message} schema; FastAPI (genai) raises
+  // HTTPException, which serialises as {detail}. Fall back to detail so those messages
+  // (e.g. the mock-interview precondition errors) reach the user instead of a generic string.
+  const body = (error.data ?? {}) as Partial<ApiError> & { detail?: string };
   return {
     status: error.status,
     code: body.code ?? `HTTP_${error.status}`,
-    message: body.message ?? "Request failed",
+    message: body.message ?? body.detail ?? "Request failed",
   };
 }
 
