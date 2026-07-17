@@ -62,6 +62,43 @@ async def get_user_profile(token: str) -> str:
     return _format_profile(data)
 
 
+async def fetch_profile(token: str) -> dict | None:
+    """
+    Fetch the raw profile aggregate, or None if there is no profile / it is unreachable.
+
+    For the mock-interview gate, which must decide whether a usable profile exists — unlike
+    get_user_profile, which formats prose for the chat prompt and never fails a turn.
+    """
+    if not settings.profile_enabled:
+        return None
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.get(
+                f"{settings.document_service_url}/api/v1/profile",
+                headers={"Authorization": f"Bearer {token}"},
+                timeout=5.0,
+            )
+            if response.status_code == 404:
+                return None
+            response.raise_for_status()
+            return response.json()
+    except Exception:
+        logger.warning("profile fetch (raw) failed", exc_info=True)
+        return None
+
+
+def profile_is_complete(data: dict) -> bool:
+    """
+    A profile is 'complete enough' to interview against when it names the candidate and has at
+    least one substantive section (experience, education, or skills). The interviewer needs
+    something real to personalise and probe — an empty shell would make questions generic.
+    """
+    profile = data.get("profile") or {}
+    has_name = bool((profile.get("first_name") or "").strip() or (profile.get("last_name") or "").strip())
+    has_substance = bool(data.get("work_experiences") or data.get("educations") or data.get("skills"))
+    return has_name and has_substance
+
+
 def _clamp(text: str | None) -> str | None:
     """Truncate a free-text field so one verbose entry cannot dominate the context."""
     if not text or len(text) <= MAX_DESCRIPTION_CHARS:
