@@ -25,9 +25,8 @@ import org.springframework.security.web.SecurityFilterChain;
  * <p>This is the outer layer of defense in depth — each backend service still re-verifies the same
  * signature independently, so a request that somehow bypasses the gateway is not implicitly trusted.
  *
- * <p>Note: {@code iss}/{@code aud} are not yet enforced here. Auth does not emit those claims today;
- * adding enforcement now would reject every token. Enable it (in both the gateway and the services)
- * once auth starts issuing them — a non-breaking, coordinated change tracked in the auth README.
+ * <p>{@code iss}/{@code aud} are enforced by the explicit decoder in {@link JwtConfig}, matching
+ * the claims auth stamps into every access token (rolled out together across all verifiers).
  */
 @Configuration
 public class SecurityConfig {
