@@ -166,8 +166,8 @@ services:
       GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
       GOOGLE_REDIRECT_URI: ${GOOGLE_REDIRECT_URI:-http://localhost:8001/api/v1/email/connections/gmail/callback}
       FRONTEND_REDIRECT_URL: ${FRONTEND_REDIRECT_URL:-http://localhost:5173}
-      EMAIL_TOKEN_ENC_KEY: ${EMAIL_TOKEN_ENC_KEY:-dev-only-change-me}
-      STATE_SIGNING_KEY: ${STATE_SIGNING_KEY:-${EMAIL_TOKEN_ENC_KEY:-dev-only-change-me}}
+      EMAIL_TOKEN_ENC_KEY: ${EMAIL_TOKEN_ENC_KEY}
+      STATE_SIGNING_KEY: ${STATE_SIGNING_KEY:-${EMAIL_TOKEN_ENC_KEY}}
       EMAIL_POLL_INTERVAL_SECONDS: ${EMAIL_POLL_INTERVAL_SECONDS:-300}
     depends_on:
       postgres-db:

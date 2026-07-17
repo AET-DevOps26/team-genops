@@ -21,8 +21,19 @@ public class NonceStore {
         return consumed.containsKey(nonce);
     }
 
-    public void consume(String nonce, Instant expiresAt) {
-        consumed.put(nonce, expiresAt);
+    /**
+     * Atomically reserve a nonce before starting fallible work (the code exchange), so two
+     * concurrent callbacks replaying the same state can never both proceed. Returns false if the
+     * nonce is already reserved/consumed.
+     */
+    public boolean reserve(String nonce, Instant expiresAt) {
+        prune();
+        return consumed.putIfAbsent(nonce, expiresAt) == null;
+    }
+
+    /** Release a reservation after a recoverable failure, leaving the state token reusable. */
+    public void release(String nonce) {
+        consumed.remove(nonce);
     }
 
     private void prune() {

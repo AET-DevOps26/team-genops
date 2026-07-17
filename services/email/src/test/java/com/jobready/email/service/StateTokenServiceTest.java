@@ -37,21 +37,27 @@ class StateTokenServiceTest {
     }
 
     @Test
-    void validateDoesNotConsume_butConsumeBlocksReplay() {
+    void validateDoesNotConsume_butReservationBlocksReplay() {
         String state = service.issue(UUID.randomUUID());
         StateTokenService.StateClaims claims = service.validate(state);
         // Validation alone must not burn the nonce (a failed exchange leaves it reusable).
         assertThat(service.validate(state).nonce()).isEqualTo(claims.nonce());
 
-        service.consume(claims);
+        // Reservation is atomic: only one concurrent callback can win it.
+        assertThat(service.reserve(claims)).isTrue();
+        assertThat(service.reserve(claims)).isFalse();
         assertThatThrownBy(() -> service.validate(state))
                 .isInstanceOf(InvalidStateException.class)
                 .hasMessageContaining("already been used");
+
+        // Releasing after a recoverable failure makes the state usable again.
+        service.release(claims);
+        assertThat(service.validate(state).nonce()).isEqualTo(claims.nonce());
     }
 
     @Test
     void nonceStorePrunesExpiredEntries() {
-        nonceStore.consume("stale", Instant.now().minusSeconds(5));
+        nonceStore.reserve("stale", Instant.now().minusSeconds(5));
         assertThat(nonceStore.isConsumed("stale")).isFalse();
     }
 }

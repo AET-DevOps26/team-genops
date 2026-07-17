@@ -1,6 +1,7 @@
 package com.jobready.email.service;
 
 import com.jobready.email.config.EmailProperties;
+import com.jobready.email.exception.InvalidStateException;
 import com.jobready.email.generated.modelDto.EmailConnectionStatus;
 import com.jobready.email.generated.modelDto.GmailAuthorizeResponse;
 import com.jobready.email.modelEntity.EmailConnectionEntity;
@@ -56,23 +57,28 @@ public class EmailConnectionService {
     @Transactional
     public URI handleCallback(String code, String state) {
         StateTokenService.StateClaims claims = stateTokenService.validate(state);
+        // Atomically reserve the single-use nonce BEFORE the exchange, so two concurrent
+        // callbacks replaying the same state can never both proceed. On a recoverable failure
+        // the reservation is released, leaving the link reusable instead of forcing a restart.
+        if (!stateTokenService.reserve(claims)) {
+            throw new InvalidStateException("OAuth state has already been used");
+        }
         GoogleOAuthClient.ExchangedCredentials creds;
         try {
             creds = googleOAuthClient.exchangeCode(code);
         } catch (Exception e) {
             log.error("Code exchange failed for user {}", claims.userId(), e);
+            stateTokenService.release(claims);
             return frontendRedirect("email_error", "exchange_failed");
         }
 
         if (creds.refreshToken() == null || creds.refreshToken().isBlank()) {
             // Without a refresh token the poller cannot keep fetching after the access token
             // expires; send the user back to re-consent.
+            stateTokenService.release(claims);
             return frontendRedirect("email_error", "missing_refresh_token");
         }
 
-        // Only burn the single-use nonce now that the exchange has actually succeeded, so a
-        // transient Google failure leaves the link reusable instead of forcing a restart.
-        stateTokenService.consume(claims);
         upsertConnection(claims.userId(), creds);
         return frontendRedirect("email_connected", "1");
     }

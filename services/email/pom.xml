@@ -69,7 +69,9 @@
 		<dependency>
 			<groupId>org.springdoc</groupId>
 			<artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
-			<version>2.8.9</version>
+			<!-- springdoc 3.x is required for Spring Boot 4 (2.x targets Boot 3 and 404s
+			     on /swagger-ui.html and /v3/api-docs under Boot 4). -->
+			<version>3.0.1</version>
 		</dependency>
 		<dependency>
 			<groupId>org.springframework.boot</groupId>

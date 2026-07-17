@@ -75,11 +75,14 @@ class EmailConnectionServiceTest {
     @Test
     void missingRefreshTokenRedirectsWithErrorAndStoresNothing() {
         when(googleOAuthClient.exchangeCode("the-code")).thenReturn(credentials(null));
+        String state = stateTokenService.issue(userId);
 
-        URI redirect = service.handleCallback("the-code", stateTokenService.issue(userId));
+        URI redirect = service.handleCallback("the-code", state);
 
         assertThat(redirect.toString()).isEqualTo("http://localhost:5173?email_error=missing_refresh_token");
         verify(connectionRepository, never()).save(any());
+        // The reservation was released — the user can retry from the same link.
+        assertThat(stateTokenService.validate(state).userId()).isEqualTo(userId);
     }
 
     @Test

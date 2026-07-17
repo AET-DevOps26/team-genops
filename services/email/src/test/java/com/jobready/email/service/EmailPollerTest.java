@@ -58,16 +58,34 @@ class EmailPollerTest {
                 .thenReturn(List.of(connection(userId, Instant.now().plusSeconds(600))));
         when(gmailClient.listRecentMessageIds("access-token")).thenReturn(List.of("m1", "m2"));
         when(gmailClient.fetchMessage(eq("access-token"), anyString())).thenAnswer(inv -> message(inv.getArgument(1)));
-        // m1 is new, m2 already stored — ON CONFLICT DO NOTHING reports 0 rows.
+        // m1 is new, m2 already stored — the existence pre-check skips its Gmail fetch entirely.
+        when(processedEmailRepository.existsByUserIdAndMessageId(userId, "m1")).thenReturn(false);
+        when(processedEmailRepository.existsByUserIdAndMessageId(userId, "m2")).thenReturn(true);
         when(processedEmailRepository.insertIgnoringDuplicates(
                         eq(userId), eq("m1"), anyString(), anyString(), anyString(), any()))
                 .thenReturn(1);
-        when(processedEmailRepository.insertIgnoringDuplicates(
-                        eq(userId), eq("m2"), anyString(), anyString(), anyString(), any()))
-                .thenReturn(0);
 
         assertThat(poller.pollOnce()).isEqualTo(1);
         verify(googleOAuthClient, never()).refreshAccessToken(anyString());
+        verify(gmailClient, never()).fetchMessage("access-token", "m2");
+    }
+
+    @Test
+    void oneBrokenMessageDoesNotBlockTheRest() {
+        UUID userId = UUID.randomUUID();
+        when(connectionRepository.findAll())
+                .thenReturn(List.of(connection(userId, Instant.now().plusSeconds(600))));
+        when(gmailClient.listRecentMessageIds("access-token")).thenReturn(List.of("broken", "ok"));
+        when(processedEmailRepository.existsByUserIdAndMessageId(eq(userId), anyString()))
+                .thenReturn(false);
+        // e.g. the message was deleted between list and fetch → Gmail 404s.
+        when(gmailClient.fetchMessage("access-token", "broken")).thenThrow(new IllegalStateException("404"));
+        when(gmailClient.fetchMessage("access-token", "ok")).thenReturn(message("ok"));
+        when(processedEmailRepository.insertIgnoringDuplicates(
+                        eq(userId), eq("ok"), anyString(), anyString(), anyString(), any()))
+                .thenReturn(1);
+
+        assertThat(poller.pollOnce()).isEqualTo(1);
     }
 
     @Test
@@ -97,6 +115,8 @@ class EmailPollerTest {
         when(connectionRepository.findAll()).thenReturn(List.of(failing, healthy));
         when(gmailClient.listRecentMessageIds("access-token")).thenThrow(new IllegalStateException("gmail 500"));
         when(gmailClient.listRecentMessageIds("healthy-token")).thenReturn(List.of("m1"));
+        when(processedEmailRepository.existsByUserIdAndMessageId(healthyUser, "m1"))
+                .thenReturn(false);
         when(gmailClient.fetchMessage("healthy-token", "m1")).thenReturn(message("m1"));
         when(processedEmailRepository.insertIgnoringDuplicates(
                         eq(healthyUser), eq("m1"), anyString(), anyString(), anyString(), any()))

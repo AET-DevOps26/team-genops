@@ -104,9 +104,18 @@ public class StateTokenService {
         return new StateClaims(userId, nonce, exp.toInstant());
     }
 
-    /** Mark a validated nonce as used so it can never be replayed. */
-    public void consume(StateClaims claims) {
-        nonceStore.consume(claims.nonce(), claims.expiresAt());
+    /**
+     * Atomically reserve the nonce before fallible work; false means another callback already
+     * holds (or consumed) it. Keep the reservation on success; {@link #release} it on a
+     * recoverable failure so the state token stays reusable.
+     */
+    public boolean reserve(StateClaims claims) {
+        return nonceStore.reserve(claims.nonce(), claims.expiresAt());
+    }
+
+    /** Release a reserved nonce after a recoverable failure. */
+    public void release(StateClaims claims) {
+        nonceStore.release(claims.nonce());
     }
 
     private static String getNonce(JWTClaimsSet claims) {

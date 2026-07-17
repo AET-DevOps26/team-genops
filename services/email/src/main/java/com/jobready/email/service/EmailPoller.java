@@ -75,21 +75,33 @@ public class EmailPoller {
         String accessToken = freshAccessToken(connection);
         int stored = 0;
         for (String messageId : gmailClient.listRecentMessageIds(accessToken)) {
-            GmailClient.MessageMetadata msg = gmailClient.fetchMessage(accessToken, messageId);
-            stored += processedEmailRepository.insertIgnoringDuplicates(
-                    connection.getUserId(),
-                    msg.messageId(),
-                    msg.subject(),
-                    msg.sender(),
-                    msg.snippet(),
-                    msg.receivedAt());
+            try {
+                // Skip already-stored messages before hitting Gmail again — in steady state the
+                // recent window barely changes, so this saves most metadata fetches (quota).
+                if (processedEmailRepository.existsByUserIdAndMessageId(connection.getUserId(), messageId)) {
+                    continue;
+                }
+                GmailClient.MessageMetadata msg = gmailClient.fetchMessage(accessToken, messageId);
+                stored += processedEmailRepository.insertIgnoringDuplicates(
+                        connection.getUserId(),
+                        msg.messageId(),
+                        msg.subject(),
+                        msg.sender(),
+                        msg.snippet(),
+                        msg.receivedAt());
+            } catch (Exception e) { // one broken message (e.g. deleted → 404) must not block the rest
+                log.warn("Skipping message {} for user {}: {}", messageId, connection.getUserId(), e.toString());
+            }
         }
         return stored;
     }
 
-    /** Return a valid access token, refreshing and persisting it if expired. */
+    /** Refresh proactively if the token expires within this window, so it can't lapse mid-poll. */
+    private static final long EXPIRY_BUFFER_SECONDS = 60;
+
+    /** Return a valid access token, refreshing and persisting it if (nearly) expired. */
     private String freshAccessToken(EmailConnectionEntity connection) {
-        if (connection.getTokenExpiry().isAfter(Instant.now())) {
+        if (connection.getTokenExpiry().isAfter(Instant.now().plusSeconds(EXPIRY_BUFFER_SECONDS))) {
             return connection.getAccessToken();
         }
         GoogleOAuthClient.RefreshedToken refreshed = googleOAuthClient.refreshAccessToken(connection.getRefreshToken());

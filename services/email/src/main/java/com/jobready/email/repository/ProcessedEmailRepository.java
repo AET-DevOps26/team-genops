@@ -12,6 +12,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 public interface ProcessedEmailRepository extends JpaRepository<ProcessedEmailEntity, UUID> {
 
+    boolean existsByUserIdAndMessageId(UUID userId, String messageId);
+
     /**
      * Newest first; NULLS LAST keeps messages without a provider timestamp at the end, matching
      * the covering index. Native SQL because JPQL cannot express NULLS LAST portably.
