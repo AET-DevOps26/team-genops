@@ -57,6 +57,7 @@ class MessageListResponse(BaseModel):
 # Job postings — AI extraction
 # ---------------------------------------------------------------------------
 
+
 class JobPostingExtractRequest(BaseModel):
     # Kept as a plain string so URL problems surface as the contract's
     # `URL_INVALID` error body instead of FastAPI's default 422 shape.

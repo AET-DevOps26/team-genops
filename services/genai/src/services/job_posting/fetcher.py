@@ -60,14 +60,7 @@ async def _assert_public_url(url: httpx.URL) -> None:
 
     for info in infos:
         ip = ipaddress.ip_address(info[4][0])
-        if (
-            ip.is_private
-            or ip.is_loopback
-            or ip.is_link_local
-            or ip.is_multicast
-            or ip.is_reserved
-            or ip.is_unspecified
-        ):
+        if ip.is_private or ip.is_loopback or ip.is_link_local or ip.is_multicast or ip.is_reserved or ip.is_unspecified:
             raise _invalid("The URL points to a private or internal address.")
 
 
@@ -82,17 +75,18 @@ async def fetch_page_text(url: str) -> str:
         await _assert_public_url(request.url)
 
     try:
-        async with httpx.AsyncClient(
-            follow_redirects=True,
-            max_redirects=_MAX_REDIRECTS,
-            timeout=_TIMEOUT_SECONDS,
-            headers={"User-Agent": _USER_AGENT},
-            event_hooks={"request": [_guard_hop]},
-        ) as client, client.stream("GET", url) as response:
+        async with (
+            httpx.AsyncClient(
+                follow_redirects=True,
+                max_redirects=_MAX_REDIRECTS,
+                timeout=_TIMEOUT_SECONDS,
+                headers={"User-Agent": _USER_AGENT},
+                event_hooks={"request": [_guard_hop]},
+            ) as client,
+            client.stream("GET", url) as response,
+        ):
             if response.status_code >= 400:
-                raise _fetch_failed(
-                    f"The page responded with HTTP {response.status_code}."
-                )
+                raise _fetch_failed(f"The page responded with HTTP {response.status_code}.")
             content_type = response.headers.get("content-type", "")
             if not any(t in content_type for t in ("text/html", "text/plain", "application/xhtml")):
                 raise _fetch_failed(f"The page is not HTML (content-type: {content_type or 'unknown'}).")

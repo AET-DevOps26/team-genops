@@ -76,8 +76,7 @@ async def test_happy_path_returns_extracted_fields(client, monkeypatch):
     from src.models.schemas import JobPostingExtraction
 
     _mock_http(monkeypatch, lambda req: httpx.Response(200, headers={"content-type": "text/html"}, text=JOB_HTML))
-    _mock_extraction(monkeypatch, JobPostingExtraction(
-        company="Acme GmbH", job_title="Backend Engineer", job_description="Build reliable services in Java."))
+    _mock_extraction(monkeypatch, JobPostingExtraction(company="Acme GmbH", job_title="Backend Engineer", job_description="Build reliable services in Java."))
 
     async with client:
         response = await client.post("/api/v1/job-postings/extract", json={"url": "https://jobs.example.com/123"})
