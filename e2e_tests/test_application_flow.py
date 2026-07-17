@@ -13,7 +13,11 @@ from e2e_tests.conftest import BrowserSession, User
 
 
 def _create(user: User, **overrides) -> httpx.Response:
-    body = {"company": "Zalando", "job_title": "Backend Engineer"} | overrides
+    body = {
+        "company": "Zalando",
+        "job_title": "Backend Engineer",
+        "job_description": "Build APIs in Java.",
+    } | overrides
     return user.client.post("/api/v1/applications", json=body)
 
 
