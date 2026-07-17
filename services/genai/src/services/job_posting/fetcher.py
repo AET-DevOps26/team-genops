@@ -88,24 +88,23 @@ async def fetch_page_text(url: str) -> str:
             timeout=_TIMEOUT_SECONDS,
             headers={"User-Agent": _USER_AGENT},
             event_hooks={"request": [_guard_hop]},
-        ) as client:
-            async with client.stream("GET", url) as response:
-                if response.status_code >= 400:
-                    raise _fetch_failed(
-                        f"The page responded with HTTP {response.status_code}."
-                    )
-                content_type = response.headers.get("content-type", "")
-                if not any(t in content_type for t in ("text/html", "text/plain", "application/xhtml")):
-                    raise _fetch_failed(f"The page is not HTML (content-type: {content_type or 'unknown'}).")
+        ) as client, client.stream("GET", url) as response:
+            if response.status_code >= 400:
+                raise _fetch_failed(
+                    f"The page responded with HTTP {response.status_code}."
+                )
+            content_type = response.headers.get("content-type", "")
+            if not any(t in content_type for t in ("text/html", "text/plain", "application/xhtml")):
+                raise _fetch_failed(f"The page is not HTML (content-type: {content_type or 'unknown'}).")
 
-                chunks: list[bytes] = []
-                received = 0
-                async for chunk in response.aiter_bytes():
-                    received += len(chunk)
-                    if received > _MAX_BYTES:
-                        raise _fetch_failed("The page is too large to process (over 2 MB).")
-                    chunks.append(chunk)
-                html = b"".join(chunks).decode(response.encoding or "utf-8", errors="replace")
+            chunks: list[bytes] = []
+            received = 0
+            async for chunk in response.aiter_bytes():
+                received += len(chunk)
+                if received > _MAX_BYTES:
+                    raise _fetch_failed("The page is too large to process (over 2 MB).")
+                chunks.append(chunk)
+            html = b"".join(chunks).decode(response.encoding or "utf-8", errors="replace")
     except JobPostingError:
         raise
     except httpx.TooManyRedirects:
