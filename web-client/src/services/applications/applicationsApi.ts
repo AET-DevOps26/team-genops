@@ -3,6 +3,8 @@ import type {
   ApplicationList,
   CreateApplicationRequest,
   JobApplication,
+  JobPostingExtraction,
+  JobPostingExtractRequest,
   UpdateApplicationRequest,
 } from "~/api/schemas";
 
@@ -44,6 +46,17 @@ const applicationsApi = api.injectEndpoints({
       ],
     }),
 
+    extractJobPosting: build.mutation<
+      JobPostingExtraction,
+      JobPostingExtractRequest
+    >({
+      query: (body) => ({
+        url: "/job-postings/extract",
+        method: "POST",
+        body,
+      }),
+    }),
+
     deleteApplication: build.mutation<void, string>({
       query: (id) => ({
         url: `/applications/${id}`,
@@ -60,5 +73,6 @@ export const {
   useGetApplicationQuery,
   useCreateApplicationMutation,
   useUpdateApplicationMutation,
+  useExtractJobPostingMutation,
   useDeleteApplicationMutation,
 } = applicationsApi;

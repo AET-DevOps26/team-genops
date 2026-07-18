@@ -9,6 +9,7 @@ export const STAGES: {
   label: string;
   color: string;
 }[] = [
+  { value: "draft", label: "Draft", color: "var(--color-dim)" },
   { value: "applied", label: "Applied", color: "var(--color-applied)" },
   { value: "follow_up", label: "Follow-up", color: "var(--color-screen)" },
   { value: "interview", label: "Interview", color: "var(--color-interview)" },

@@ -32,6 +32,8 @@ tags:
     description: Job application tracking — create applications, store job descriptions, and manage status transitions
   - name: Chat
     description: AI career-assistant chat — sessions and messages
+  - name: JobPostings
+    description: AI-assisted job-posting utilities — extract structured fields from a posting URL
   - name: Documents
     description: Candidate profile (experience, education, skills, languages) and AI-generated documents (cover letters, resumes)
 
@@ -405,7 +407,7 @@ paths:
       description: |
         Creates a job application for the authenticated user. The owner is resolved from the
         JWT `sub` claim — `user_id` is never accepted from the request body. New applications
-        start in the `applied` stage.
+        start in the `draft` stage unless `stage` is provided.
       operationId: createApplication
       security:
         - CookieAuth: []
@@ -661,7 +663,7 @@ paths:
       summary: Update a job application
       description: |
         Updates an application owned by the authenticated user, including stage transitions
-        (`applied` → `follow_up` → `interview` → `offer` → `closed`).
+        (`draft` → `applied` → `follow_up` → `interview` → `offer` → `closed`).
       operationId: updateApplication
       security:
         - CookieAuth: []
@@ -716,6 +718,56 @@ paths:
                 $ref: '#/components/schemas/Error'
         '404':
           description: No such application for this user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/v1/job-postings/extract:
+    post:
+      tags: [JobPostings]
+      summary: Extract job-posting fields from a URL
+      description: |
+        Fetches a public job-posting page and uses the AI assistant to extract structured
+        fields (company, job title, job description) for pre-filling a new application.
+        Extraction is best-effort — any field the page does not reveal comes back `null`,
+        and clients must keep all fields editable and fall back to manual entry on error.
+
+        Error codes (unified `Error` schema): `URL_INVALID` (400 — malformed URL, unsupported
+        scheme, or a private/internal address), `FETCH_FAILED` (422 — the page timed out,
+        blocked the fetch, is not HTML, or is too large), `EXTRACTION_FAILED` (422 — the
+        page was fetched but no job-posting fields could be identified).
+      operationId: extractJobPosting
+      security:
+        - CookieAuth: []
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/JobPostingExtractRequest'
+      responses:
+        '200':
+          description: Extracted fields (nullable where the page lacked the information)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JobPostingExtraction'
+        '400':
+          description: Invalid or disallowed URL (`URL_INVALID`)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Missing or invalid access token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          description: The page could not be fetched or yielded no fields (`FETCH_FAILED`, `EXTRACTION_FAILED`)
           content:
             application/json:
               schema:
@@ -1623,9 +1675,11 @@ components:
 
     ApplicationStage:
       type: string
-      enum: [applied, follow_up, interview, offer, closed]
+      enum: [draft, applied, follow_up, interview, offer, closed]
       description: |
-        Application lifecycle stage: `applied` → `follow_up` → `interview` → `offer` → `closed`.
+        Application lifecycle stage: `draft` → `applied` → `follow_up` → `interview` →
+        `offer` → `closed`. `draft` is the entry stage — the user is still preparing the
+        application and has not applied yet.
 
     JobApplication:
       type: object
@@ -1660,7 +1714,7 @@ components:
 
     CreateApplicationRequest:
       type: object
-      required: [company, job_title]
+      required: [company, job_title, job_description]
       properties:
         company:
           type: string
@@ -1672,6 +1726,10 @@ components:
           maxLength: 255
         job_description:
           type: string
+          minLength: 1
+        stage:
+          $ref: '#/components/schemas/ApplicationStage'
+          description: Stage to create the application in. Defaults to `draft` when omitted.
         job_url:
           type: string
           maxLength: 512
@@ -1686,7 +1744,7 @@ components:
 
     UpdateApplicationRequest:
       type: object
-      required: [company, job_title, stage]
+      required: [company, job_title, job_description, stage]
       properties:
         company:
           type: string
@@ -1698,6 +1756,7 @@ components:
           maxLength: 255
         job_description:
           type: string
+          minLength: 1
         job_url:
           type: string
           maxLength: 512
@@ -1727,8 +1786,11 @@ components:
 
     ApplicationSummary:
       type: object
-      required: [applied, follow_up, interview, offer, closed, total]
+      required: [draft, applied, follow_up, interview, offer, closed, total]
       properties:
+        draft:
+          type: integer
+          format: int64
         applied:
           type: integer
           format: int64
@@ -1787,6 +1849,31 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/Recommendation'
+
+    # ---------------------------------------------------------------------------
+    # Job postings — AI extraction (genai service)
+    # ---------------------------------------------------------------------------
+
+    JobPostingExtractRequest:
+      type: object
+      required: [url]
+      properties:
+        url:
+          type: string
+          format: uri
+          maxLength: 2048
+          description: Public http(s) URL of the job posting to extract fields from
+
+    JobPostingExtraction:
+      type: object
+      properties:
+        company:
+          type: [string, 'null']
+        job_title:
+          type: [string, 'null']
+        job_description:
+          type: [string, 'null']
+          description: The posting's full description text, cleaned of page furniture
 
     # ---------------------------------------------------------------------------
     # Documents — candidate profile & generated documents

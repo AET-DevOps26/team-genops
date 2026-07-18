@@ -16,11 +16,11 @@ Tracks every job application and its current stage.
 | `user_id` | UUID | Owner — from JWT `sub` claim only |
 | `company` | VARCHAR(255) | Not null |
 | `job_title` | VARCHAR(255) | Not null |
-| `job_description` | TEXT | Pasted by user — read by genai for generation |
+| `job_description` | TEXT | Not null — pasted by user or AI-extracted from the job URL; read by genai for generation |
 | `job_url` | VARCHAR(512) | Optional — link to the job posting |
 | `company_website` | VARCHAR(512) | Optional |
 | `linkedin_url` | VARCHAR(512) | Optional |
-| `stage` | VARCHAR(50) | `applied`, `follow_up`, `interview`, `offer`, `closed` |
+| `stage` | VARCHAR(50) | `draft`, `applied`, `follow_up`, `interview`, `offer`, `closed` — defaults to `draft` |
 | `notes` | TEXT | Optional user notes |
 | `applied_at` | TIMESTAMPTZ | Set on insert |
 | `updated_at` | TIMESTAMPTZ | Updated on stage change |
@@ -44,11 +44,12 @@ generates them itself).
 ## Stage Lifecycle
 
 ```
-applied → follow_up → interview → offer → closed
+draft → applied → follow_up → interview → offer → closed
 ```
 
 | Stage | Description |
 |---|---|
+| `draft` | Default on create — the user is still preparing the application (JobReady helps them apply) |
 | `applied` | Application submitted, awaiting response |
 | `follow_up` | No response received — follow-up recommended |
 | `interview` | Interview scheduled or in progress |
@@ -65,6 +66,27 @@ applied → follow_up → interview → offer → closed
 | File | Description |
 |---|---|
 | `V1__create_application_schema.sql` | Reference SQL: `application` schema, `applications` and `recommendations` tables |
+
+## NOTE: Manual Migration for Pre-Existing Databases
+
+`ddl-auto=update` never tightens existing columns, so databases provisioned before
+`job_description` became mandatory keep the nullable column (fresh databases get
+`NOT NULL` automatically). Run once against any pre-existing environment:
+
+```sql
+UPDATE application.applications SET job_description = '' WHERE job_description IS NULL;
+ALTER TABLE application.applications ALTER COLUMN job_description SET NOT NULL;
+```
+
+Databases bootstrapped from the reference SQL before `draft` existed also carry a
+`CHECK (stage IN ('applied', ...))` constraint that rejects `draft` (ddl-auto-created
+databases have no CHECK and need nothing):
+
+```sql
+ALTER TABLE application.applications DROP CONSTRAINT applications_stage_check;
+ALTER TABLE application.applications ADD CONSTRAINT applications_stage_check
+    CHECK (stage IN ('draft', 'applied', 'follow_up', 'interview', 'offer', 'closed'));
+```
 
 ## NOTE: If Moving to Flyway Later
 

@@ -56,7 +56,7 @@ public interface ApplicationsApi {
     String PATH_CREATE_APPLICATION = "/api/v1/applications";
     /**
      * POST /api/v1/applications : Create a job application
-     * Creates a job application for the authenticated user. The owner is resolved from the JWT &#x60;sub&#x60; claim — &#x60;user_id&#x60; is never accepted from the request body. New applications start in the &#x60;applied&#x60; stage. 
+     * Creates a job application for the authenticated user. The owner is resolved from the JWT &#x60;sub&#x60; claim — &#x60;user_id&#x60; is never accepted from the request body. New applications start in the &#x60;draft&#x60; stage unless &#x60;stage&#x60; is provided. 
      *
      * @param createApplicationRequest  (required)
      * @return Application created (status code 201)
@@ -66,7 +66,7 @@ public interface ApplicationsApi {
     @Operation(
         operationId = "createApplication",
         summary = "Create a job application",
-        description = "Creates a job application for the authenticated user. The owner is resolved from the JWT `sub` claim — `user_id` is never accepted from the request body. New applications start in the `applied` stage. ",
+        description = "Creates a job application for the authenticated user. The owner is resolved from the JWT `sub` claim — `user_id` is never accepted from the request body. New applications start in the `draft` stage unless `stage` is provided. ",
         tags = { "Applications" },
         responses = {
             @ApiResponse(responseCode = "201", description = "Application created", content = {
@@ -96,7 +96,7 @@ public interface ApplicationsApi {
         getRequest().ifPresent(request -> {
             for (MediaType mediaType: MediaType.parseMediaTypes(request.getHeader("Accept"))) {
                 if (mediaType.isCompatibleWith(MediaType.valueOf("application/json"))) {
-                    String exampleString = "{ \"id\" : \"046b6c7f-0b8a-43b9-b35d-6489e6daee91\", \"company\" : \"company\", \"job_title\" : \"job_title\", \"job_description\" : \"job_description\", \"job_url\" : \"job_url\", \"company_website\" : \"company_website\", \"linkedin_url\" : \"linkedin_url\", \"stage\" : \"applied\", \"notes\" : \"notes\", \"applied_at\" : \"2000-01-23T04:56:07.000+00:00\", \"updated_at\" : \"2000-01-23T04:56:07.000+00:00\" }";
+                    String exampleString = "{ \"id\" : \"046b6c7f-0b8a-43b9-b35d-6489e6daee91\", \"company\" : \"company\", \"job_title\" : \"job_title\", \"job_description\" : \"job_description\", \"job_url\" : \"job_url\", \"company_website\" : \"company_website\", \"linkedin_url\" : \"linkedin_url\", \"stage\" : \"draft\", \"notes\" : \"notes\", \"applied_at\" : \"2000-01-23T04:56:07.000+00:00\", \"updated_at\" : \"2000-01-23T04:56:07.000+00:00\" }";
                     ApiUtil.setExampleResponse(request, "application/json", exampleString);
                     break;
                 }
@@ -348,7 +348,7 @@ public interface ApplicationsApi {
         getRequest().ifPresent(request -> {
             for (MediaType mediaType: MediaType.parseMediaTypes(request.getHeader("Accept"))) {
                 if (mediaType.isCompatibleWith(MediaType.valueOf("application/json"))) {
-                    String exampleString = "{ \"id\" : \"046b6c7f-0b8a-43b9-b35d-6489e6daee91\", \"company\" : \"company\", \"job_title\" : \"job_title\", \"job_description\" : \"job_description\", \"job_url\" : \"job_url\", \"company_website\" : \"company_website\", \"linkedin_url\" : \"linkedin_url\", \"stage\" : \"applied\", \"notes\" : \"notes\", \"applied_at\" : \"2000-01-23T04:56:07.000+00:00\", \"updated_at\" : \"2000-01-23T04:56:07.000+00:00\" }";
+                    String exampleString = "{ \"id\" : \"046b6c7f-0b8a-43b9-b35d-6489e6daee91\", \"company\" : \"company\", \"job_title\" : \"job_title\", \"job_description\" : \"job_description\", \"job_url\" : \"job_url\", \"company_website\" : \"company_website\", \"linkedin_url\" : \"linkedin_url\", \"stage\" : \"draft\", \"notes\" : \"notes\", \"applied_at\" : \"2000-01-23T04:56:07.000+00:00\", \"updated_at\" : \"2000-01-23T04:56:07.000+00:00\" }";
                     ApiUtil.setExampleResponse(request, "application/json", exampleString);
                     break;
                 }
@@ -406,7 +406,7 @@ public interface ApplicationsApi {
         getRequest().ifPresent(request -> {
             for (MediaType mediaType: MediaType.parseMediaTypes(request.getHeader("Accept"))) {
                 if (mediaType.isCompatibleWith(MediaType.valueOf("application/json"))) {
-                    String exampleString = "{ \"applied\" : 0, \"follow_up\" : 6, \"interview\" : 1, \"offer\" : 5, \"closed\" : 5, \"total\" : 2 }";
+                    String exampleString = "{ \"draft\" : 0, \"applied\" : 6, \"follow_up\" : 1, \"interview\" : 5, \"offer\" : 5, \"closed\" : 2, \"total\" : 7 }";
                     ApiUtil.setExampleResponse(request, "application/json", exampleString);
                     break;
                 }
@@ -464,7 +464,7 @@ public interface ApplicationsApi {
         getRequest().ifPresent(request -> {
             for (MediaType mediaType: MediaType.parseMediaTypes(request.getHeader("Accept"))) {
                 if (mediaType.isCompatibleWith(MediaType.valueOf("application/json"))) {
-                    String exampleString = "{ \"items\" : [ { \"id\" : \"046b6c7f-0b8a-43b9-b35d-6489e6daee91\", \"company\" : \"company\", \"job_title\" : \"job_title\", \"job_description\" : \"job_description\", \"job_url\" : \"job_url\", \"company_website\" : \"company_website\", \"linkedin_url\" : \"linkedin_url\", \"stage\" : \"applied\", \"notes\" : \"notes\", \"applied_at\" : \"2000-01-23T04:56:07.000+00:00\", \"updated_at\" : \"2000-01-23T04:56:07.000+00:00\" }, { \"id\" : \"046b6c7f-0b8a-43b9-b35d-6489e6daee91\", \"company\" : \"company\", \"job_title\" : \"job_title\", \"job_description\" : \"job_description\", \"job_url\" : \"job_url\", \"company_website\" : \"company_website\", \"linkedin_url\" : \"linkedin_url\", \"stage\" : \"applied\", \"notes\" : \"notes\", \"applied_at\" : \"2000-01-23T04:56:07.000+00:00\", \"updated_at\" : \"2000-01-23T04:56:07.000+00:00\" } ], \"total\" : 0 }";
+                    String exampleString = "{ \"items\" : [ { \"id\" : \"046b6c7f-0b8a-43b9-b35d-6489e6daee91\", \"company\" : \"company\", \"job_title\" : \"job_title\", \"job_description\" : \"job_description\", \"job_url\" : \"job_url\", \"company_website\" : \"company_website\", \"linkedin_url\" : \"linkedin_url\", \"stage\" : \"draft\", \"notes\" : \"notes\", \"applied_at\" : \"2000-01-23T04:56:07.000+00:00\", \"updated_at\" : \"2000-01-23T04:56:07.000+00:00\" }, { \"id\" : \"046b6c7f-0b8a-43b9-b35d-6489e6daee91\", \"company\" : \"company\", \"job_title\" : \"job_title\", \"job_description\" : \"job_description\", \"job_url\" : \"job_url\", \"company_website\" : \"company_website\", \"linkedin_url\" : \"linkedin_url\", \"stage\" : \"draft\", \"notes\" : \"notes\", \"applied_at\" : \"2000-01-23T04:56:07.000+00:00\", \"updated_at\" : \"2000-01-23T04:56:07.000+00:00\" } ], \"total\" : 0 }";
                     ApiUtil.setExampleResponse(request, "application/json", exampleString);
                     break;
                 }
@@ -546,7 +546,7 @@ public interface ApplicationsApi {
     String PATH_UPDATE_APPLICATION = "/api/v1/applications/{id}";
     /**
      * PUT /api/v1/applications/{id} : Update a job application
-     * Updates an application owned by the authenticated user, including stage transitions (&#x60;applied&#x60; → &#x60;follow_up&#x60; → &#x60;interview&#x60; → &#x60;offer&#x60; → &#x60;closed&#x60;). 
+     * Updates an application owned by the authenticated user, including stage transitions (&#x60;draft&#x60; → &#x60;applied&#x60; → &#x60;follow_up&#x60; → &#x60;interview&#x60; → &#x60;offer&#x60; → &#x60;closed&#x60;). 
      *
      * @param id  (required)
      * @param updateApplicationRequest  (required)
@@ -558,7 +558,7 @@ public interface ApplicationsApi {
     @Operation(
         operationId = "updateApplication",
         summary = "Update a job application",
-        description = "Updates an application owned by the authenticated user, including stage transitions (`applied` → `follow_up` → `interview` → `offer` → `closed`). ",
+        description = "Updates an application owned by the authenticated user, including stage transitions (`draft` → `applied` → `follow_up` → `interview` → `offer` → `closed`). ",
         tags = { "Applications" },
         responses = {
             @ApiResponse(responseCode = "200", description = "Updated application", content = {
@@ -592,7 +592,7 @@ public interface ApplicationsApi {
         getRequest().ifPresent(request -> {
             for (MediaType mediaType: MediaType.parseMediaTypes(request.getHeader("Accept"))) {
                 if (mediaType.isCompatibleWith(MediaType.valueOf("application/json"))) {
-                    String exampleString = "{ \"id\" : \"046b6c7f-0b8a-43b9-b35d-6489e6daee91\", \"company\" : \"company\", \"job_title\" : \"job_title\", \"job_description\" : \"job_description\", \"job_url\" : \"job_url\", \"company_website\" : \"company_website\", \"linkedin_url\" : \"linkedin_url\", \"stage\" : \"applied\", \"notes\" : \"notes\", \"applied_at\" : \"2000-01-23T04:56:07.000+00:00\", \"updated_at\" : \"2000-01-23T04:56:07.000+00:00\" }";
+                    String exampleString = "{ \"id\" : \"046b6c7f-0b8a-43b9-b35d-6489e6daee91\", \"company\" : \"company\", \"job_title\" : \"job_title\", \"job_description\" : \"job_description\", \"job_url\" : \"job_url\", \"company_website\" : \"company_website\", \"linkedin_url\" : \"linkedin_url\", \"stage\" : \"draft\", \"notes\" : \"notes\", \"applied_at\" : \"2000-01-23T04:56:07.000+00:00\", \"updated_at\" : \"2000-01-23T04:56:07.000+00:00\" }";
                     ApiUtil.setExampleResponse(request, "application/json", exampleString);
                     break;
                 }

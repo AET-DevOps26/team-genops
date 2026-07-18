@@ -18,6 +18,7 @@ import type {
 import {
   useCreateApplicationMutation,
   useDeleteApplicationMutation,
+  useExtractJobPostingMutation,
   useListApplicationsQuery,
   useUpdateApplicationMutation,
 } from "~/services/applications/applicationsApi";
@@ -42,8 +43,13 @@ const EMPTY_FORM: FormState = {
   job_description: "",
   job_url: "",
   notes: "",
-  stage: "applied",
+  stage: "draft",
 };
+
+/** A subtle asterisk marking a mandatory field. */
+function Req() {
+  return <span className="text-interview"> *</span>;
+}
 
 /** Create/edit form, shown as an overlay panel. */
 function ApplicationForm({
@@ -60,6 +66,10 @@ function ApplicationForm({
     useCreateApplicationMutation();
   const [update, { isLoading: updating, error: updateError }] =
     useUpdateApplicationMutation();
+  const [
+    extract,
+    { isLoading: extracting, error: extractError, reset: resetExtract },
+  ] = useExtractJobPostingMutation();
 
   const set =
     (key: keyof FormState) =>
@@ -70,21 +80,35 @@ function ApplicationForm({
     ) =>
       setForm((f) => ({ ...f, [key]: e.target.value }));
 
+  async function onAutofill() {
+    if (!form.job_url.trim()) return;
+    try {
+      const extracted = await extract({ url: form.job_url.trim() }).unwrap();
+      // Pre-fill only — every field stays editable, and nulls leave fields untouched.
+      setForm((f) => ({
+        ...f,
+        company: extracted.company ?? f.company,
+        job_title: extracted.job_title ?? f.job_title,
+        job_description: extracted.job_description ?? f.job_description,
+      }));
+    } catch {
+      // error is rendered from the mutation state; manual entry stays available
+    }
+  }
+
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
     const body = {
-      company: form.company,
-      job_title: form.job_title,
-      job_description: form.job_description || undefined,
-      job_url: form.job_url || undefined,
+      company: form.company.trim(),
+      job_title: form.job_title.trim(),
+      job_description: form.job_description.trim(),
+      job_url: form.job_url.trim() || undefined,
       notes: form.notes || undefined,
+      stage: form.stage,
     };
     try {
       if (editing) {
-        await update({
-          id: editing.id,
-          body: { ...body, stage: form.stage },
-        }).unwrap();
+        await update({ id: editing.id, body }).unwrap();
       } else {
         await create(body).unwrap();
       }
@@ -117,16 +141,64 @@ function ApplicationForm({
         }
       >
         <form onSubmit={onSubmit} className="space-y-4 px-1 py-5">
+          {/* Optional first step: paste the posting URL and let the assistant fill the form. */}
+          <div className="rounded-lg border border-line bg-raised-2/40 p-3.5">
+            <Field
+              id="job_url"
+              label="Job URL — optional first step"
+              type="url"
+              value={form.job_url}
+              onChange={(e) => {
+                resetExtract();
+                set("job_url")(e);
+              }}
+              placeholder="https://…"
+              trailing={
+                <Button
+                  type="button"
+                  variant="ghost"
+                  className="shrink-0 px-3 py-1 text-xs"
+                  loading={extracting}
+                  disabled={!form.job_url.trim() || extracting}
+                  onClick={onAutofill}
+                >
+                  Autofill
+                </Button>
+              }
+            />
+            <p className="mt-1.5 text-xs text-faint">
+              Paste the posting link and the assistant fills in company, role,
+              and description.
+            </p>
+            {extractError != null && (
+              <div className="mt-2 space-y-1">
+                <ErrorBanner error={extractError as NormalizedError} />
+                <p className="text-xs text-faint">
+                  You can still fill in the details manually below.
+                </p>
+              </div>
+            )}
+          </div>
           <Field
             id="company"
-            label="Company"
+            label={
+              <>
+                Company
+                <Req />
+              </>
+            }
             required
             value={form.company}
             onChange={set("company")}
           />
           <Field
             id="job_title"
-            label="Role"
+            label={
+              <>
+                Role
+                <Req />
+              </>
+            }
             required
             value={form.job_title}
             onChange={set("job_title")}
@@ -137,24 +209,18 @@ function ApplicationForm({
               className="tag mb-1.5 block text-dim"
             >
               Job description
+              <Req />
             </label>
             <textarea
               id="job_description"
               rows={6}
+              required
               value={form.job_description}
               onChange={set("job_description")}
               placeholder="Paste the posting — the assistant uses it to tailor documents."
               className="field w-full rounded-lg px-3.5 py-2.5 text-[15px] text-fg placeholder:text-faint"
             />
           </div>
-          <Field
-            id="job_url"
-            label="Job URL"
-            type="url"
-            value={form.job_url}
-            onChange={set("job_url")}
-            placeholder="https://…"
-          />
           <div>
             <label htmlFor="notes" className="tag mb-1.5 block text-dim">
               Notes
@@ -167,25 +233,29 @@ function ApplicationForm({
               className="field w-full rounded-lg px-3.5 py-2.5 text-[15px] text-fg placeholder:text-faint"
             />
           </div>
-          {editing && (
-            <div>
-              <label htmlFor="stage" className="tag mb-1.5 block text-dim">
-                Stage
-              </label>
-              <select
-                id="stage"
-                value={form.stage}
-                onChange={set("stage")}
-                className="field w-full rounded-lg px-3.5 py-2.5 text-[15px] text-fg"
-              >
-                {STAGES.map((s) => (
-                  <option key={s.value} value={s.value}>
-                    {s.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
+          <div>
+            <label htmlFor="stage" className="tag mb-1.5 block text-dim">
+              Stage
+            </label>
+            <select
+              id="stage"
+              value={form.stage}
+              onChange={set("stage")}
+              className="field w-full rounded-lg px-3.5 py-2.5 text-[15px] text-fg"
+            >
+              {STAGES.map((s) => (
+                <option key={s.value} value={s.value}>
+                  {s.label}
+                </option>
+              ))}
+            </select>
+            {!editing && (
+              <p className="mt-1.5 text-xs text-faint">
+                Starts in Draft — you&apos;re preparing this application. Pick
+                another stage if you&apos;ve already sent it.
+              </p>
+            )}
+          </div>
           <ErrorBanner
             error={(createError ?? updateError) as NormalizedError | undefined}
           />
@@ -230,10 +300,7 @@ function DocumentsTab({
           onClick={() =>
             navigate("/chat", {
               state: {
-                // Only the reference — the assistant fetches the role, company and job
-                // description from the application service itself. Pasting the whole posting
-                // into the message made the user "say" a wall of text they never typed.
-                prefill: `${command} for my ${application.job_title} application at ${application.company} (application id: ${application.id}).`,
+                prefill: `${command} for my ${application.job_title} application at ${application.company} (application id: ${application.id}).${application.job_description ? ` Job description: ${application.job_description}` : ""}`,
               },
             })
           }
