@@ -24,6 +24,14 @@ CREATE TABLE IF NOT EXISTS genai.chat_sessions (
 -- IF NOT EXISTS above is a no-op for them.
 ALTER TABLE genai.chat_sessions ADD COLUMN IF NOT EXISTS application_id UUID;
 
+-- Mock-interview state. Only mock_interview sessions use these; they stay NULL for every
+-- other session_type. status tracks the interview lifecycle, score is the final (possibly
+-- early-exit-penalised) 0-100 result, and evaluation holds the full structured breakdown.
+ALTER TABLE genai.chat_sessions ADD COLUMN IF NOT EXISTS interview_status VARCHAR(20)
+    CHECK (interview_status IS NULL OR interview_status IN ('in_progress', 'completed'));
+ALTER TABLE genai.chat_sessions ADD COLUMN IF NOT EXISTS interview_score INTEGER;
+ALTER TABLE genai.chat_sessions ADD COLUMN IF NOT EXISTS interview_evaluation JSONB;
+
 -- Migration: adopt a new embedding dimension if the model changed.
 --
 -- This file is re-executed on every service start, so the guard must compare the CURRENT

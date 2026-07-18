@@ -7,6 +7,10 @@ interface Props {
   onNew: () => void;
   onDelete: (id: string) => void;
   loading?: boolean;
+  /** Label for the create button — e.g. "+ New chat" or "+ New interview". */
+  newLabel?: string;
+  /** Shown when the list is empty (e.g. interview tab before the first interview). */
+  emptyHint?: string;
 }
 
 export function SessionList({
@@ -16,6 +20,8 @@ export function SessionList({
   onNew,
   onDelete,
   loading,
+  newLabel = "+ New chat",
+  emptyHint,
 }: Props) {
   return (
     <aside className="w-60 shrink-0 flex flex-col border-r border-line bg-ink">
@@ -24,11 +30,14 @@ export function SessionList({
           onClick={onNew}
           className="cta w-full rounded-lg px-3 py-2 text-sm font-medium transition"
         >
-          + New chat
+          {newLabel}
         </button>
       </div>
       <div className="flex-1 overflow-y-auto py-2">
         {loading && <p className="px-4 py-3 text-xs text-faint">Loading…</p>}
+        {!loading && sessions.length === 0 && emptyHint && (
+          <p className="px-4 py-3 text-xs text-faint">{emptyHint}</p>
+        )}
         {sessions.map((s) => (
           <div
             key={s.id}

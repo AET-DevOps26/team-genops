@@ -39,7 +39,9 @@ public class SessionResponse {
     
     COVER_LETTER_CHAT("cover_letter_chat"),
     
-    FIT_ANALYSIS_CHAT("fit_analysis_chat");
+    FIT_ANALYSIS_CHAT("fit_analysis_chat"),
+    
+    MOCK_INTERVIEW("mock_interview");
 
     private final String value;
 
@@ -73,6 +75,45 @@ public class SessionResponse {
   private @Nullable String summary = null;
 
   private @Nullable String firstMessage = null;
+
+  /**
+   * Lifecycle of a mock interview; null for every other session type
+   */
+  public enum InterviewStatusEnum {
+    IN_PROGRESS("in_progress"),
+    
+    COMPLETED("completed");
+
+    private final String value;
+
+    InterviewStatusEnum(String value) {
+      this.value = value;
+    }
+
+    @JsonValue
+    public String getValue() {
+      return value;
+    }
+
+    @Override
+    public String toString() {
+      return String.valueOf(value);
+    }
+
+    @JsonCreator
+    public static InterviewStatusEnum fromValue(String value) {
+      for (InterviewStatusEnum b : InterviewStatusEnum.values()) {
+        if (b.value.equals(value)) {
+          return b;
+        }
+      }
+      return null;
+    }
+  }
+
+  private @Nullable InterviewStatusEnum interviewStatus = null;
+
+  private @Nullable Integer interviewScore = null;
 
   @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME)
   private OffsetDateTime createdAt;
@@ -217,6 +258,48 @@ public class SessionResponse {
     this.firstMessage = firstMessage;
   }
 
+  public SessionResponse interviewStatus(@Nullable InterviewStatusEnum interviewStatus) {
+    this.interviewStatus = interviewStatus;
+    return this;
+  }
+
+  /**
+   * Lifecycle of a mock interview; null for every other session type
+   * @return interviewStatus
+   */
+  
+  @Schema(name = "interview_status", description = "Lifecycle of a mock interview; null for every other session type", requiredMode = Schema.RequiredMode.NOT_REQUIRED)
+  @JsonProperty("interview_status")
+  public @Nullable InterviewStatusEnum getInterviewStatus() {
+    return interviewStatus;
+  }
+
+  @JsonProperty("interview_status")
+  public void setInterviewStatus(@Nullable InterviewStatusEnum interviewStatus) {
+    this.interviewStatus = interviewStatus;
+  }
+
+  public SessionResponse interviewScore(@Nullable Integer interviewScore) {
+    this.interviewScore = interviewScore;
+    return this;
+  }
+
+  /**
+   * Final mock-interview score (0-100), set once the interview is completed
+   * @return interviewScore
+   */
+  
+  @Schema(name = "interview_score", description = "Final mock-interview score (0-100), set once the interview is completed", requiredMode = Schema.RequiredMode.NOT_REQUIRED)
+  @JsonProperty("interview_score")
+  public @Nullable Integer getInterviewScore() {
+    return interviewScore;
+  }
+
+  @JsonProperty("interview_score")
+  public void setInterviewScore(@Nullable Integer interviewScore) {
+    this.interviewScore = interviewScore;
+  }
+
   public SessionResponse createdAt(OffsetDateTime createdAt) {
     this.createdAt = createdAt;
     return this;
@@ -253,12 +336,14 @@ public class SessionResponse {
         Objects.equals(this.sessionType, sessionResponse.sessionType) &&
         Objects.equals(this.summary, sessionResponse.summary) &&
         Objects.equals(this.firstMessage, sessionResponse.firstMessage) &&
+        Objects.equals(this.interviewStatus, sessionResponse.interviewStatus) &&
+        Objects.equals(this.interviewScore, sessionResponse.interviewScore) &&
         Objects.equals(this.createdAt, sessionResponse.createdAt);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(id, userId, applicationId, sessionType, summary, firstMessage, createdAt);
+    return Objects.hash(id, userId, applicationId, sessionType, summary, firstMessage, interviewStatus, interviewScore, createdAt);
   }
 
   @Override
@@ -271,6 +356,8 @@ public class SessionResponse {
     sb.append("    sessionType: ").append(toIndentedString(sessionType)).append("\n");
     sb.append("    summary: ").append(toIndentedString(summary)).append("\n");
     sb.append("    firstMessage: ").append(toIndentedString(firstMessage)).append("\n");
+    sb.append("    interviewStatus: ").append(toIndentedString(interviewStatus)).append("\n");
+    sb.append("    interviewScore: ").append(toIndentedString(interviewScore)).append("\n");
     sb.append("    createdAt: ").append(toIndentedString(createdAt)).append("\n");
     sb.append("}");
     return sb.toString();

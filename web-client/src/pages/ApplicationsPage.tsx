@@ -359,6 +359,7 @@ function DetailDrawer({
 }) {
   const [tab, setTab] = useState<DrawerTab>("overview");
   const meta = stageMeta(application.stage);
+  const navigate = useNavigate();
 
   const TABS: { key: DrawerTab; label: string }[] = [
     { key: "overview", label: "Overview" },
@@ -461,13 +462,30 @@ function DetailDrawer({
                   </p>
                 </div>
               )}
-              <Button
-                variant="ghost"
-                className="px-4 py-2 text-sm"
-                onClick={onEdit}
-              >
-                Edit application
-              </Button>
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  variant="ghost"
+                  className="px-4 py-2 text-sm"
+                  onClick={onEdit}
+                >
+                  Edit application
+                </Button>
+                {application.job_description?.trim() && (
+                  <Button
+                    className="px-4 py-2 text-sm"
+                    onClick={() =>
+                      navigate("/chat", {
+                        state: {
+                          tab: "interview",
+                          presetApplicationId: application.id,
+                        },
+                      })
+                    }
+                  >
+                    Practice interview
+                  </Button>
+                )}
+              </div>
             </div>
           )}
           {tab === "cover_letter" && (

@@ -5,6 +5,7 @@ import java.util.Objects;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonValue;
+import java.util.UUID;
 import org.springframework.lang.Nullable;
 import java.time.OffsetDateTime;
 import jakarta.validation.Valid;
@@ -30,7 +31,9 @@ public class CreateSessionRequest {
     
     COVER_LETTER_CHAT("cover_letter_chat"),
     
-    FIT_ANALYSIS_CHAT("fit_analysis_chat");
+    FIT_ANALYSIS_CHAT("fit_analysis_chat"),
+    
+    MOCK_INTERVIEW("mock_interview");
 
     private final String value;
 
@@ -61,6 +64,8 @@ public class CreateSessionRequest {
 
   private SessionTypeEnum sessionType = SessionTypeEnum.INSIGHT_CHAT;
 
+  private @Nullable UUID applicationId = null;
+
   public CreateSessionRequest sessionType(SessionTypeEnum sessionType) {
     this.sessionType = sessionType;
     return this;
@@ -82,6 +87,27 @@ public class CreateSessionRequest {
     this.sessionType = sessionType;
   }
 
+  public CreateSessionRequest applicationId(@Nullable UUID applicationId) {
+    this.applicationId = applicationId;
+    return this;
+  }
+
+  /**
+   * Required for a mock_interview (the interview is tailored to one job application, which must have a job description; the user's profile must also be complete). Optional for other session types, where an application is bound later on first reference. A 422 is returned if a mock_interview's preconditions are not met.
+   * @return applicationId
+   */
+  @Valid 
+  @Schema(name = "application_id", description = "Required for a mock_interview (the interview is tailored to one job application, which must have a job description; the user's profile must also be complete). Optional for other session types, where an application is bound later on first reference. A 422 is returned if a mock_interview's preconditions are not met.", requiredMode = Schema.RequiredMode.NOT_REQUIRED)
+  @JsonProperty("application_id")
+  public @Nullable UUID getApplicationId() {
+    return applicationId;
+  }
+
+  @JsonProperty("application_id")
+  public void setApplicationId(@Nullable UUID applicationId) {
+    this.applicationId = applicationId;
+  }
+
   @Override
   public boolean equals(Object o) {
     if (this == o) {
@@ -91,12 +117,13 @@ public class CreateSessionRequest {
       return false;
     }
     CreateSessionRequest createSessionRequest = (CreateSessionRequest) o;
-    return Objects.equals(this.sessionType, createSessionRequest.sessionType);
+    return Objects.equals(this.sessionType, createSessionRequest.sessionType) &&
+        Objects.equals(this.applicationId, createSessionRequest.applicationId);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(sessionType);
+    return Objects.hash(sessionType, applicationId);
   }
 
   @Override
@@ -104,6 +131,7 @@ public class CreateSessionRequest {
     StringBuilder sb = new StringBuilder();
     sb.append("class CreateSessionRequest {\n");
     sb.append("    sessionType: ").append(toIndentedString(sessionType)).append("\n");
+    sb.append("    applicationId: ").append(toIndentedString(applicationId)).append("\n");
     sb.append("}");
     return sb.toString();
   }

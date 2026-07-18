@@ -60,6 +60,40 @@ async def get_application(token: str, application_id: str) -> str:
     return _format_application(data)
 
 
+async def fetch_application(token: str, application_id: str) -> dict | None:
+    """
+    Fetch one application as raw JSON, or None if it is missing / not owned / unreachable.
+
+    Unlike get_application (which degrades to a prose note for the chat prompt), this is for
+    the mock-interview precondition gate, which must be able to *decide* — so it returns
+    structured data or nothing, and the caller turns None into an explicit error.
+    """
+    try:
+        safe_id = str(UUID(str(application_id)))
+    except ValueError:
+        return None
+
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.get(
+                f"{settings.application_service_url}/api/v1/applications/{safe_id}",
+                headers={"Authorization": f"Bearer {token}"},
+                timeout=5.0,
+            )
+            if response.status_code == 404:
+                return None
+            response.raise_for_status()
+            return response.json()
+    except Exception:
+        logger.warning("application fetch (raw) failed", exc_info=True)
+        return None
+
+
+def application_has_job_description(data: dict) -> bool:
+    """True when the application carries a non-empty job description to ground questions in."""
+    return bool((data.get("job_description") or "").strip())
+
+
 async def list_applications(token: str) -> str:
     """
     Fetch the user's applications and format them as a compact overview.

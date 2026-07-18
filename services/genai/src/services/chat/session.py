@@ -1,19 +1,29 @@
 from psycopg import AsyncConnection
+from psycopg.types.json import Jsonb
 
 
 async def create_session(
     conn: AsyncConnection,
     user_id: str,
     session_type: str = "insight_chat",
+    application_id: str | None = None,
 ) -> dict:
-    """Create a new chat session and return its metadata."""
+    """
+    Create a new chat session and return its metadata.
+
+    `application_id` is bound at creation for a mock_interview (the whole interview is about
+    one job, verified by the caller before we get here); for other session types it is
+    normally None and bound later on first reference. A mock_interview also starts its
+    lifecycle in 'in_progress' — every other type leaves interview_status NULL.
+    """
+    interview_status = "in_progress" if session_type == "mock_interview" else None
     cur = await conn.execute(
         """
-        INSERT INTO genai.chat_sessions (user_id, session_type)
-        VALUES (%s, %s)
-        RETURNING id, user_id, session_type, created_at
+        INSERT INTO genai.chat_sessions (user_id, session_type, application_id, interview_status)
+        VALUES (%s, %s, %s, %s)
+        RETURNING id, user_id, session_type, application_id, interview_status, created_at
         """,
-        (user_id, session_type),
+        (user_id, session_type, application_id, interview_status),
     )
     row = await cur.fetchone()
     assert row is not None  # INSERT ... RETURNING always yields a row
@@ -21,10 +31,51 @@ async def create_session(
         "id": str(row[0]),
         "user_id": str(row[1]),
         "session_type": row[2],
-        "created_at": row[3].isoformat(),
-        # Always null at creation — an application is bound later, on first reference.
-        "application_id": None,
+        "application_id": str(row[3]) if row[3] else None,
+        "interview_status": row[4],
+        "created_at": row[5].isoformat(),
     }
+
+
+async def get_session_meta(conn: AsyncConnection, session_id: str, user_id: str) -> dict | None:
+    """
+    Return session type + interview state for an owned session, or None if missing/not owned.
+
+    The interview flow needs to know which mode a session is in and where the interview
+    stands before it acts; folding the ownership check in here keeps that a single query.
+    """
+    cur = await conn.execute(
+        """
+        SELECT session_type, application_id, interview_status, interview_score
+        FROM genai.chat_sessions
+        WHERE id = %s AND user_id = %s
+        """,
+        (session_id, user_id),
+    )
+    row = await cur.fetchone()
+    if not row:
+        return None
+    return {
+        "session_type": row[0],
+        "application_id": str(row[1]) if row[1] else None,
+        "interview_status": row[2],
+        "interview_score": row[3],
+    }
+
+
+async def complete_interview(conn: AsyncConnection, session_id: str, score: int, evaluation: dict) -> None:
+    """Persist the final score + structured evaluation and mark the interview completed."""
+    await conn.execute(
+        """
+        UPDATE genai.chat_sessions
+        SET interview_status = 'completed',
+            interview_score = %s,
+            interview_evaluation = %s,
+            updated_at = NOW()
+        WHERE id = %s
+        """,
+        (score, Jsonb(evaluation), session_id),
+    )
 
 
 async def get_session_application_id(conn: AsyncConnection, session_id: str) -> str | None:
@@ -125,6 +176,8 @@ async def get_sessions(conn: AsyncConnection, user_id: str) -> list[dict]:
             s.summary,
             s.created_at,
             s.application_id,
+            s.interview_status,
+            s.interview_score,
             (
                 SELECT content
                 FROM genai.chat_messages
@@ -147,7 +200,9 @@ async def get_sessions(conn: AsyncConnection, user_id: str) -> list[dict]:
             "summary": r[2],
             "created_at": r[3].isoformat(),
             "application_id": str(r[4]) if r[4] else None,
-            "first_message": r[5],
+            "interview_status": r[5],
+            "interview_score": r[6],
+            "first_message": r[7],
         }
         for r in rows
     ]

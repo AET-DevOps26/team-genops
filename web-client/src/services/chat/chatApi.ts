@@ -8,7 +8,30 @@ export interface Session {
   application_id: string | null;
   summary: string | null;
   first_message: string | null;
+  /** Mock-interview lifecycle; null for every other session type. */
+  interview_status: "in_progress" | "completed" | null;
+  /** Final mock-interview score (0-100), set once completed. */
+  interview_score: number | null;
   created_at: string;
+}
+
+export interface InterviewCompetency {
+  name: string;
+  score: number;
+  comment: string | null;
+}
+
+/** The score card returned when a mock interview finishes (last answer) or is ended early. */
+export interface InterviewResult {
+  score: number;
+  verdict: string | null;
+  summary: string | null;
+  competencies: InterviewCompetency[];
+  strengths: string[];
+  improvements: string[];
+  ended_early: boolean;
+  questions_answered: number;
+  questions_total: number;
 }
 
 export interface Message {
@@ -25,7 +48,10 @@ export interface MessageItem {
 
 const chatApi = api.injectEndpoints({
   endpoints: (build) => ({
-    createSession: build.mutation<Session, { session_type?: string }>({
+    createSession: build.mutation<
+      Session,
+      { session_type?: string; application_id?: string }
+    >({
       query: (body) => ({
         url: "/chat/sessions",
         method: "POST",
@@ -56,7 +82,7 @@ const chatApi = api.injectEndpoints({
     }),
 
     sendMessage: build.mutation<
-      { response: string },
+      { response: string; interview?: InterviewResult | null },
       { sessionId: string; message: string }
     >({
       query: ({ sessionId, message }) => ({
@@ -65,6 +91,17 @@ const chatApi = api.injectEndpoints({
         body: { message },
       }),
       invalidatesTags: (_result, _error, { sessionId }) => [
+        "Chat",
+        { type: "Messages", id: sessionId },
+      ],
+    }),
+
+    endInterview: build.mutation<InterviewResult, string>({
+      query: (sessionId) => ({
+        url: `/chat/sessions/${sessionId}/end-interview`,
+        method: "POST",
+      }),
+      invalidatesTags: (_result, _error, sessionId) => [
         "Chat",
         { type: "Messages", id: sessionId },
       ],
@@ -78,4 +115,5 @@ export const {
   useGetSessionsQuery,
   useGetMessagesQuery,
   useSendMessageMutation,
+  useEndInterviewMutation,
 } = chatApi;

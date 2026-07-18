@@ -28,6 +28,12 @@
 **/__pycache__/
 *.py[cod]
 
+# Coverage artefacts
+**/.coverage
+**/.coverage.*
+**/htmlcov/
+**/coverage.xml
+
 # Environment variables
 **/.env
 **/.env.*

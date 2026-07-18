@@ -664,6 +664,29 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/chat/sessions/{session_id}/end-interview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * End a mock interview early and score it
+         * @description Ends an in-progress mock_interview before the final question and returns the score
+         *     card. Ending early is penalised in proportion to how many questions went unanswered,
+         *     and the result flags it (`ended_early`) so the UI can tell the user their score was
+         *     lowered. Only valid for a mock_interview that has not already ended.
+         */
+        post: operations["endInterview"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -1000,7 +1023,12 @@ export interface components {
              * @default insight_chat
              * @enum {string}
              */
-            session_type: "insight_chat" | "cover_letter_chat" | "fit_analysis_chat";
+            session_type: "insight_chat" | "cover_letter_chat" | "fit_analysis_chat" | "mock_interview";
+            /**
+             * Format: uuid
+             * @description Required for a mock_interview (the interview is tailored to one job application, which must have a job description; the user's profile must also be complete). Optional for other session types, where an application is bound later on first reference. A 422 is returned if a mock_interview's preconditions are not met.
+             */
+            application_id?: string | null;
         };
         SessionResponse: {
             /** Format: uuid */
@@ -1013,11 +1041,18 @@ export interface components {
              */
             application_id?: string | null;
             /** @enum {string} */
-            session_type: "insight_chat" | "cover_letter_chat" | "fit_analysis_chat";
+            session_type: "insight_chat" | "cover_letter_chat" | "fit_analysis_chat" | "mock_interview";
             /** @description AI-generated memory summary, set after enough messages accumulate */
             summary?: string | null;
             /** @description First user message in the session — used as the display title in the UI */
             first_message?: string | null;
+            /**
+             * @description Lifecycle of a mock interview; null for every other session type
+             * @enum {string|null}
+             */
+            interview_status?: "in_progress" | "completed" | null;
+            /** @description Final mock-interview score (0-100), set once the interview is completed */
+            interview_score?: number | null;
             /** Format: date-time */
             created_at: string;
         };
@@ -1041,6 +1076,28 @@ export interface components {
         };
         MessageResponse: {
             response: string;
+            /** @description Present only on the turn that ends a mock interview (the arc's last answer) — the final score card. Null on every other turn. */
+            interview?: components["schemas"]["InterviewResult"] | null;
+        };
+        /** @description Structured outcome of a finished mock interview — the score card. */
+        InterviewResult: {
+            /** @description Final score 0-100, after any early-exit penalty */
+            score: number;
+            /** @description One short phrase, e.g. "Strong hire signal" */
+            verdict?: string | null;
+            summary?: string | null;
+            competencies?: components["schemas"]["InterviewCompetency"][];
+            strengths?: string[];
+            improvements?: string[];
+            /** @description True if the candidate ended before the final question (which lowers the score) */
+            ended_early?: boolean;
+            questions_answered?: number;
+            questions_total?: number;
+        };
+        InterviewCompetency: {
+            name: string;
+            score: number;
+            comment?: string | null;
         };
     };
     responses: never;
@@ -2745,8 +2802,66 @@ export interface operations {
                     "application/json": components["schemas"]["Error"];
                 };
             };
+            /** @description The interview has already ended (mock_interview sessions only) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
             /** @description Validation error (e.g. message exceeds 8000 chars) */
             422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    endInterview: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                session_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Interview ended and scored */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InterviewResult"];
+                };
+            };
+            /** @description Missing or expired access token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Interview not found, not owned, or not a mock_interview */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description The interview has already ended */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };

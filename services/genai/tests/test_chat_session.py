@@ -19,7 +19,8 @@ async def test_create_session_returns_metadata_with_no_application_bound():
     from src.services.chat.session import create_session
 
     created = datetime(2026, 1, 1, 12, 0, 0)
-    conn = make_conn(results=[[("s-1", "u-1", "insight_chat", created)]])
+    # RETURNING: id, user_id, session_type, application_id, interview_status, created_at
+    conn = make_conn(results=[[("s-1", "u-1", "insight_chat", None, None, created)]])
 
     result = await create_session(conn, "u-1")
 
@@ -143,7 +144,8 @@ async def test_get_sessions_is_scoped_to_the_user_and_newest_first():
     from src.services.chat.session import get_sessions
 
     ts = datetime(2026, 1, 1, 12, 0, 0)
-    conn = make_conn(results=[[("s-1", "insight_chat", "summary", ts, "app-1", "first question")]])
+    # id, session_type, summary, created_at, application_id, interview_status, interview_score, first_message
+    conn = make_conn(results=[[("s-1", "insight_chat", "summary", ts, "app-1", None, None, "first question")]])
 
     sessions = await get_sessions(conn, "u-1")
 
@@ -162,6 +164,6 @@ async def test_get_sessions_handles_an_unbound_session():
     from src.services.chat.session import get_sessions
 
     ts = datetime(2026, 1, 1, 12, 0, 0)
-    conn = make_conn(results=[[("s-1", "insight_chat", None, ts, None, None)]])
+    conn = make_conn(results=[[("s-1", "insight_chat", None, ts, None, None, None, None)]])
 
     assert (await get_sessions(conn, "u-1"))[0]["application_id"] is None

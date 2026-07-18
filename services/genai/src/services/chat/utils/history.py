@@ -59,6 +59,43 @@ async def count_messages(conn: AsyncConnection, session_id: str) -> int:
     return row[0]
 
 
+async def count_user_messages(conn: AsyncConnection, session_id: str) -> int:
+    """
+    Number of messages the user has sent in a session — i.e. answers given in an interview.
+    The interviewer arc advances by this count (question N is asked after N answers).
+    """
+    cur = await conn.execute(
+        "SELECT COUNT(*) FROM genai.chat_messages WHERE session_id = %s AND role = 'user'",
+        (session_id,),
+    )
+    row = await cur.fetchone()
+    assert row is not None  # COUNT(*) always yields a row
+    return row[0]
+
+
+async def load_full_transcript(conn: AsyncConnection, session_id: str) -> str:
+    """
+    The entire conversation as a plain-text block, oldest first, for end-of-interview scoring.
+    Unlike load_last_n_messages_as_text this is unbounded — the evaluator judges the whole
+    interview, and a mock interview is short enough that replaying all of it is cheap.
+    """
+    cur = await conn.execute(
+        """
+        SELECT role, content
+        FROM genai.chat_messages
+        WHERE session_id = %s
+        ORDER BY seq ASC
+        """,
+        (session_id,),
+    )
+    rows = await cur.fetchall()
+    lines = []
+    for role, content in rows:
+        label = "Candidate" if role == "user" else "Interviewer"
+        lines.append(f"{label}: {content}")
+    return "\n".join(lines)
+
+
 async def load_last_n_messages_as_text(conn: AsyncConnection, session_id: str, n: int) -> str:
     """
     Load the last N messages as a plain text block for summarization.
