@@ -261,7 +261,7 @@ export interface paths {
          * Create a job application
          * @description Creates a job application for the authenticated user. The owner is resolved from the
          *     JWT `sub` claim — `user_id` is never accepted from the request body. New applications
-         *     start in the `applied` stage.
+         *     start in the `draft` stage unless `stage` is provided.
          */
         post: operations["createApplication"];
         delete?: never;
@@ -359,7 +359,7 @@ export interface paths {
         /**
          * Update a job application
          * @description Updates an application owned by the authenticated user, including stage transitions
-         *     (`applied` → `follow_up` → `interview` → `offer` → `closed`).
+         *     (`draft` → `applied` → `follow_up` → `interview` → `offer` → `closed`).
          */
         put: operations["updateApplication"];
         post?: never;
@@ -368,6 +368,34 @@ export interface paths {
          * @description Deletes an application owned by the authenticated user.
          */
         delete: operations["deleteApplication"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/job-postings/extract": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Extract job-posting fields from a URL
+         * @description Fetches a public job-posting page and uses the AI assistant to extract structured
+         *     fields (company, job title, job description) for pre-filling a new application.
+         *     Extraction is best-effort — any field the page does not reveal comes back `null`,
+         *     and clients must keep all fields editable and fall back to manual entry on error.
+         *
+         *     Error codes (unified `Error` schema): `URL_INVALID` (400 — malformed URL, unsupported
+         *     scheme, or a private/internal address), `FETCH_FAILED` (422 — the page timed out,
+         *     blocked the fetch, is not HTML, or is too large), `EXTRACTION_FAILED` (422 — the
+         *     page was fetched but no job-posting fields could be identified).
+         */
+        post: operations["extractJobPosting"];
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -721,10 +749,12 @@ export interface components {
             offset: number;
         };
         /**
-         * @description Application lifecycle stage: `applied` → `follow_up` → `interview` → `offer` → `closed`.
+         * @description Application lifecycle stage: `draft` → `applied` → `follow_up` → `interview` →
+         *     `offer` → `closed`. `draft` is the entry stage — the user is still preparing the
+         *     application and has not applied yet.
          * @enum {string}
          */
-        ApplicationStage: "applied" | "follow_up" | "interview" | "offer" | "closed";
+        ApplicationStage: "draft" | "applied" | "follow_up" | "interview" | "offer" | "closed";
         JobApplication: {
             /** Format: uuid */
             id: string;
@@ -745,7 +775,9 @@ export interface components {
         CreateApplicationRequest: {
             company: string;
             job_title: string;
-            job_description?: string;
+            job_description: string;
+            /** @description Stage to create the application in. Defaults to `draft` when omitted. */
+            stage?: components["schemas"]["ApplicationStage"];
             job_url?: string;
             company_website?: string;
             linkedin_url?: string;
@@ -754,7 +786,7 @@ export interface components {
         UpdateApplicationRequest: {
             company: string;
             job_title: string;
-            job_description?: string;
+            job_description: string;
             job_url?: string;
             company_website?: string;
             linkedin_url?: string;
@@ -770,6 +802,8 @@ export interface components {
             total: number;
         };
         ApplicationSummary: {
+            /** Format: int64 */
+            draft: number;
             /** Format: int64 */
             applied: number;
             /** Format: int64 */
@@ -801,6 +835,19 @@ export interface components {
         };
         RecommendationList: {
             items: components["schemas"]["Recommendation"][];
+        };
+        JobPostingExtractRequest: {
+            /**
+             * Format: uri
+             * @description Public http(s) URL of the job posting to extract fields from
+             */
+            url: string;
+        };
+        JobPostingExtraction: {
+            company?: string | null;
+            job_title?: string | null;
+            /** @description The posting's full description text, cleaned of page furniture */
+            job_description?: string | null;
         };
         Profile: {
             /** Format: uuid */
@@ -1796,6 +1843,57 @@ export interface operations {
             };
             /** @description No such application for this user */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    extractJobPosting: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["JobPostingExtractRequest"];
+            };
+        };
+        responses: {
+            /** @description Extracted fields (nullable where the page lacked the information) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobPostingExtraction"];
+                };
+            };
+            /** @description Invalid or disallowed URL (`URL_INVALID`) */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Missing or invalid access token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description The page could not be fetched or yielded no fields (`FETCH_FAILED`, `EXTRACTION_FAILED`) */
+            422: {
                 headers: {
                     [name: string]: unknown;
                 };

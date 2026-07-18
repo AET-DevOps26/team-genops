@@ -13,7 +13,11 @@ from e2e_tests.conftest import BrowserSession, User
 
 
 def _create(user: User, **overrides) -> httpx.Response:
-    body = {"company": "Zalando", "job_title": "Backend Engineer"} | overrides
+    body = {
+        "company": "Zalando",
+        "job_title": "Backend Engineer",
+        "job_description": "Build APIs in Java.",
+    } | overrides
     return user.client.post("/api/v1/applications", json=body)
 
 
@@ -78,7 +82,12 @@ def test_update_persists(user: User):
 
     updated = user.client.put(
         f"/api/v1/applications/{application_id}",
-        json={"company": "Zalando", "job_title": "Staff Engineer", "stage": "interview"},
+        json={
+            "company": "Zalando",
+            "job_title": "Staff Engineer",
+            "job_description": "Lead backend systems.",
+            "stage": "interview",
+        },
     )
 
     assert updated.status_code == 200

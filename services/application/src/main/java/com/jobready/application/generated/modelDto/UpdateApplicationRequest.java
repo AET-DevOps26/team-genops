@@ -27,7 +27,7 @@ public class UpdateApplicationRequest {
 
   private String jobTitle;
 
-  private @Nullable String jobDescription;
+  private String jobDescription;
 
   private @Nullable String jobUrl;
 
@@ -46,9 +46,10 @@ public class UpdateApplicationRequest {
   /**
    * Constructor with only required parameters
    */
-  public UpdateApplicationRequest(String company, String jobTitle, ApplicationStage stage) {
+  public UpdateApplicationRequest(String company, String jobTitle, String jobDescription, ApplicationStage stage) {
     this.company = company;
     this.jobTitle = jobTitle;
+    this.jobDescription = jobDescription;
     this.stage = stage;
   }
 
@@ -94,7 +95,7 @@ public class UpdateApplicationRequest {
     this.jobTitle = jobTitle;
   }
 
-  public UpdateApplicationRequest jobDescription(@Nullable String jobDescription) {
+  public UpdateApplicationRequest jobDescription(String jobDescription) {
     this.jobDescription = jobDescription;
     return this;
   }
@@ -103,15 +104,15 @@ public class UpdateApplicationRequest {
    * Get jobDescription
    * @return jobDescription
    */
-  
-  @Schema(name = "job_description", requiredMode = Schema.RequiredMode.NOT_REQUIRED)
+  @NotNull @Size(min = 1) 
+  @Schema(name = "job_description", requiredMode = Schema.RequiredMode.REQUIRED)
   @JsonProperty("job_description")
-  public @Nullable String getJobDescription() {
+  public String getJobDescription() {
     return jobDescription;
   }
 
   @JsonProperty("job_description")
-  public void setJobDescription(@Nullable String jobDescription) {
+  public void setJobDescription(String jobDescription) {
     this.jobDescription = jobDescription;
   }
 
