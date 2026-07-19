@@ -13,10 +13,32 @@ namespace:
 postgres:
   storageClassName: csi-rbd-sc
 
-genai:
-  # Reuse the genai-secrets Secret (created by Ansible deploy.yml) for Langfuse
-  # Cloud keys too. Tracing stays off until the vault_langfuse_* vars are set.
-  langfuseSecret: genai-secrets
+# --- Prod CPU right-sizing (TUM namespace quota: limits.cpu=3400m) -----------
+# Enabling email in prod (#141/#142) filled the last 500m of quota headroom,
+# leaving zero room for rolling-update surges (maxSurge=1). During a full helm
+# upgrade all 7 RollingUpdate services try to schedule a surge pod simultaneously,
+# requiring ~6400m — instantly quota-blocked.
+#
+# Target: steady-state ≤ 1850m so worst-case surge fits:
+#   surge = 7 × new-pod limits ≈ 1500m
+#   total = 1800m + 1500m = 3300m ≤ 3400m (100m buffer)
+#
+# Observed idle CPU is ~12m per Spring service, so 200m limits give 16x headroom
+# and absorb JVM startup bursts. Genai (Python) is lighter; 400m is comfortable.
+auth:
+  resources:
+    limits:
+      cpu: "200m"
+
+application:
+  resources:
+    limits:
+      cpu: "200m"
+
+document:
+  resources:
+    limits:
+      cpu: "200m"
 
 email:
   # For manual helm runs. CD (Ansible deploy.yml) overrides this flag based on
@@ -25,6 +47,22 @@ email:
   # Requires the email-secrets Secret (Ansible deploy.yml, vault_google_* etc.)
   # and the prod host's redirect URI registered in the Google Cloud console.
   enabled: true
+  resources:
+    limits:
+      cpu: "200m"
+
+gateway:
+  resources:
+    limits:
+      cpu: "200m"
+
+genai:
+  # Reuse the genai-secrets Secret (created by Ansible deploy.yml) for Langfuse
+  # Cloud keys too. Tracing stays off until the vault_langfuse_* vars are set.
+  langfuseSecret: genai-secrets
+  resources:
+    limits:
+      cpu: "400m"
 
 networkPolicy:
   # Tenant isolation on the shared TUM cluster: default-deny + explicit allows.
