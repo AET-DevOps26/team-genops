@@ -312,6 +312,7 @@ jobs:
           POSTGRES_PASSWORD=jobready
           POSTGRES_DB=jobready
           JWT_KEY_ID=auth-key-1
+          AUTH_REGISTER_MAX_ATTEMPTS=1000
           EOF
           ./scripts/gen-jwt-keys.sh >> .env
 
