@@ -42,6 +42,10 @@ spec:
               value: "http://document:{{ .Values.document.port }}"
             - name: GENAI_URI
               value: "http://genai:{{ .Values.genai.port }}"
+            {{- if .Values.email.enabled }}
+            - name: EMAIL_URI
+              value: "http://email:{{ .Values.email.port }}"
+            {{- end }}
             - name: WEB_CLIENT_URI
               value: http://web-client:{{ .Values.webClient.port }}
             # JWK Set the gateway uses to validate the access JWT at the edge (defense in depth).

@@ -1,0 +1,152 @@
+{{- if .Values.email.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: email
+  namespace: {{ .Values.global.namespace }}
+  labels:
+    app: email
+    {{- include "jobready.labels" . | nindent 4 }}
+spec:
+  # Single replica by design: the Gmail poller and the OAuth nonce store are
+  # in-process, so extra replicas would waste Gmail quota and duplicate LLM
+  # calls (see services/email/README.md).
+  replicas: {{ .Values.email.replicas | int }}
+  selector:
+    matchLabels:
+      app: email
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  template:
+    metadata:
+      labels:
+        app: email
+        monitoring: "true"
+    spec:
+      {{- with .Values.global.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      initContainers:
+        - name: wait-for-postgres
+          image: postgres:16-alpine
+          command:
+            - sh
+            - -c
+            - |
+              until pg_isready -h postgres -p 5432 -U $(POSTGRES_USER); do
+                echo "Waiting for postgres..."
+                sleep 2
+              done
+          env:
+            - name: POSTGRES_USER
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.postgres.existingSecret }}
+                  key: POSTGRES_USER
+          # Limits are MANDATORY: the prod namespace has a ResourceQuota on
+          # limits.* and no LimitRange, so any container (incl. init) without
+          # them gets the whole pod rejected.
+          resources:
+            requests:
+              memory: "32Mi"
+              cpu: "25m"
+            limits:
+              memory: "64Mi"
+              cpu: "50m"
+      containers:
+        - name: email
+          image: {{ .Values.global.imageRegistry }}/{{ .Values.email.image }}:{{ .Values.email.tag }}
+          imagePullPolicy: {{ .Values.global.imagePullPolicy }}
+          ports:
+            - containerPort: {{ .Values.email.port }}
+          env:
+            - name: POSTGRES_DB
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.postgres.existingSecret }}
+                  key: POSTGRES_DB
+            # Schema-per-service: every service shares the one Postgres database and is
+            # isolated by its own schema (Flyway owns and migrates the `email` schema).
+            - name: SPRING_DATASOURCE_URL
+              value: jdbc:postgresql://postgres:5432/$(POSTGRES_DB)
+            - name: SPRING_DATASOURCE_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.postgres.existingSecret }}
+                  key: POSTGRES_USER
+            - name: SPRING_DATASOURCE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.postgres.existingSecret }}
+                  key: POSTGRES_PASSWORD
+            # This service only verifies JWTs — it fetches auth's public JWK Set in-cluster.
+            - name: AUTH_JWKS_URL
+              value: http://auth:8080/api/v1/auth/.well-known/jwks.json
+            # Both URLs are derived from the ingress host so per-env values files don't
+            # have to repeat them. The redirect URI must ALSO be registered verbatim in
+            # the Google Cloud console for the OAuth client (one manual step per host).
+            - name: GOOGLE_REDIRECT_URI
+              value: "https://{{ .Values.ingress.host }}/api/v1/email/connections/gmail/callback"
+            - name: FRONTEND_REDIRECT_URL
+              value: "https://{{ .Values.ingress.host }}/"
+            - name: GOOGLE_CLIENT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.email.existingSecret }}
+                  key: GOOGLE_CLIENT_ID
+            - name: GOOGLE_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.email.existingSecret }}
+                  key: GOOGLE_CLIENT_SECRET
+            # AES-GCM key for Gmail tokens at rest. Rotating it orphans every stored
+            # token — users must reconnect their mailbox. Never reuse the dev default.
+            - name: EMAIL_TOKEN_ENC_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.email.existingSecret }}
+                  key: EMAIL_TOKEN_ENC_KEY
+            - name: STATE_SIGNING_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.email.existingSecret }}
+                  key: STATE_SIGNING_KEY
+            - name: EMAIL_POLL_INTERVAL_SECONDS
+              value: {{ .Values.email.pollIntervalSeconds | quote }}
+            # Application-detection pipeline (email → genai → application).
+            - name: GENAI_URL
+              value: http://genai:{{ .Values.genai.port }}
+            - name: APPLICATION_SERVICE_URL
+              value: http://application:{{ .Values.application.port }}
+            {{- if .Values.internalServiceTokenSecret }}
+            # Shared secret for the /internal/** APIs. Omit internalServiceTokenSecret
+            # to keep the detection pipeline disabled (fail-closed).
+            - name: INTERNAL_SERVICE_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.internalServiceTokenSecret }}
+                  key: INTERNAL_SERVICE_TOKEN
+            {{- end }}
+          resources:
+            {{- toYaml .Values.email.resources | nindent 12 }}
+          livenessProbe:
+            httpGet:
+              path: /actuator/health
+              port: {{ .Values.email.port }}
+            initialDelaySeconds: 60
+            periodSeconds: 15
+            failureThreshold: 3
+            timeoutSeconds: 5
+          readinessProbe:
+            httpGet:
+              path: /actuator/health
+              port: {{ .Values.email.port }}
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            failureThreshold: 3
+            timeoutSeconds: 5
+{{- end }}

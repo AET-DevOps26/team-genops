@@ -17,6 +17,11 @@ genai:
   # Cloud keys too. Tracing stays off until the vault_langfuse_* vars are set.
   langfuseSecret: genai-secrets
 
+email:
+  # Requires the email-secrets Secret (Ansible deploy.yml, vault_google_* etc.)
+  # and the dev host's redirect URI registered in the Google Cloud console.
+  enabled: true
+
 ingress:
   # Set after `terraform apply`: <domain_name_label>.<region>.cloudapp.azure.com
   host: jobready-dev.REGION.cloudapp.azure.com

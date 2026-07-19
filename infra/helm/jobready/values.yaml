@@ -128,6 +128,38 @@ document:
       memory: "512Mi"
       cpu: "500m"
 
+email:
+  # Off by default: the OAuth connect flow needs Google credentials in
+  # email.existingSecret and the redirect URI registered per host in the
+  # Google Cloud console. values-dev/prod turn it on.
+  enabled: false
+  image: jobready-email
+  tag: latest
+  # Single-instance by design (in-process Gmail poller + OAuth nonce store) —
+  # do not scale up without adding a Redis leader lock first.
+  replicas: 1
+  port: 8080
+
+  # Existing Secret holding the email service's secrets:
+  #   GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET  — Gmail OAuth client
+  #   EMAIL_TOKEN_ENC_KEY                     — AES-GCM key for tokens at rest.
+  #                                             ROTATING IT ORPHANS ALL STORED GMAIL
+  #                                             TOKENS (users must reconnect).
+  #   STATE_SIGNING_KEY                       — HMAC key for the OAuth state token
+  # Created by Ansible deploy.yml from the vault (vault_google_client_id, ...).
+  existingSecret: email-secrets
+
+  # How often the background poller fetches new emails, in seconds.
+  pollIntervalSeconds: 300
+
+  resources:
+    requests:
+      memory: "256Mi"
+      cpu: "100m"
+    limits:
+      memory: "512Mi"
+      cpu: "500m"
+
 genai:
   image: jobready-genai
   tag: latest
