@@ -81,8 +81,12 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
+      # env, not inline ${{ }}: interpolating a secret into the script lets bash
+      # expand any $/`/\ inside it, corrupting the written file.
       - name: Write Rancher kubeconfig
-        run: echo "${{ secrets.RANCHER_KUBECONFIG }}" > "$RUNNER_TEMP/kubeconfig"
+        env:
+          KUBECONFIG_CONTENT: ${{ secrets.RANCHER_KUBECONFIG }}
+        run: printf '%s' "$KUBECONFIG_CONTENT" > "$RUNNER_TEMP/kubeconfig"
 
       # Trigger interpretation lives here, not in the action: releases arrive
       # as v1.2.3 but images are tagged 1.2.3 (promote-images above), so strip

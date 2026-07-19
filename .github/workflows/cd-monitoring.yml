@@ -36,8 +36,12 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
+      # env, not inline ${{ }}: interpolating a secret into the script lets bash
+      # expand any $/`/\ inside it, corrupting the written file.
       - name: Write Rancher kubeconfig
-        run: echo "${{ secrets.RANCHER_KUBECONFIG }}" > "$RUNNER_TEMP/kubeconfig"
+        env:
+          KUBECONFIG_CONTENT: ${{ secrets.RANCHER_KUBECONFIG }}
+        run: printf '%s' "$KUBECONFIG_CONTENT" > "$RUNNER_TEMP/kubeconfig"
 
       - uses: actions/setup-python@v6
         with:
@@ -64,7 +68,7 @@ jobs:
           vault_password: ${{ secrets.ANSIBLE_VAULT_PASSWORD_PROD }}
         run: |
           trap 'rm -f vault-pass' EXIT
-          echo "$vault_password" > vault-pass
+          printf '%s' "$vault_password" > vault-pass
           ansible-playbook -i inventories/prod/hosts.yml playbooks/monitoring.yml \
             --vault-password-file vault-pass
 
