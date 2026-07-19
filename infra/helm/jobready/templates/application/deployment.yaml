@@ -56,6 +56,9 @@ spec:
           ports:
             - containerPort: {{ .Values.application.port }}
           env:
+            # Image tag surfaced as the app_info{version} metric for release correlation.
+            - name: APP_VERSION
+              value: "{{ .Values.application.tag }}"
             - name: POSTGRES_DB
               valueFrom:
                 secretKeyRef:
@@ -85,7 +88,7 @@ spec:
           livenessProbe:
             httpGet:
               path: /actuator/health
-              port: {{ .Values.application.port }}
+              port: 8090
             initialDelaySeconds: 60
             periodSeconds: 15
             failureThreshold: 3
@@ -93,7 +96,7 @@ spec:
           readinessProbe:
             httpGet:
               path: /actuator/health
-              port: {{ .Values.application.port }}
+              port: 8090
             initialDelaySeconds: 30
             periodSeconds: 10
             failureThreshold: 3

@@ -60,6 +60,9 @@ spec:
           ports:
             - containerPort: {{ .Values.genai.port }}
           env:
+            # Image tag surfaced as the app_info{version} metric for release correlation.
+            - name: APP_VERSION
+              value: "{{ .Values.genai.tag }}"
             - name: POSTGRES_USER
               valueFrom:
                 secretKeyRef:

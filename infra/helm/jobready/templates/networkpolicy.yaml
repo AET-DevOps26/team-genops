@@ -85,6 +85,30 @@ spec:
         - protocol: TCP
           port: 8089
 ---
+{{- if .Values.networkPolicy.monitoringNamespace }}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-monitoring-scrape
+  namespace: {{ .Values.global.namespace }}
+  labels:
+    {{- include "jobready.labels" . | nindent 4 }}
+spec:
+  # Prometheus (dedicated monitoring namespace) scrapes /metrics on every pod
+  # labelled monitoring: "true". Without this, default-deny silently drops the
+  # scrapes and every target shows DOWN.
+  podSelector:
+    matchLabels:
+      monitoring: "true"
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: {{ .Values.networkPolicy.monitoringNamespace }}
+---
+{{- end }}
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:

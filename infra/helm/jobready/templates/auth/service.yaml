@@ -5,6 +5,7 @@ metadata:
   namespace: {{ .Values.global.namespace }}
   labels:
     app: auth
+    monitoring: "true"
     {{- include "jobready.labels" . | nindent 4 }}
 spec:
   type: ClusterIP
@@ -14,4 +15,9 @@ spec:
     - name: http
       port: {{ .Values.auth.port }}
       targetPort: {{ .Values.auth.port }}
+      protocol: TCP
+    # Actuator (health + prometheus scrape) — never routed by the ingress.
+    - name: management
+      port: 8090
+      targetPort: 8090
       protocol: TCP

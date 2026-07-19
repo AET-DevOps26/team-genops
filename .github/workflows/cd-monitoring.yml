@@ -1,0 +1,91 @@
+name: CD - Monitoring (Rancher)
+
+# Deploys the Prometheus/Grafana chart to the TUM Rancher monitoring namespace.
+#
+# Path-triggered on main rather than release-gated (unlike cd-prod): the chart
+# ships config only — dashboards, alert rules, operator CRs — no application
+# images, so a merged dashboard edit should reach prod immediately without
+# cutting a release. The blast radius is the monitoring namespace, never the
+# app.
+on:
+  push:
+    branches: [main]
+    paths:
+      - "infra/helm/monitoring/**"
+      - "infra/ansible/playbooks/monitoring.yml"
+      # The playbook + summary read monitoring_namespace/grafana_url from the
+      # prod inventory — an edit there must redeploy too.
+      - "infra/ansible/inventories/prod/**"
+      - ".github/workflows/cd-monitoring.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# One monitoring deploy at a time; queued, never cancelled. Separate group from
+# deploy-prod — the two releases touch disjoint namespaces.
+concurrency:
+  group: deploy-monitoring
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: production
+
+    steps:
+      - uses: actions/checkout@v7
+
+      # env, not inline ${{ }}: interpolating a secret into the script lets bash
+      # expand any $/`/\ inside it, corrupting the written file.
+      - name: Write Rancher kubeconfig
+        env:
+          KUBECONFIG_CONTENT: ${{ secrets.RANCHER_KUBECONFIG }}
+        run: printf '%s' "$KUBECONFIG_CONTENT" > "$RUNNER_TEMP/kubeconfig"
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      # Pinned so a deploy never breaks because pip resolved a different
+      # ansible-core that morning — bump deliberately, with a diff.
+      - name: Install Ansible + collections
+        run: |
+          pip install 'ansible-core==2.17.*' kubernetes
+          ansible-galaxy collection install -r infra/ansible/requirements.yml
+
+      - uses: azure/setup-helm@v4
+        with:
+          version: v3.16.0
+
+      # The vault password is needed even though this playbook reads no vault
+      # secrets: the prod inventory auto-loads group_vars/all/vault.yml, and
+      # ansible refuses to parse an encrypted file it cannot decrypt.
+      - name: Deploy monitoring via Ansible
+        working-directory: infra/ansible
+        env:
+          KUBECONFIG: ${{ runner.temp }}/kubeconfig
+          vault_password: ${{ secrets.ANSIBLE_VAULT_PASSWORD_PROD }}
+        run: |
+          trap 'rm -f vault-pass' EXIT
+          printf '%s' "$vault_password" > vault-pass
+          ansible-playbook -i inventories/prod/hosts.yml playbooks/monitoring.yml \
+            --vault-password-file vault-pass
+
+      # The smoke check lives in the playbook (it owns grafana_url); here we
+      # only echo the deployed facts, read from the same inventory so the
+      # summary can never drift from what Ansible actually used.
+      - name: Write deploy summary
+        run: |
+          vars=infra/ansible/inventories/prod/group_vars/all/vars.yml
+          ns=$(yq '.monitoring_namespace' "$vars")
+          url=$(yq '.grafana_url' "$vars")
+          {
+            echo "## Monitoring deployed ✅"
+            echo ""
+            echo "| | |"
+            echo "|---|---|"
+            echo "| Namespace | \`${ns}\` |"
+            echo "| Grafana | ${url} |"
+            echo ""
+          } >> "$GITHUB_STEP_SUMMARY"

@@ -1,0 +1,12 @@
+# Alert rules — the single source is files/rules.yml in this chart (the local
+# compose Prometheus mounts the same file). This template just wraps it in the
+# CRD. Alertmanager routing deliberately deferred — see monitoring/README.md.
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: jobready
+  namespace: {{ .Release.Namespace }}
+  labels:
+    team: genops
+spec:
+  {{- .Files.Get "files/rules.yml" | fromYaml | toYaml | nindent 2 }}

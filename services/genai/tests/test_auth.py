@@ -78,8 +78,16 @@ def _reset_jwks_cache():
 
 
 def _valid_claims(sub: str = "user-123") -> dict:
+    from src.config import settings
+
     now = int(time.time())
-    return {"sub": sub, "iat": now, "exp": now + 300}
+    return {
+        "sub": sub,
+        "iat": now,
+        "exp": now + 300,
+        "iss": settings.auth_jwt_issuer,
+        "aud": settings.auth_jwt_audience,
+    }
 
 
 # ---------------------------------------------------------------- token extraction

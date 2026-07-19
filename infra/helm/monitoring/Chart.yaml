@@ -1,0 +1,11 @@
+apiVersion: v2
+name: jobready-monitoring
+description: >-
+  Tenant-level monitoring for JobReady on TUM Rancher: our own Prometheus CR
+  (reconciled by the platform's cluster-wide Prometheus Operator), ServiceMonitors
+  into the app namespace, the alert rules, and a stateless Grafana. files/ holds
+  the canonical alert rules and dashboards — the local compose stack (monitoring/)
+  mounts the same files, so there is exactly one copy of each.
+type: application
+version: 0.1.0
+appVersion: "1.0"

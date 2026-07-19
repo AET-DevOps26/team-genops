@@ -1,8 +1,12 @@
 # Tears JobReady out of the target namespace for a clean redeploy.
 # Removes the Helm release AND the secrets deploy.yml creates outside the chart.
-# Does NOT delete the namespace (the prod tenant cannot), and keeps the TLS
-# secret by default — Let's Encrypt rate-limits issuance (5/week per domain),
-# so a still-valid cert is worth preserving across rebuilds.
+# When the inventory defines monitoring_namespace (prod), the monitoring
+# release + its pipeline-created secret are removed too — both stacks are
+# fully rebuilt by cd-prod / cd-monitoring afterwards, no manual steps.
+# Does NOT delete the namespaces (the prod tenant cannot), and keeps TLS
+# secrets by default — Let's Encrypt rate-limits issuance (5/week per domain),
+# so a still-valid cert is worth preserving across rebuilds. Prometheus's
+# metrics PVC is likewise kept unless wipe_data=true.
 #
 # Usage (the confirm gate must match the target namespace exactly):
 #   ansible-playbook -i inventories/prod/hosts.yml playbooks/destroy.yml \
@@ -78,6 +82,52 @@
         namespace: "{{ namespace }}"
         name: jobready-tls
 
+    # ------------------------------------------------------------------
+    # Monitoring stack (prod only — dev defines no monitoring_namespace)
+    # ------------------------------------------------------------------
+
+    - name: Uninstall the monitoring Helm release
+      when: (monitoring_namespace | default('') | length) > 0
+      kubernetes.core.helm:
+        name: monitoring
+        release_namespace: "{{ monitoring_namespace }}"
+        kubeconfig: "{{ kubeconfig }}"
+        state: absent
+        wait: true
+
+    # monitoring.yml recreates this from the vault on the next deploy.
+    - name: Delete pipeline-created grafana-admin secret
+      when: (monitoring_namespace | default('') | length) > 0
+      kubernetes.core.k8s:
+        kubeconfig: "{{ kubeconfig }}"
+        state: absent
+        api_version: v1
+        kind: Secret
+        namespace: "{{ monitoring_namespace }}"
+        name: grafana-admin
+
+    # Deleting the StatefulSet only orphans its PVC — without this, a reinstall
+    # reattaches to the old metrics history (which is normally what you want).
+    - name: Delete Prometheus metrics PVC (history is unrecoverable)
+      when: wipe_data | bool and (monitoring_namespace | default('') | length) > 0
+      kubernetes.core.k8s:
+        kubeconfig: "{{ kubeconfig }}"
+        state: absent
+        api_version: v1
+        kind: PersistentVolumeClaim
+        namespace: "{{ monitoring_namespace }}"
+        name: prometheus-jobready-db-prometheus-jobready-0
+
+    - name: Delete Grafana TLS secret (forces Let's Encrypt re-issue — rate limited!)
+      when: wipe_tls | bool and (monitoring_namespace | default('') | length) > 0
+      kubernetes.core.k8s:
+        kubeconfig: "{{ kubeconfig }}"
+        state: absent
+        api_version: v1
+        kind: Secret
+        namespace: "{{ monitoring_namespace }}"
+        name: grafana-tls
+
     - name: Show what remains in the namespace
       ansible.builtin.command:
         cmd: kubectl --kubeconfig {{ kubeconfig }} -n {{ namespace }} get all,ingress,netpol,pvc,secret
@@ -88,3 +138,18 @@
     - name: Remaining resources
       ansible.builtin.debug:
         var: _remaining.stdout_lines
+
+    - name: Show what remains in the monitoring namespace
+      when: (monitoring_namespace | default('') | length) > 0
+      ansible.builtin.command:
+        cmd: >-
+          kubectl --kubeconfig {{ kubeconfig }} -n {{ monitoring_namespace }}
+          get all,ingress,netpol,pvc,secret,prometheus,servicemonitor,prometheusrule
+      changed_when: false
+      failed_when: false
+      register: _remaining_monitoring
+
+    - name: Remaining monitoring resources
+      when: (monitoring_namespace | default('') | length) > 0
+      ansible.builtin.debug:
+        var: _remaining_monitoring.stdout_lines

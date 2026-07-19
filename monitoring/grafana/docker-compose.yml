@@ -1,0 +1,28 @@
+# Grafana — dashboards over Prometheus. Everything is provisioned from files
+# (datasource + the dashboards under ./dashboards); the UI needs zero clicks
+# and any UI edit is throwaway — dashboards are code.
+#
+# Compose *fragment*; opt in via the `monitoring` profile (see ../docker-compose.yml).
+# Port 3001 on the host because langfuse-web already owns 3000.
+# Paths are relative to the project directory (the repo root).
+
+services:
+  grafana:
+    image: grafana/grafana:12.1.1
+    container_name: grafana
+    profiles: [monitoring]
+    restart: unless-stopped
+    depends_on:
+      - prometheus
+    ports:
+      - "3001:3000"
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_ANALYTICS_REPORTING_ENABLED: "false"
+    volumes:
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+      # Dashboards are single-sourced from the monitoring Helm chart — the
+      # same JSON the prod Grafana ConfigMap is rendered from.
+      - ./infra/helm/monitoring/files/dashboards:/var/lib/grafana/dashboards:ro

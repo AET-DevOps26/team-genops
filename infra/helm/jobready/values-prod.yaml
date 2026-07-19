@@ -19,15 +19,12 @@ genai:
   langfuseSecret: genai-secrets
 networkPolicy:
   # Tenant isolation on the shared TUM cluster: default-deny + explicit allows.
-  # BEFORE relying on this, verify on a deploy:
-  #   1. ingressNamespace matches the platform ingress controller's namespace,
-  #      else external traffic to the gateway is blocked (503/timeout).
-  #   2. pods still pass readiness — if probes fail after enabling, the CNI
-  #      enforces policy on host→pod probes; set probeCidr to the node CIDR.
   # Rollback is one flag: --set networkPolicy.enabled=false
   enabled: true
   ingressNamespace: ingress-nginx   # CONFIRM against the TUM platform controller
   probeCidr: ""                     # set to node CIDR if readiness probes fail
+  # Our own monitoring stack (infra/helm/monitoring chart) scrapes from here.
+  monitoringNamespace: genops-monitoring
 
 ingress:
   host: jobready.stud.k8s.aet.cit.tum.de   # unique subdomain

@@ -13,6 +13,9 @@ import httpx
 import pytest
 
 BASE_URL = os.environ.get("E2E_BASE_URL", "http://localhost:8081")
+# The gateway's management port: actuator (health/metrics) lives here, deliberately
+# off the routed port so the ingress can never reach it. Compose publishes it.
+MGMT_URL = os.environ.get("E2E_MGMT_URL", "http://localhost:8090")
 TIMEOUT = 15.0
 
 
@@ -95,7 +98,7 @@ class BrowserSession:
 
 def _stack_is_up() -> bool:
     try:
-        return httpx.get(f"{BASE_URL}/actuator/health/readiness", timeout=3.0).status_code == 200
+        return httpx.get(f"{MGMT_URL}/actuator/health/readiness", timeout=3.0).status_code == 200
     except Exception:
         return False
 

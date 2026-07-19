@@ -20,6 +20,8 @@ src/main/java/com/jobready/document/generated/modelDto/GmailAuthorizeResponse.ja
 src/main/java/com/jobready/document/generated/modelDto/InterviewCompetency.java
 src/main/java/com/jobready/document/generated/modelDto/InterviewResult.java
 src/main/java/com/jobready/document/generated/modelDto/JobApplication.java
+src/main/java/com/jobready/document/generated/modelDto/JobPostingExtractRequest.java
+src/main/java/com/jobready/document/generated/modelDto/JobPostingExtraction.java
 src/main/java/com/jobready/document/generated/modelDto/Language.java
 src/main/java/com/jobready/document/generated/modelDto/LanguageProficiency.java
 src/main/java/com/jobready/document/generated/modelDto/LanguageRequest.java

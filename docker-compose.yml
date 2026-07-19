@@ -59,6 +59,9 @@ services:
     restart: unless-stopped
     ports:
       - "8081:8081"
+      # Management port (health + metrics) — host-published so the e2e suite can
+      # probe readiness the same way the kubelet does (never via the routed port).
+      - "8090:8090"
     environment:
       AUTH_URI: http://auth:8080
       WEB_CLIENT_URI: http://web-client:80
@@ -70,7 +73,7 @@ services:
       auth:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:8081/actuator/health/readiness || exit 1"]
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8090/actuator/health/readiness || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -90,13 +93,16 @@ services:
       REDIS_URL: redis://redis:6379
       JWT_PRIVATE_KEY: ${JWT_PRIVATE_KEY}
       JWT_PUBLIC_KEY: ${JWT_PUBLIC_KEY}
+      # Per-IP register throttle (default 10/15min). The e2e suite registers ~20
+      # users from one IP per run, so CI raises this; leave unset for prod-like local.
+      AUTH_REGISTER_MAX_ATTEMPTS: ${AUTH_REGISTER_MAX_ATTEMPTS:-10}
     depends_on:
       postgres-db:
         condition: service_healthy
       redis:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:8080/actuator/health || exit 1"]
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8090/actuator/health || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -120,7 +126,7 @@ services:
       auth:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:8080/actuator/health || exit 1"]
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8090/actuator/health || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -144,7 +150,7 @@ services:
       auth:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:8080/actuator/health || exit 1"]
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8090/actuator/health || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 5

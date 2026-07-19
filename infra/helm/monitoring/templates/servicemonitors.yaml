@@ -1,0 +1,41 @@
+# What Prometheus scrapes — declared.
+# Targets live in the app namespace; NetworkPolicy admits us via the
+# allow-monitoring-scrape policy (networkPolicy.monitoringNamespace in the
+# app chart's values-prod).
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: jobready-spring
+  namespace: {{ .Release.Namespace }}
+  labels:
+    team: genops
+spec:
+  namespaceSelector:
+    matchNames: [{{ .Values.appNamespace }}]
+  selector:
+    matchLabels:
+      monitoring: "true"
+  endpoints:
+    # Named management port (8090) on each Spring Service — services without
+    # that port (genai) simply contribute no targets here.
+    - port: management
+      path: /actuator/prometheus
+      interval: {{ .Values.prometheus.scrapeInterval }}
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: jobready-genai
+  namespace: {{ .Release.Namespace }}
+  labels:
+    team: genops
+spec:
+  namespaceSelector:
+    matchNames: [{{ .Values.appNamespace }}]
+  selector:
+    matchLabels:
+      app: genai
+  endpoints:
+    - port: http
+      path: /metrics
+      interval: {{ .Values.prometheus.scrapeInterval }}

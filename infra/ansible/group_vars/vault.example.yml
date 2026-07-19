@@ -13,15 +13,16 @@ vault_postgres_user: jobready
 vault_postgres_password: change-me
 vault_postgres_db: jobready
 
+# Grafana admin login for the monitoring stack (playbooks/monitoring.yml
+# creates the grafana-admin Secret from this; prod vault only).
+vault_grafana_admin_password: xxxxxxxxxxxxxxxxxxxxxxx
+
 # OpenRouter API key for the genai service (LLM calls).
 vault_openrouter_api_key: sk-or-xxxxxxxxxxxxxxxxxxxx
 
-# RSA signing keys — PKCS#8 private (BEGIN PRIVATE KEY) + X.509 public (BEGIN PUBLIC KEY).
+# RSA signing keys — PKCS#8 private + X.509 public. Paste each PEM file's
+# FULL contents, including its BEGIN/END header lines.
 vault_jwt_private_key: |
-  -----BEGIN PRIVATE KEY-----
-  ...paste private.pem...
-  -----END PRIVATE KEY-----
+  ...paste the full contents of private.pem here...
 vault_jwt_public_key: |
-  -----BEGIN PUBLIC KEY-----
-  ...paste public.pem...
-  -----END PUBLIC KEY-----
+  ...paste the full contents of public.pem here...

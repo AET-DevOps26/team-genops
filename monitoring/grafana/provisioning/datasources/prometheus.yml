@@ -1,0 +1,14 @@
+# Provisioned datasource — the dashboards reference it by the stable uid
+# `prometheus`, so the same JSON files work locally and in the cluster. The
+# prod deployment ships its own copy of this file (ConfigMap) pointing at the
+# operator's prometheus-operated service instead.
+apiVersion: 1
+
+datasources:
+  - name: Prometheus
+    uid: prometheus
+    type: prometheus
+    access: proxy
+    url: http://prometheus:9090
+    isDefault: true
+    editable: false

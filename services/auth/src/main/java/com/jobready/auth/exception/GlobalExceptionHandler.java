@@ -18,4 +18,11 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(401)
                 .body(new Error().code("INVALID_CREDENTIALS").message("Email or password is incorrect"));
     }
+
+    @ExceptionHandler(TooManyAttemptsException.class)
+    public ResponseEntity<Error> handleTooManyAttempts(TooManyAttemptsException ex) {
+        return ResponseEntity.status(429)
+                .header("Retry-After", String.valueOf(ex.getRetryAfterSeconds()))
+                .body(new Error().code("TOO_MANY_ATTEMPTS").message("Too many attempts; try again later"));
+    }
 }

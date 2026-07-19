@@ -303,18 +303,18 @@ jobs:
       - name: Write compose env
         # Throwaway CI credentials. Compose interpolates vars for every service in the
         # file — including ones this job never starts — but none are required-style
-        # (${VAR:?}), so the unset ones only warn. JWT keys are left blank on purpose:
-        # auth then generates an ephemeral pair at startup, which is correct for a
-        # single-replica stack that is torn down at the end of the job.
+        # (${VAR:?}), so the unset ones only warn. JWT keys must be generated: auth
+        # refuses to start without explicit keys (no ephemeral fallback), and a fresh
+        # throwaway pair per run is exactly what a torn-down single-replica stack needs.
         run: |
           cat > .env <<'EOF'
           POSTGRES_USER=jobready
           POSTGRES_PASSWORD=jobready
           POSTGRES_DB=jobready
-          JWT_PRIVATE_KEY=
-          JWT_PUBLIC_KEY=
           JWT_KEY_ID=auth-key-1
+          AUTH_REGISTER_MAX_ATTEMPTS=1000
           EOF
+          ./scripts/gen-jwt-keys.sh >> .env
 
       - name: Start the stack
         run: |
