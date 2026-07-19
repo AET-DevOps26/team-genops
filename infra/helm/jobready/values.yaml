@@ -53,7 +53,9 @@ postgres:
       cpu: "100m"
     limits:
       memory: "512Mi"
-      cpu: "500m"
+      # Right-sized 2026-07-19 (observed ~12m; no JVM startup burst): frees
+      # 300m of the namespace limits-quota for the monitoring namespace split.
+      cpu: "200m"
 
 redis:
   # Auth uses Redis for server-side sessions (split-token BFF). Required —

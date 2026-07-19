@@ -1,0 +1,66 @@
+{{- if .Values.networkPolicy.enabled }}
+# Isolation for the monitoring pods themselves. (The other direction — letting
+# Prometheus INTO the app pods' port 8090/8000 — is owned by the APP chart's
+# allow-monitoring-scrape policy, keyed on networkPolicy.monitoringNamespace.)
+#
+# Prometheus egress is deliberately ALLOW-ALL: it must reach the Kubernetes API
+# server for service discovery (an IP outside any pod selector) plus every pod
+# it scrapes; enumerating those safely buys nothing for an internal fan-in
+# sink that receives no untrusted input.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: prometheus
+  namespace: {{ .Release.Namespace }}
+spec:
+  podSelector:
+    matchLabels:
+      # Set by the Prometheus Operator on the pods it creates for CR "jobready".
+      app.kubernetes.io/name: prometheus
+  policyTypes: [Ingress, Egress]
+  ingress:
+    # Grafana datasource queries.
+    - from:
+        - podSelector:
+            matchLabels:
+              app: grafana
+      ports:
+        - port: 9090
+  egress:
+    - {}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: grafana
+  namespace: {{ .Release.Namespace }}
+spec:
+  podSelector:
+    matchLabels:
+      app: grafana
+  policyTypes: [Ingress, Egress]
+  ingress:
+    # Only the platform ingress controller reaches the UI.
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: {{ .Values.networkPolicy.ingressNamespace }}
+      ports:
+        - port: 3000
+  egress:
+    # Prometheus datasource.
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: prometheus
+      ports:
+        - port: 9090
+    # DNS.
+    - to:
+        - namespaceSelector: {}
+      ports:
+        - port: 53
+          protocol: UDP
+        - port: 53
+          protocol: TCP
+{{- end }}

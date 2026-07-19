@@ -48,6 +48,13 @@ metadata:
 spec:
   replicas: {{ .Values.prometheus.replicas }}
   serviceAccountName: prometheus
+  # Prometheus runs as a non-root user; fsGroup makes the kubelet chown the
+  # PVC's filesystem so /prometheus is writable (without it: startup panic
+  # "queries.active: permission denied"). Standard kube-prometheus values.
+  securityContext:
+    runAsUser: 1000
+    runAsNonRoot: true
+    fsGroup: 2000
   # Only OUR ServiceMonitors/Rules — selected by label, from this namespace.
   serviceMonitorSelector:
     matchLabels:

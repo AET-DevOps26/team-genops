@@ -1,0 +1,95 @@
+name: CD - Monitoring (Rancher)
+
+# Deploys the Prometheus/Grafana chart to the TUM Rancher monitoring namespace.
+#
+# Path-triggered on main rather than release-gated (unlike cd-prod): the chart
+# ships config only — dashboards, alert rules, operator CRs — no application
+# images, so a merged dashboard edit should reach prod immediately without
+# cutting a release. The blast radius is the monitoring namespace, never the
+# app.
+on:
+  push:
+    branches: [main]
+    paths:
+      - "infra/helm/monitoring/**"
+      - "infra/ansible/playbooks/monitoring.yml"
+      - ".github/workflows/cd-monitoring.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# One monitoring deploy at a time; queued, never cancelled. Separate group from
+# deploy-prod — the two releases touch disjoint namespaces.
+concurrency:
+  group: deploy-monitoring
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: production
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Write Rancher kubeconfig
+        run: echo "${{ secrets.RANCHER_KUBECONFIG }}" > "$RUNNER_TEMP/kubeconfig"
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      # Pinned so a deploy never breaks because pip resolved a different
+      # ansible-core that morning — bump deliberately, with a diff.
+      - name: Install Ansible + collections
+        run: |
+          pip install 'ansible-core==2.17.*' kubernetes
+          ansible-galaxy collection install -r infra/ansible/requirements.yml
+
+      - uses: azure/setup-helm@v4
+        with:
+          version: v3.16.0
+
+      # The vault password is needed even though this playbook reads no vault
+      # secrets: the prod inventory auto-loads group_vars/all/vault.yml, and
+      # ansible refuses to parse an encrypted file it cannot decrypt.
+      - name: Deploy monitoring via Ansible
+        working-directory: infra/ansible
+        env:
+          KUBECONFIG: ${{ runner.temp }}/kubeconfig
+          vault_password: ${{ secrets.ANSIBLE_VAULT_PASSWORD_PROD }}
+        run: |
+          trap 'rm -f vault-pass' EXIT
+          echo "$vault_password" > vault-pass
+          ansible-playbook -i inventories/prod/hosts.yml playbooks/monitoring.yml \
+            --vault-password-file vault-pass
+
+      # Outside-in check: helm --wait proved the pods are Ready; this proves
+      # the route — LB, ingress, TLS, DNS. No -k: an untrusted (staging-issuer)
+      # certificate must fail the deploy.
+      - name: Smoke check Grafana
+        run: |
+          url="https://genops-grafana.stud.k8s.aet.cit.tum.de/api/health"
+          echo "Probing ${url} ..."
+          for i in $(seq 1 12); do
+            if curl -sfo /dev/null --max-time 10 "$url"; then
+              echo "OK (attempt $i)"
+              exit 0
+            fi
+            sleep 10
+          done
+          echo "::error::${url} did not answer within 2 minutes after deploy"
+          exit 1
+
+      - name: Write deploy summary
+        run: |
+          {
+            echo "## Monitoring deployed ✅"
+            echo ""
+            echo "| | |"
+            echo "|---|---|"
+            echo "| Namespace | \`genops-monitoring\` |"
+            echo "| Grafana | https://genops-grafana.stud.k8s.aet.cit.tum.de |"
+            echo ""
+          } >> "$GITHUB_STEP_SUMMARY"

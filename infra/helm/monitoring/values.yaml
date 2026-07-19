@@ -1,13 +1,23 @@
-# Install into the monitoring namespace (never alongside app services):
 #   helm upgrade --install monitoring infra/helm/monitoring -n genops-monitoring
 #
-# Hand-made prerequisite (never committed):
+# Prerequisite: the grafana-admin Secret. The Ansible pipeline creates it from
+# the vault (vault_grafana_admin_password → playbooks/monitoring.yml). For a
+# manual install without Ansible:
 #   kubectl -n genops-monitoring create secret generic grafana-admin \
 #     --from-literal=admin-password='<strong password>'
 
 # The namespace the app chart (infra/helm/jobready) is deployed in — scrape
 # targets live there; Prometheus gets a namespaced Role there to discover them.
+# Cross-namespace scrape ingress is admitted by the APP chart's
+# allow-monitoring-scrape policy (networkPolicy.monitoringNamespace in
+# values-prod must equal the namespace this chart is installed into).
 appNamespace: ge86yog-devops-genops
+
+# NetworkPolicies for the monitoring pods themselves (Grafana reachable only
+# from the platform ingress; Prometheus only from Grafana).
+networkPolicy:
+  enabled: true
+  ingressNamespace: ingress-nginx
 
 prometheus:
   replicas: 1
@@ -15,16 +25,13 @@ prometheus:
   storageClassName: csi-rbd-sc
   storageSize: 5Gi
   scrapeInterval: 15s
-  # Budgeted against the namespace's Rancher quota slice (800m / 1792Mi):
-  # prometheus 400m/800Mi + config-reloader 50m/64Mi + grafana 200m/256Mi
-  # leaves headroom for cert-manager's transient ACME solver pod (100m/64Mi).
   resources:
     requests:
       memory: 400Mi
-      cpu: 100m
+      cpu: 50m
     limits:
       memory: 800Mi
-      cpu: 400m
+      cpu: 250m
   # The operator injects config-reloader sidecars WITHOUT limits by default;
   # the namespace ResourceQuota requires limits on every container.
   configReloaderResources:
@@ -38,15 +45,15 @@ prometheus:
 grafana:
   image: grafana/grafana
   tag: 12.1.1
-  # Name of the hand-made Secret holding key `admin-password`.
+  # Name of the Secret holding key `admin-password`
   adminSecret: grafana-admin
   resources:
     requests:
       memory: 128Mi
-      cpu: 50m
+      cpu: 25m
     limits:
       memory: 256Mi
-      cpu: 200m
+      cpu: 150m
 
 ingress:
   ingressClassName: nginx

@@ -53,13 +53,18 @@ from the chart's `files/rules.yml`), and a Grafana Deployment provisioned from
 ConfigMaps (dashboards rendered straight from the chart's
 `files/dashboards/*.json`; a checksum annotation rolls the pod on any dashboard
 change), exposed at https://genops-grafana.stud.k8s.aet.cit.tum.de (TLS via the
-production cert-manager issuer, admin password from the hand-made
-`grafana-admin` Secret).
+production cert-manager issuer, admin password from the `grafana-admin` Secret,
+which the pipeline creates from the Ansible vault).
+
+**Deploys automatically**: merging a change under `infra/helm/monitoring/` to
+`main` triggers `.github/workflows/cd-monitoring.yml` → Ansible
+`playbooks/monitoring.yml` (asserts `vault_grafana_admin_password`, creates the
+Secret, `helm upgrade`s the chart). Manual equivalent:
 
 ```sh
-kubectl -n genops-monitoring create secret generic grafana-admin \
-  --from-literal=admin-password='<strong password>'   # once, hand-made
-helm upgrade --install monitoring infra/helm/monitoring -n genops-monitoring
+cd infra/ansible
+ansible-playbook -i inventories/prod/hosts.yml playbooks/monitoring.yml \
+  --vault-password-file <(echo "$VAULT_PASSWORD")
 ```
 
 Pre-flight check for the operator is documented in the chart's
