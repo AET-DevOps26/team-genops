@@ -227,6 +227,9 @@ jobs:
       - name: Build
         run: npm run build
 
+      - name: Test (Vitest)
+        run: npm run test
+
   openapi:
     needs: changes
     if: needs.changes.outputs.openapi == 'true'
