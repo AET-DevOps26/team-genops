@@ -23,7 +23,7 @@ networkPolicy:
   enabled: true
   ingressNamespace: ingress-nginx   # CONFIRM against the TUM platform controller
   probeCidr: ""                     # set to node CIDR if readiness probes fail
-  # Our own monitoring stack (infra/k8s/monitoring/) scrapes from here.
+  # Our own monitoring stack (infra/helm/monitoring chart) scrapes from here.
   monitoringNamespace: genops-monitoring
 
 ingress:

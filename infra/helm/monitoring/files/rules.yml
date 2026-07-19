@@ -1,0 +1,61 @@
+# Alert rules — SINGLE SOURCE OF TRUTH for local AND prod. The local compose
+# Prometheus mounts this file directly (monitoring/prometheus/docker-compose.yml)
+# and the prod PrometheusRule is generated from it by this chart's
+# templates/prometheusrule.yaml. There is no other copy.
+# Alertmanager routing is deliberately deferred (documented in
+# monitoring/README.md): rules evaluate and show as firing in the Prometheus UI
+# and on the Grafana alert panel, which covers the course requirement.
+groups:
+  - name: jobready
+    rules:
+      # The classic: a scrape target stopped answering. Covers every service,
+      # genai included (its /metrics lives on the app port, so this also means
+      # the app itself is down).
+      - alert: ServiceDown
+        expr: up == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "{{ $labels.job }}/{{ $labels.instance }} is down"
+          description: "Target has been unreachable for 2 minutes."
+
+      # More than 5% of requests failing server-side, per Spring service.
+      - alert: HighErrorRate
+        expr: |
+          sum by (application) (rate(http_server_requests_seconds_count{status=~"5.."}[5m]))
+            /
+          sum by (application) (rate(http_server_requests_seconds_count[5m]))
+            > 0.05
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "{{ $labels.application }} error rate above 5%"
+          description: "More than 5% of requests returned 5xx over the last 5 minutes."
+
+      # p95 latency above 1s, per Spring service (needs the percentile
+      # histograms enabled in each service's application.properties).
+      - alert: SlowResponses
+        expr: |
+          histogram_quantile(0.95,
+            sum by (application, le) (rate(http_server_requests_seconds_bucket[5m])))
+            > 1
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "{{ $labels.application }} p95 latency above 1s"
+          description: "95th percentile response time exceeded 1s over the last 5 minutes."
+
+      # The custom-metric payoff: a burst of login lockouts usually means a
+      # credential-stuffing / brute-force attempt (auth_lockouts_total is
+      # incremented by SecurityAuditLog when a lockout activates).
+      - alert: AuthLockoutSpike
+        expr: increase(auth_lockouts_total[15m]) > 3
+        for: 0m
+        labels:
+          severity: warning
+        annotations:
+          summary: "More than 3 login lockouts in 15 minutes"
+          description: "Possible brute-force/credential-stuffing against the auth service."

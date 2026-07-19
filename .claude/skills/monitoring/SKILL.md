@@ -75,7 +75,7 @@ groups:
 
 ## Grafana dashboards
 
-- Dashboard JSON files live in `monitoring/grafana/dashboards/`.
+- Dashboard JSON files live in `infra/helm/monitoring/files/dashboards/` (single source: prod chart renders them, local compose mounts them). Alert rules likewise in `infra/helm/monitoring/files/rules.yml`.
 - Export dashboards from Grafana UI (Dashboard → Share → Export → Save to file).
 - Commit the exported JSON — dashboards are code.
 - Each dashboard must include panels for: request rate, error rate, p95 latency, and pod health.

@@ -7,8 +7,72 @@ compose fragment under its own folder and is pulled together by
 | Tool | Folder | Purpose | Status |
 |---|---|---|---|
 | Langfuse | [`langfuse/`](./langfuse) | LLM observability (traces, cost, latency) for `genai` | ✅ |
-| Prometheus | `prometheus/` | Service metrics (request count, latency, error rate) | planned |
-| Grafana | `grafana/` | Dashboards (as code) over Prometheus + Langfuse | planned |
+| Prometheus | [`prometheus/`](./prometheus) | Service metrics (request count, latency, error rate) + alert rules | ✅ |
+| Grafana | [`grafana/`](./grafana) | Dashboards (as code) over Prometheus | ✅ |
+
+## Prometheus + Grafana
+
+```sh
+docker compose -f docker-compose.yml \
+               -f monitoring/docker-compose.yml \
+               --profile monitoring up
+```
+
+- **Prometheus** → http://localhost:9090 (targets, alert state)
+- **Grafana** → http://localhost:3001 (admin / `GRAFANA_ADMIN_PASSWORD`, default `admin`; port 3001 because Langfuse owns 3000)
+
+**What gets scraped:** the four Spring services expose Micrometer metrics at
+`/actuator/prometheus` on the **management port 8090** — deliberately a separate
+port so metrics/health never share the public app port and the ingress can't
+reach them by construction. `genai` exposes `/metrics` on its app port
+(prometheus-fastapi-instrumentator). Custom metrics: the auth service emits
+`auth_login_attempts_total`, `auth_lockouts_total`, `auth_registrations_total`,
+`auth_token_refresh_total` (outcome labels only — identity stays in the
+`SECURITY_AUDIT` log lines) and every service exposes `app_info{version}` for
+release correlation.
+
+**Dashboards are code:** the JSON lives once in
+`infra/helm/monitoring/files/dashboards/` — the prod chart renders it into a
+ConfigMap and the local compose Grafana mounts the same directory read-only.
+Edit the JSON in git, never the UI. `jobready-overview` covers the
+course-required RED metrics; `auth-security` covers the custom counters.
+
+**Alert rules:** `infra/helm/monitoring/files/rules.yml` — `ServiceDown`,
+`HighErrorRate`, `SlowResponses`, `AuthLockoutSpike`. Same single-source
+pattern: the compose Prometheus mounts that file directly, and the prod
+`PrometheusRule` is generated from it by the chart — there is no second copy
+to keep in sync.
+
+### Production (TUM Rancher, namespace `genops-monitoring`)
+
+Deployed with the Helm chart at
+[`infra/helm/monitoring/`](../infra/helm/monitoring/): our own `Prometheus` CR
+(reconciled by the platform's cluster-wide Prometheus Operator),
+`ServiceMonitor`s targeting the app namespace, the `PrometheusRule` (generated
+from the chart's `files/rules.yml`), and a Grafana Deployment provisioned from
+ConfigMaps (dashboards rendered straight from the chart's
+`files/dashboards/*.json`; a checksum annotation rolls the pod on any dashboard
+change), exposed at https://genops-grafana.stud.k8s.aet.cit.tum.de (TLS via the
+production cert-manager issuer, admin password from the hand-made
+`grafana-admin` Secret).
+
+```sh
+kubectl -n genops-monitoring create secret generic grafana-admin \
+  --from-literal=admin-password='<strong password>'   # once, hand-made
+helm upgrade --install monitoring infra/helm/monitoring -n genops-monitoring
+```
+
+Pre-flight check for the operator is documented in the chart's
+`templates/prometheus.yaml`; the app chart admits scrapes via
+`networkPolicy.monitoringNamespace` (values-prod).
+
+**Documented deviations from `.claude/rules/monitoring_kubernetes.md`:**
+1. **Alertmanager is deferred** — rules evaluate and show as firing in
+   Prometheus/Grafana, but no delivery channel is wired yet. The
+   `alertmanagers` CRD is available when someone picks this up.
+2. **Grafana runs stateless (no PV)** — dashboards/datasource are provisioned
+   from version-controlled files, so they survive restarts by construction; a PV
+   would only let UI edits drift from git, violating "dashboards are code".
 
 ## Langfuse: local self-hosted vs. cloud deployment
 
@@ -79,5 +143,5 @@ add both Prometheus and Langfuse as data sources.
 
 > In Kubernetes these tools belong in a dedicated `monitoring` namespace with
 > persistent volumes — see `.claude/rules/monitoring_kubernetes.md`. This folder
-> holds the local (compose) side plus the versioned config (dashboards, alert
-> rules) that the k8s manifests mount.
+> holds only the local (compose) side; the shared config (dashboards, alert
+> rules) lives in the `infra/helm/monitoring` chart, which both sides consume.

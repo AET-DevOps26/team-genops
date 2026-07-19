@@ -149,14 +149,16 @@ Do these to keep "homemade" a defensible security posture rather than an acciden
   whole token family. Requires storing a family/session ID alongside each refresh token in Redis
   (currently keys are `refresh:<token>` → `userId` with no lineage), so a replay can revoke every
   descendant token in one sweep.
-- [x] **Security audit logging** — log half done (2026-07-17). `SecurityAuditLog` is the single
-  seam every auth flow reports through: single-line `key=value` events on the `SECURITY_AUDIT`
-  logger (`LOGIN_SUCCESS/FAILURE/BLOCKED`, `LOCKOUT_TRIGGERED`, `REGISTER_SUCCESS/REJECTED`,
-  `REFRESH_REJECTED`, `LOGOUT`; WARN = suspicious). Email/IP go in log lines only — never in
-  future metric labels. *Remaining half:* Micrometer counters incremented inside these same
-  methods + `/actuator/prometheus` exposure → Grafana alert (scheduled with the
-  Prometheus/Grafana workstream). Note: weak-password rejections happen at bean validation
-  (422) before the service layer and are not audited as events.
+- [x] **Security audit logging** — done (2026-07-17). `SecurityAuditLog` is the single seam
+  every auth flow reports through, and each event emits BOTH a single-line `key=value` log on
+  the `SECURITY_AUDIT` logger (`LOGIN_SUCCESS/FAILURE/BLOCKED`, `LOCKOUT_TRIGGERED`,
+  `REGISTER_SUCCESS/REJECTED`, `REFRESH_SUCCESS/REJECTED`, `LOGOUT`; WARN = suspicious) and a
+  Prometheus counter (`auth_login_attempts_total`, `auth_lockouts_total`,
+  `auth_registrations_total`, `auth_token_refresh_total` — outcome labels only; email/IP live
+  in log lines, never metric labels). Scraped from `/actuator/prometheus` on the management
+  port (8090); the `AuthLockoutSpike` alert and the `auth-security` Grafana dashboard sit on
+  top (see `monitoring/`). Note: weak-password rejections happen at bean validation (422)
+  before the service layer and are not audited as events.
 
 ### Tier 3 — deferred (documented, not scheduled)
 - TOTP MFA · automated signing-key rotation (multi-key JWKS overlap) · HSTS + security headers at

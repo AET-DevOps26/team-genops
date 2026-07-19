@@ -1,0 +1,85 @@
+# Our own Prometheus, reconciled by the TUM cluster's existing Prometheus
+# Operator.
+#
+# PRE-FLIGHT (once): install the chart and check the operator creates
+# statefulset prometheus-jobready — if nothing appears, the operator's watch
+# does not cover tenant namespaces and we fall back to piggybacking the
+# platform Prometheus with ServiceMonitors only (see monitoring/README.md).
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: prometheus
+  namespace: {{ .Release.Namespace }}
+---
+# Prometheus discovers scrape targets by listing Services/Endpoints/Pods in the
+# APP namespace — that needs explicit RBAC there (namespaced Role, no cluster
+# permissions required or available to a tenant).
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: prometheus-scrape
+  namespace: {{ .Values.appNamespace }}
+rules:
+  - apiGroups: [""]
+    resources: [services, endpoints, pods]
+    verbs: [get, list, watch]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: prometheus-scrape
+  namespace: {{ .Values.appNamespace }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: prometheus-scrape
+subjects:
+  - kind: ServiceAccount
+    name: prometheus
+    namespace: {{ .Release.Namespace }}
+---
+apiVersion: monitoring.coreos.com/v1
+kind: Prometheus
+metadata:
+  name: jobready
+  namespace: {{ .Release.Namespace }}
+  labels:
+    team: genops
+spec:
+  replicas: {{ .Values.prometheus.replicas }}
+  serviceAccountName: prometheus
+  # Only OUR ServiceMonitors/Rules — selected by label, from this namespace.
+  serviceMonitorSelector:
+    matchLabels:
+      team: genops
+  serviceMonitorNamespaceSelector:
+    matchLabels:
+      kubernetes.io/metadata.name: {{ .Release.Namespace }}
+  ruleSelector:
+    matchLabels:
+      team: genops
+  ruleNamespaceSelector:
+    matchLabels:
+      kubernetes.io/metadata.name: {{ .Release.Namespace }}
+  retention: {{ .Values.prometheus.retention }}
+  storage:
+    volumeClaimTemplate:
+      spec:
+        storageClassName: {{ .Values.prometheus.storageClassName }}
+        accessModes: [ReadWriteOnce]
+        resources:
+          requests:
+            storage: {{ .Values.prometheus.storageSize }}
+  resources:
+    {{- toYaml .Values.prometheus.resources | nindent 4 }}
+  # Strategic-merge patches onto the operator-injected sidecars: give the
+  # config reloaders explicit limits so the namespace ResourceQuota (which
+  # requires limits on every container) admits the pod.
+  containers:
+    - name: config-reloader
+      resources:
+        {{- toYaml .Values.prometheus.configReloaderResources | nindent 8 }}
+  initContainers:
+    - name: init-config-reloader
+      resources:
+        {{- toYaml .Values.prometheus.configReloaderResources | nindent 8 }}

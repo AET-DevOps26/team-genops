@@ -1,0 +1,28 @@
+# Local (compose) scrape config. The prod equivalent is NOT this file — on the
+# TUM cluster, ServiceMonitors in the infra/helm/monitoring chart declare the
+# same targets dynamically. Keep target sets in sync when a service joins.
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+rule_files:
+  - /etc/prometheus/alerts/*.yml
+
+scrape_configs:
+  # Spring Boot services — Micrometer on the management port (8090), which the
+  # ingress/gateway never route; only reachable inside the compose network.
+  - job_name: spring-services
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets:
+          - auth:8090
+          - application:8090
+          - document:8090
+          - gateway:8090
+
+  # FastAPI genai — prometheus-fastapi-instrumentator on the app port.
+  - job_name: genai
+    metrics_path: /metrics
+    static_configs:
+      - targets:
+          - genai:8000

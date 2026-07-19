@@ -1,0 +1,132 @@
+{
+  "title": "Auth Security",
+  "uid": "auth-security",
+  "description": "Custom security counters emitted by the auth service's SecurityAuditLog: login outcomes, lockouts, registrations, token refresh. Counters carry outcome labels only — identity stays in the SECURITY_AUDIT log lines.",
+  "tags": ["jobready", "security"],
+  "schemaVersion": 39,
+  "editable": false,
+  "refresh": "30s",
+  "time": { "from": "now-6h", "to": "now" },
+  "templating": { "list": [] },
+  "panels": [
+    {
+      "id": 1,
+      "type": "timeseries",
+      "title": "Login attempts by outcome",
+      "gridPos": { "h": 9, "w": 12, "x": 0, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (outcome) (rate(auth_login_attempts_total[5m])) * 60",
+          "legendFormat": "{{outcome}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "cpm",
+          "custom": { "lineWidth": 2, "fillOpacity": 0, "pointSize": 4, "showPoints": "never" }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      }
+    },
+    {
+      "id": 2,
+      "type": "stat",
+      "title": "Lockouts (24h)",
+      "description": "Lockout activations — the AuthLockoutSpike alert fires on >3 in 15 minutes.",
+      "gridPos": { "h": 9, "w": 4, "x": 12, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(increase(auth_lockouts_total[24h])) or vector(0)",
+          "instant": true
+        }
+      ],
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "reduceOptions": { "calcs": ["lastNotNull"] }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "decimals": 0,
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }, { "color": "orange", "value": 1 }, { "color": "red", "value": 4 }] }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 3,
+      "type": "alertlist",
+      "title": "Firing alerts",
+      "gridPos": { "h": 9, "w": 8, "x": 16, "y": 0 },
+      "options": {
+        "alertInstanceLabelFilter": "",
+        "dashboardAlerts": false,
+        "groupBy": [],
+        "maxItems": 20,
+        "sortOrder": 1,
+        "stateFilter": { "firing": true, "pending": true, "noData": false, "normal": false, "error": true }
+      }
+    },
+    {
+      "id": 4,
+      "type": "timeseries",
+      "title": "Registrations by outcome",
+      "description": "rate_limited spikes = someone probing register; email_taken volume = the documented enumeration oracle being exercised.",
+      "gridPos": { "h": 9, "w": 12, "x": 0, "y": 9 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (outcome) (rate(auth_registrations_total[5m])) * 60",
+          "legendFormat": "{{outcome}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "cpm",
+          "custom": { "lineWidth": 2, "fillOpacity": 0, "pointSize": 4, "showPoints": "never" }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      }
+    },
+    {
+      "id": 5,
+      "type": "timeseries",
+      "title": "Token refresh by outcome",
+      "description": "A rejected refresh is a rotated/invalid token being replayed — the most interesting security event in the system.",
+      "gridPos": { "h": 9, "w": 12, "x": 12, "y": 9 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (outcome) (rate(auth_token_refresh_total[5m])) * 60",
+          "legendFormat": "{{outcome}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "cpm",
+          "custom": { "lineWidth": 2, "fillOpacity": 0, "pointSize": 4, "showPoints": "never" }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      }
+    }
+  ]
+}

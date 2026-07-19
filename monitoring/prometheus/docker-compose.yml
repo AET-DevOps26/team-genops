@@ -1,0 +1,31 @@
+# Prometheus — metrics collection for JobReady (request count, latency, error
+# rate + custom auth security counters).
+#
+# Compose *fragment*: shares the root project's network so it can scrape the
+# services by name. Opt in via the `monitoring` profile:
+#
+#   docker compose -f docker-compose.yml \
+#                  -f monitoring/docker-compose.yml \
+#                  --profile monitoring up
+#
+# Spring services expose /actuator/prometheus on the management port 8090
+# (never the public app port); genai exposes /metrics on its app port.
+# Paths are relative to the project directory (the repo root).
+
+services:
+  prometheus:
+    image: prom/prometheus:v3.5.0
+    container_name: prometheus
+    profiles: [monitoring]
+    restart: unless-stopped
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      # Alert rules are single-sourced from the monitoring Helm chart — the
+      # same file the prod PrometheusRule is generated from.
+      - ./infra/helm/monitoring/files/rules.yml:/etc/prometheus/alerts/rules.yml:ro
+      - prometheus-data:/prometheus
+
+volumes:
+  prometheus-data:
