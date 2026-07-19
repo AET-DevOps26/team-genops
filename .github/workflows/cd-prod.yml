@@ -61,7 +61,8 @@ jobs:
           MAJOR_MINOR="${VERSION%.*}"         # 1.2.3  -> 1.2
           SRC="sha-${SHA:0:7}"
           for image in jobready-auth jobready-application jobready-document \
-                       jobready-web-client jobready-gateway jobready-genai; do
+                       jobready-email jobready-web-client jobready-gateway \
+                       jobready-genai; do
             src="${IMAGE_PREFIX}/${image}:${SRC}"
             echo "Promoting ${src} -> ${VERSION}, ${MAJOR_MINOR}"
             crane copy "$src" "${IMAGE_PREFIX}/${image}:${VERSION}"
