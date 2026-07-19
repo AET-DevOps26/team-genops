@@ -83,3 +83,16 @@ user ids differ, `422` on invalid enum values, `401` on a missing/wrong token.
 `GET /api/v1/applications/{id}/events` (public, JWT-authenticated) returns the timeline,
 newest first by `occurred_at`. Events are appended by the email pipeline (source `email`)
 and by manual stage changes through `PUT /api/v1/applications/{id}` (source `manual`).
+
+## Testing
+
+```sh
+./mvnw test                # full suite
+./mvnw verify              # build + test + package — mirrors CI (Spotless + Checkstyle)
+```
+
+What's covered: application CRUD + ownership rules (`ApplicationServiceImplTest`), web-layer
+security for the public API (`ApplicationControllerTest`), the static-token internal API
+(`InternalControllerTest`), email-driven updates + auto-create (`EmailUpdateServiceTest`), and
+stage persistence mapping (`StageConverterTest`). Cross-service flows through the gateway are
+covered by [`e2e_tests/`](../../e2e_tests/) (`test_application_flow.py`).

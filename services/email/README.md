@@ -62,3 +62,16 @@ Smoke check after deploy: logged in, `GET https://<host>/api/v1/email/connection
 `@Scheduled` polling + analysis and the in-process OAuth nonce store are per-process — running
 more than one replica wastes Gmail quota and duplicates LLM calls (correctness is preserved by
 the DB dedupe and idempotent internal APIs). A multi-replica fix is a Redis leader lock.
+
+## Testing
+
+```sh
+./mvnw test                # full suite
+./mvnw verify              # build + test + package — mirrors CI (Spotless + Checkstyle)
+```
+
+What's covered: web-layer security (`EmailControllerTest`), the Gmail OAuth connect flow and
+signed single-use `state` tokens (`EmailConnectionServiceTest`, `StateTokenServiceTest`),
+AES-GCM token encryption at rest (`TokenEncryptorTest`), Gmail body extraction
+(`GmailBodyExtractionTest`), and the poller + LLM analysis pipeline (`EmailPollerTest`,
+`EmailAnalysisServiceTest`) with the genai/application clients faked at the HTTP boundary.
