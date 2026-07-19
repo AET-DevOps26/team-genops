@@ -3,9 +3,9 @@
 > An end-to-end job application and preparation hub, built as a cloud-native microservices system.
 > TUM AET DevOps 2026.
 
-[![CI](https://github.com/AET-DevOps26/team-genops/actions/workflows/ci.yml/badge.svg)](https://github.com/AET-DevOps26/team-genops/actions/workflows/ci.yml)
-[![CD — Dev (AKS)](https://github.com/AET-DevOps26/team-genops/actions/workflows/cd-dev.yml/badge.svg)](https://github.com/AET-DevOps26/team-genops/actions/workflows/cd-dev.yml)
-[![CodeQL](https://github.com/AET-DevOps26/team-genops/actions/workflows/codeql.yml/badge.svg)](https://github.com/AET-DevOps26/team-genops/actions/workflows/codeql.yml)
+[![CI](https://github.com/AET-DevOps26/team-genops/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/AET-DevOps26/team-genops/actions/workflows/ci.yml?query=branch%3Amain)
+[![CD — Dev (AKS)](https://github.com/AET-DevOps26/team-genops/actions/workflows/cd-dev.yml/badge.svg?branch=main)](https://github.com/AET-DevOps26/team-genops/actions/workflows/cd-dev.yml?query=branch%3Amain)
+[![CodeQL](https://github.com/AET-DevOps26/team-genops/actions/workflows/codeql.yml/badge.svg?branch=main)](https://github.com/AET-DevOps26/team-genops/actions/workflows/codeql.yml?query=branch%3Amain)
 
 JobReady consolidates the job-search journey into a single intelligent platform:
 
