@@ -23,6 +23,14 @@ global:
   #     - name: ghcr-pull
   imagePullSecrets: []
 
+# Name of an existing Secret holding INTERNAL_SERVICE_TOKEN — the shared secret guarding
+# the /internal/** service-to-service APIs (email → genai/application detection pipeline).
+# Leave blank to keep the internal APIs disabled (they fail-closed without a token).
+# Create it with:
+#   kubectl create secret generic internal-service-token \
+#     --from-literal=INTERNAL_SERVICE_TOKEN=$(openssl rand -hex 32) -n <namespace>
+internalServiceTokenSecret: ""
+
 namespace:
   # Whether THIS chart creates the Namespace object.
   # Set false when deploying into a pre-existing namespace, or when your

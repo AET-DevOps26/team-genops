@@ -88,6 +88,15 @@ spec:
               value: "http://application:{{ .Values.application.port }}"
             - name: PROFILE_ENABLED
               value: "true"
+            {{- if .Values.internalServiceTokenSecret }}
+            # Enables the internal email-analysis endpoint for the email pipeline.
+            # Omit internalServiceTokenSecret to keep it disabled (fail-closed).
+            - name: INTERNAL_SERVICE_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.internalServiceTokenSecret }}
+                  key: INTERNAL_SERVICE_TOKEN
+            {{- end }}
             {{- if .Values.genai.openrouterSecret }}
             - name: OPENROUTER_API_KEY
               valueFrom:
