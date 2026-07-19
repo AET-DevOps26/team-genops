@@ -39,6 +39,9 @@ CREATE TABLE application.application_events (
     stage_to          VARCHAR(50),
     source            VARCHAR(20) NOT NULL CHECK (source IN ('EMAIL', 'MANUAL')),
     source_message_id VARCHAR(255),
+    -- Backstop for the service's exists-then-insert idempotency: one email may
+    -- produce at most one event per user. NULLs (manual events) are not constrained.
+    CONSTRAINT uq_application_events_user_message UNIQUE (user_id, source_message_id),
     occurred_at       TIMESTAMPTZ NOT NULL,
     created_at        TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );

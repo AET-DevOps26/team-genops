@@ -14,6 +14,7 @@ from src.models.email_analysis import (
     STAGES,
     EmailAnalysisRequest,
     EmailAnalysisResult,
+    TimelineEvent,
 )
 from src.observability import trace_config
 from src.prompts.email_analysis import EMAIL_ANALYSIS_SYSTEM_PROMPT
@@ -61,6 +62,14 @@ def _sanitize(result: EmailAnalysisResult, request: EmailAnalysisRequest) -> Ema
         result.suggested_stage = None
     if result.event is not None and result.event.event_type not in EVENT_TYPES:
         result.event.event_type = "email_received"
+    if result.relevant and result.event is None:
+        # The downstream pipeline can only act on a relevant email through its event —
+        # synthesize a generic one rather than silently dropping the email.
+        result.event = TimelineEvent(
+            event_type="email_received",
+            title=f"Email from {result.company or 'the company'}",
+            description="An email about this application was received.",
+        )
     if not result.relevant:
         result.suggested_stage = None
         result.event = None
@@ -70,7 +79,7 @@ def _sanitize(result: EmailAnalysisResult, request: EmailAnalysisRequest) -> Ema
 
 
 async def analyze_email(request: EmailAnalysisRequest) -> EmailAnalysisResult:
-    result = await _structured_llm.ainvoke(
+    raw = await _structured_llm.ainvoke(
         [
             SystemMessage(content=EMAIL_ANALYSIS_SYSTEM_PROMPT),
             HumanMessage(content=_format_input(request)),
@@ -81,4 +90,7 @@ async def analyze_email(request: EmailAnalysisRequest) -> EmailAnalysisResult:
             tags=["email-analysis"],
         ),
     )
+    # with_structured_output is typed as returning dict | BaseModel; normalize for mypy
+    # (and defensively, should the runtime ever hand back the dict form).
+    result = raw if isinstance(raw, EmailAnalysisResult) else EmailAnalysisResult.model_validate(raw)
     return _sanitize(result, request)

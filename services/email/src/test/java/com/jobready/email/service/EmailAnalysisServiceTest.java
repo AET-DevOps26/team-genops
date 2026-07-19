@@ -209,6 +209,22 @@ class EmailAnalysisServiceTest {
     }
 
     @Test
+    void candidatesAreFetchedOncePerUserWithinABatch() {
+        ProcessedEmailEntity first = email("Interview invitation - Acme");
+        ProcessedEmailEntity second = email("Offer from Acme");
+        second.setMessageId("gmail-msg-2");
+        pendingReturns(first, second);
+        when(applicationClient.listApplications(userId)).thenReturn(List.of());
+        when(genaiClient.analyzeEmail(eq(userId), any(), anyList()))
+                .thenReturn(verdict(applicationId.toString(), "Acme", 0.9, false));
+
+        assertThat(service("token").analyzePending()).isEqualTo(2);
+
+        org.mockito.Mockito.verify(applicationClient, org.mockito.Mockito.times(1))
+                .listApplications(userId);
+    }
+
+    @Test
     void transientFailure_countsAttemptAndStaysPending() {
         ProcessedEmailEntity email = email("Interview invitation - Acme");
         pendingReturns(email);

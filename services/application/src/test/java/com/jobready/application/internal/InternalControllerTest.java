@@ -106,6 +106,6 @@ class InternalControllerTest {
                         .header("Authorization", "Bearer test-internal-token")
                         .contentType("application/json")
                         .content("{\"userId\":\"" + userId + "\",\"sourceMessageId\":\"m1\"}"))
-                .andExpect(status().isUnprocessableEntity());
+                .andExpect(status().is(422)); // isUnprocessableEntity() is deprecated (RFC 9110 rename)
     }
 }

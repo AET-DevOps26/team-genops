@@ -5,8 +5,10 @@ import com.jobready.email.modelEntity.ProcessedEmailEntity;
 import com.jobready.email.modelEntity.ProcessedEmailEntity.AnalysisStatus;
 import com.jobready.email.repository.ProcessedEmailRepository;
 import java.time.ZoneOffset;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -101,9 +103,11 @@ public class EmailAnalysisService {
         List<ProcessedEmailEntity> pending = repository.findByAnalysisStatusOrderByProcessedAtAsc(
                 AnalysisStatus.PENDING, Limit.of(properties.analysis().batchSize()));
         int finalized = 0;
+        // Candidates are read-only for the duration of one pass; fetch once per user.
+        Map<UUID, List<ApplicationClient.ApplicationCandidate>> candidatesByUser = new HashMap<>();
         for (ProcessedEmailEntity email : pending) {
             try {
-                if (analyzeOne(email)) {
+                if (analyzeOne(email, candidatesByUser)) {
                     finalized++;
                 }
             } catch (Exception e) {
@@ -115,7 +119,8 @@ public class EmailAnalysisService {
     }
 
     /** Run one email through the pipeline. Returns true when a final state was reached. */
-    private boolean analyzeOne(ProcessedEmailEntity email) {
+    private boolean analyzeOne(
+            ProcessedEmailEntity email, Map<UUID, List<ApplicationClient.ApplicationCandidate>> candidatesByUser) {
         String subject = email.getSubject() == null ? "" : email.getSubject().toLowerCase(Locale.ROOT);
         boolean hinted = RELEVANT_HINTS.stream().anyMatch(subject::contains);
         if (!hinted && SKIP_HINTS.stream().anyMatch(subject::contains)) {
@@ -123,7 +128,8 @@ public class EmailAnalysisService {
             return true;
         }
 
-        List<ApplicationClient.ApplicationCandidate> candidates = applicationClient.listApplications(email.getUserId());
+        List<ApplicationClient.ApplicationCandidate> candidates =
+                candidatesByUser.computeIfAbsent(email.getUserId(), applicationClient::listApplications);
         GenaiClient.EmailAnalysisResult verdict = genaiClient.analyzeEmail(
                 email.getUserId(),
                 new GenaiClient.EmailPayload(

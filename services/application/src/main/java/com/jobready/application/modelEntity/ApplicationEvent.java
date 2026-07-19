@@ -23,7 +23,18 @@ import org.hibernate.annotations.CreationTimestamp;
  * email's received date), unlike {@code createdAt} which is when the row was written.
  */
 @Entity
-@Table(schema = "application", name = "application_events")
+@Table(
+        schema = "application",
+        name = "application_events",
+        // DB-level backstop for the exists-then-insert idempotency checks in
+        // EmailUpdateService: a racing duplicate insert fails here instead of
+        // double-applying, and the email service's bounded retry then converges
+        // on the no-op path. Postgres ignores NULL source_message_id rows
+        // (manual events), so only email-derived events are constrained.
+        uniqueConstraints =
+                @jakarta.persistence.UniqueConstraint(
+                        name = "uq_application_events_user_message",
+                        columnNames = {"user_id", "source_message_id"}))
 @Getter
 @Setter
 @NoArgsConstructor

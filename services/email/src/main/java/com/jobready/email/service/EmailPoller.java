@@ -66,10 +66,15 @@ public class EmailPoller {
                 log.error("Polling failed for user {}", connection.getUserId(), e);
             }
         }
-        // Classify what was just stored (and retry earlier leftovers). Never throws.
-        int analyzed = emailAnalysisService.analyzePending();
-        if (analyzed > 0) {
-            log.info("Detection pipeline finalized {} email(s)", analyzed);
+        // Classify what was just stored (and retry earlier leftovers). Guarded like every
+        // other failure mode here: a detection outage must never break the polling loop.
+        try {
+            int analyzed = emailAnalysisService.analyzePending();
+            if (analyzed > 0) {
+                log.info("Detection pipeline finalized {} email(s)", analyzed);
+            }
+        } catch (Exception e) {
+            log.error("Detection pipeline pass failed; emails stay pending for the next poll", e);
         }
         return total;
     }

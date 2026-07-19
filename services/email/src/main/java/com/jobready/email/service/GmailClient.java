@@ -85,7 +85,13 @@ public class GmailClient {
             return null;
         }
         text = text.strip();
-        return text.length() > MAX_BODY_CHARS ? text.substring(0, MAX_BODY_CHARS) : text;
+        if (text.length() <= MAX_BODY_CHARS) {
+            return text;
+        }
+        // Back off one char if the cut would split a surrogate pair — an unpaired
+        // surrogate is invalid UTF-8 and Postgres would reject the whole insert.
+        int end = Character.isHighSurrogate(text.charAt(MAX_BODY_CHARS - 1)) ? MAX_BODY_CHARS - 1 : MAX_BODY_CHARS;
+        return text.substring(0, end);
     }
 
     private static String findPart(Payload part, String mimeType) {

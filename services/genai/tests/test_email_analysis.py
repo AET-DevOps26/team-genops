@@ -148,6 +148,7 @@ def test_sanitize_nulls_hallucinated_id_but_keeps_relevance(monkeypatch):
     assert sanitized.application_id is None
     assert sanitized.company == "Globex"
     assert sanitized.suggested_stage is None
+    assert sanitized.event is not None
     assert sanitized.event.event_type == "email_received"
 
 
@@ -180,6 +181,24 @@ def test_sanitize_degrades_unmatched_without_company(monkeypatch):
     assert sanitized.event is None
     assert sanitized.action_items == []
     assert sanitized.is_interview_invite is False
+
+
+def test_sanitize_synthesizes_event_for_relevant_result_without_one(monkeypatch):
+    """A relevant verdict is only actionable through its event — one is synthesized if missing."""
+    monkeypatch.setenv("OPENROUTER_API_KEY", "test")
+
+    from src.models.email_analysis import EmailAnalysisRequest, EmailAnalysisResult
+    from src.services.email_analysis import _sanitize
+
+    request = EmailAnalysisRequest.model_validate(_request_body())
+    result = EmailAnalysisResult(relevant=True, application_id="app-1", company="Acme", confidence=0.9)
+
+    sanitized = _sanitize(result, request)
+
+    assert sanitized.relevant is True
+    assert sanitized.event is not None
+    assert sanitized.event.event_type == "email_received"
+    assert "Acme" in sanitized.event.title
 
 
 def test_sanitize_rejects_draft_stage(monkeypatch):
@@ -224,4 +243,5 @@ def test_sanitize_downgrades_unknown_event_type(monkeypatch):
     sanitized = _sanitize(result, request)
 
     assert sanitized.relevant is True
+    assert sanitized.event is not None
     assert sanitized.event.event_type == "email_received"
