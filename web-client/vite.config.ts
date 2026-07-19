@@ -38,6 +38,11 @@ export default defineConfig({
         target: process.env.VITE_DOCUMENT_TARGET ?? "http://localhost:8083",
         changeOrigin: true,
       },
+      // Email service (Gmail integration) — host 8001 maps to the container's 8080
+      "/api/v1/email": {
+        target: process.env.VITE_EMAIL_TARGET ?? "http://localhost:8001",
+        changeOrigin: true,
+      },
       // Catch-all — auth service on port 8080
       "/api": {
         target: process.env.VITE_API_TARGET ?? "http://localhost:8080",

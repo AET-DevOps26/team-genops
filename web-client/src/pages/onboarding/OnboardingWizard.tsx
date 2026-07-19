@@ -11,8 +11,18 @@ import {
   useGetProfileQuery,
   useUpsertProfileMutation,
 } from "~/services/profile/profileApi";
+import {
+  useAuthorizeGmailMutation,
+  useGetEmailConnectionQuery,
+} from "~/services/email/emailApi";
 
-const STEPS = ["Basics", "Experience", "Education", "Skills & languages"];
+const STEPS = [
+  "Basics",
+  "Experience",
+  "Education",
+  "Skills & languages",
+  "Connect email",
+];
 const SKILL_LEVELS = [
   "beginner",
   "intermediate",
@@ -96,6 +106,21 @@ export default function OnboardingWizard() {
     useState<(typeof PROFICIENCIES)[number]>("fluent");
   const [addLanguage] = useAddLanguageMutation();
   const [languages, setLanguages] = useState<string[]>([]);
+
+  const { data: emailConnection } = useGetEmailConnectionQuery();
+  const [authorizeGmail, authorizeState] = useAuthorizeGmailMutation();
+
+  async function connectGmail() {
+    try {
+      const { authorization_url } = await authorizeGmail().unwrap();
+      // Full-page redirect off the app to Google's consent screen. On return the
+      // email service sends the browser to the dashboard (not back here), where
+      // AppShell surfaces the success/error notice.
+      window.location.assign(authorization_url);
+    } catch {
+      /* rendered from mutation state */
+    }
+  }
 
   const shownBasics =
     basicsTouched || !existing
@@ -612,6 +637,48 @@ export default function OnboardingWizard() {
                   </Button>
                 </form>
               </div>
+            </div>
+          )}
+
+          {step === 4 && (
+            <div className="space-y-5">
+              <div>
+                <h1 className="font-display text-xl font-semibold tracking-tight">
+                  Connect your email
+                </h1>
+                <p className="mt-1 text-sm text-dim">
+                  Let JobReady watch your inbox for application updates —
+                  interview invites, offers, and rejections are detected
+                  automatically and move your pipeline forward.
+                </p>
+              </div>
+              {emailConnection?.connected ? (
+                <div className="rounded-lg border border-offer/30 bg-offer/10 px-4 py-3 text-sm text-offer">
+                  Gmail connected
+                  {emailConnection.email_address
+                    ? ` — ${emailConnection.email_address}`
+                    : ""}
+                  .
+                </div>
+              ) : (
+                <>
+                  <Button
+                    className="w-full"
+                    loading={authorizeState.isLoading}
+                    onClick={connectGmail}
+                  >
+                    Connect Gmail
+                  </Button>
+                  <p className="text-center text-xs text-faint">
+                    You&apos;ll be taken to Google to grant access, then landed
+                    on your dashboard. You can also do this later from your
+                    profile.
+                  </p>
+                  <ErrorBanner
+                    error={authorizeState.error as NormalizedError | undefined}
+                  />
+                </>
+              )}
             </div>
           )}
 
