@@ -37,8 +37,8 @@ public class JwtConfig {
         // on restart and breaks multi-replica JWKS.
         if (isBlank(props.getPrivateKey()) || isBlank(props.getPublicKey())) {
             throw new IllegalStateException(
-                "JWT signing keys are required: set JWT_PRIVATE_KEY (PKCS#8 PEM) and JWT_PUBLIC_KEY "
-                    + "(X.509 PEM).");
+                    "JWT signing keys are required: set JWT_PRIVATE_KEY (PKCS#8 PEM) and JWT_PUBLIC_KEY "
+                            + "(X.509 PEM).");
         }
         RSAPrivateKey privateKey = RsaKeyConverters.pkcs8()
                 .convert(new ByteArrayInputStream(

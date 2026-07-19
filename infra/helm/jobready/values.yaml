@@ -203,10 +203,9 @@ networkPolicy:
   # exempts host→pod probes (e.g. Cilium); set to the node CIDR if it does not.
   probeCidr: ""
 
-  # Namespace where Prometheus runs (the monitoring stack lives in its own
-  # namespace, never alongside the app). When set, pods labelled
-  # monitoring: "true" accept ingress from that namespace so scrapes work
-  # under default-deny. "" = no monitoring stack yet, allowance not rendered.
+  # Namespace Prometheus scrapes from. When set, pods labelled monitoring: "true"
+  # accept ingress from that namespace. "" = policy not rendered.
+  #   prod (TUM): genops-monitoring
   monitoringNamespace: ""
 
 ingress:

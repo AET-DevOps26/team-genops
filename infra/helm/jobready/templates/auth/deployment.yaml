@@ -63,6 +63,8 @@ spec:
           ports:
             - containerPort: {{ .Values.auth.port }}
           env:
+            - name: APP_VERSION
+              value: "{{ .Values.auth.tag }}"
             - name: POSTGRES_DB
               valueFrom:
                 secretKeyRef:
@@ -111,7 +113,7 @@ spec:
           livenessProbe:
             httpGet:
               path: /actuator/health/liveness
-              port: {{ .Values.auth.port }}
+              port: 8090
             initialDelaySeconds: 60
             periodSeconds: 15
             failureThreshold: 3
@@ -119,7 +121,7 @@ spec:
           readinessProbe:
             httpGet:
               path: /actuator/health/readiness
-              port: {{ .Values.auth.port }}
+              port: 8090
             initialDelaySeconds: 30
             periodSeconds: 10
             failureThreshold: 3
