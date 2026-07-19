@@ -21,6 +21,7 @@ spec:
     metadata:
       labels:
         app: gateway
+        monitoring: "true"
     spec:
       {{- with .Values.global.imagePullSecrets }}
       imagePullSecrets:
