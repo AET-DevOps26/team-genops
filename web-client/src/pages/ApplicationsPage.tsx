@@ -351,7 +351,11 @@ function DocumentsTab({
 
 /** Timeline of an application: email-detected and manual events, newest first. */
 function TimelineTab({ application }: { application: JobApplication }) {
-  const { data, isLoading } = useListApplicationEventsQuery(application.id);
+  // Events are appended by the background email pipeline, not by user mutations —
+  // refetch on every open so the timeline reflects newly detected emails.
+  const { data, isLoading } = useListApplicationEventsQuery(application.id, {
+    refetchOnMountOrArgChange: true,
+  });
   const events = data?.items ?? [];
 
   if (isLoading) return <p className="text-sm text-dim">Loading timeline…</p>;
@@ -402,7 +406,9 @@ function TimelineTab({ application }: { application: JobApplication }) {
 
 /** Next-best-action items (recommendations), e.g. follow-ups suggested from detected emails. */
 function ActionItemsTab({ application }: { application: JobApplication }) {
-  const { data, isLoading } = useListRecommendationsQuery(application.id);
+  const { data, isLoading } = useListRecommendationsQuery(application.id, {
+    refetchOnMountOrArgChange: true,
+  });
   const [deleteRecommendation] = useDeleteRecommendationMutation();
   const items = data?.items ?? [];
 

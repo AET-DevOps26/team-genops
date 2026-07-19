@@ -115,7 +115,7 @@ class EmailAnalysisServiceTest {
 
         verify(applicationClient, never()).applyEmailUpdate(any(), any());
         verify(applicationClient, never()).createFromEmail(any(), any());
-        assertThat(email.getAnalysisStatus()).isEqualTo(AnalysisStatus.IRRELEVANT);
+        assertThat(email.getAnalysisStatus()).isEqualTo(AnalysisStatus.LOW_CONFIDENCE);
     }
 
     @Test
@@ -163,7 +163,7 @@ class EmailAnalysisServiceTest {
         service("token").analyzePending();
 
         verify(applicationClient, never()).createFromEmail(any(), any());
-        assertThat(email.getAnalysisStatus()).isEqualTo(AnalysisStatus.IRRELEVANT);
+        assertThat(email.getAnalysisStatus()).isEqualTo(AnalysisStatus.LOW_CONFIDENCE);
     }
 
     @Test
@@ -222,6 +222,23 @@ class EmailAnalysisServiceTest {
 
         org.mockito.Mockito.verify(applicationClient, org.mockito.Mockito.times(1))
                 .listApplications(userId);
+    }
+
+    @Test
+    void missingReceivedAt_fallsBackToProcessedAtForOccurredAt() {
+        ProcessedEmailEntity email = email("Interview invitation - Acme");
+        email.setReceivedAt(null);
+        email.setProcessedAt(Instant.parse("2026-07-15T09:00:00Z"));
+        pendingReturns(email);
+        when(applicationClient.listApplications(userId)).thenReturn(List.of());
+        when(genaiClient.analyzeEmail(eq(userId), any(), anyList()))
+                .thenReturn(verdict(applicationId.toString(), "Acme", 0.9, true));
+
+        service("token").analyzePending();
+
+        var captor = org.mockito.ArgumentCaptor.forClass(ApplicationClient.EmailUpdateRequest.class);
+        verify(applicationClient).applyEmailUpdate(eq(applicationId), captor.capture());
+        assertThat(captor.getValue().event().occurredAt()).isEqualTo("2026-07-15T09:00Z");
     }
 
     @Test

@@ -127,6 +127,46 @@ class EmailUpdateServiceTest {
     }
 
     @Test
+    void apply_backwardStageSuggestion_recordsEventWithoutTransition() {
+        Application existing = application(ApplicationStage.OFFER);
+        when(applicationRepository.findByIdAndUserId(applicationId, userId)).thenReturn(Optional.of(existing));
+
+        boolean applied = service.apply(applicationId, request("interview", List.of()));
+
+        assertThat(applied).isTrue();
+        assertThat(existing.getStage()).isEqualTo(ApplicationStage.OFFER); // never moves backwards
+        verify(applicationRepository, never()).save(any());
+        ArgumentCaptor<ApplicationEvent> event = ArgumentCaptor.forClass(ApplicationEvent.class);
+        verify(eventRepository).save(event.capture());
+        assertThat(event.getValue().getStageFrom()).isNull();
+        assertThat(event.getValue().getStageTo()).isNull();
+    }
+
+    @Test
+    void apply_sameEmailPreviouslyAppliedToAnotherApplication_isIdempotentNoOp() {
+        when(applicationRepository.findByIdAndUserId(applicationId, userId))
+                .thenReturn(Optional.of(application(ApplicationStage.APPLIED)));
+        when(eventRepository.existsByApplicationIdAndSourceMessageId(applicationId, "gmail-msg-1"))
+                .thenReturn(false);
+        when(eventRepository.existsByUserIdAndSourceMessageId(userId, "gmail-msg-1"))
+                .thenReturn(true);
+
+        boolean applied = service.apply(applicationId, request("interview", List.of()));
+
+        assertThat(applied).isFalse();
+        verify(eventRepository, never()).save(any());
+    }
+
+    @Test
+    void apply_unknownStageWireValue_throwsInvalidWireValue() {
+        when(applicationRepository.findByIdAndUserId(applicationId, userId))
+                .thenReturn(Optional.of(application(ApplicationStage.APPLIED)));
+
+        assertThatThrownBy(() -> service.apply(applicationId, request("hired", List.of())))
+                .isInstanceOf(com.jobready.application.exception.InvalidWireValueException.class);
+    }
+
+    @Test
     void apply_whenApplicationNotOwnedByUser_throwsNotFound() {
         when(applicationRepository.findByIdAndUserId(applicationId, userId)).thenReturn(Optional.empty());
 

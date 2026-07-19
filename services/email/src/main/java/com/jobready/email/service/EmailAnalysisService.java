@@ -146,7 +146,17 @@ public class EmailAnalysisService {
                         .toList());
 
         UUID matched = applyVerdict(email, verdict);
-        markFinal(email, matched == null ? AnalysisStatus.IRRELEVANT : AnalysisStatus.ANALYZED, matched);
+        String status;
+        if (matched != null) {
+            status = AnalysisStatus.ANALYZED;
+        } else if (verdict.relevant() && verdict.event() != null) {
+            // Job-related per the LLM, but below the apply/create thresholds — kept
+            // distinct from genuinely irrelevant mail so thresholds can be tuned.
+            status = AnalysisStatus.LOW_CONFIDENCE;
+        } else {
+            status = AnalysisStatus.IRRELEVANT;
+        }
+        markFinal(email, status, matched);
         return true;
     }
 
@@ -155,9 +165,11 @@ public class EmailAnalysisService {
         if (!verdict.relevant() || verdict.event() == null) {
             return null;
         }
-        String occurredAt = email.getReceivedAt() == null
-                ? null
-                : email.getReceivedAt().atOffset(ZoneOffset.UTC).toString();
+        // Gmail can omit internalDate; the application service requires occurredAt, so a
+        // null here would 422 deterministically and burn all retries. Fall back to when
+        // WE saw the email — the closest defensible timestamp.
+        java.time.Instant occurred = email.getReceivedAt() != null ? email.getReceivedAt() : email.getProcessedAt();
+        String occurredAt = occurred.atOffset(ZoneOffset.UTC).toString();
         ApplicationClient.EmailEvent event = new ApplicationClient.EmailEvent(
                 verdict.event().eventType(),
                 verdict.event().title(),

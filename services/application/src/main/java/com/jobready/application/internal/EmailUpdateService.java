@@ -1,6 +1,7 @@
 package com.jobready.application.internal;
 
 import com.jobready.application.exception.ApplicationNotFoundException;
+import com.jobready.application.exception.InvalidWireValueException;
 import com.jobready.application.generated.modelDto.ApplicationEventType;
 import com.jobready.application.generated.modelDto.ApplicationStage;
 import com.jobready.application.internal.InternalDtos.ApplicationCandidate;
@@ -48,14 +49,20 @@ public class EmailUpdateService {
                 .findByIdAndUserId(applicationId, request.userId())
                 .orElseThrow(ApplicationNotFoundException::new);
 
-        if (eventRepository.existsByApplicationIdAndSourceMessageId(applicationId, request.sourceMessageId())) {
+        // Per-user check matches the DB unique constraint: if a retried email was previously
+        // matched to a DIFFERENT application, this still replays as a clean no-op instead of
+        // tripping the constraint.
+        if (eventRepository.existsByApplicationIdAndSourceMessageId(applicationId, request.sourceMessageId())
+                || eventRepository.existsByUserIdAndSourceMessageId(request.userId(), request.sourceMessageId())) {
             return false;
         }
 
         ApplicationStage stageFrom = application.getStage();
-        ApplicationStage stageTo =
-                request.suggestedStage() == null ? null : ApplicationStage.fromValue(request.suggestedStage());
-        boolean stageChanged = stageTo != null && stageTo != stageFrom;
+        ApplicationStage stageTo = parseStage(request.suggestedStage());
+        // Forward-only, enforced server-side: the LLM prompt asks for it, but prompts are not
+        // guarantees (cf. genai's _sanitize). A stale email must never drag the board backwards;
+        // the event is still recorded, just without the transition.
+        boolean stageChanged = stageTo != null && rank(stageTo) > rank(stageFrom);
         if (stageChanged) {
             application.setStage(stageTo);
             applicationRepository.save(application);
@@ -64,7 +71,7 @@ public class EmailUpdateService {
         ApplicationEvent event = new ApplicationEvent();
         event.setUserId(request.userId());
         event.setApplicationId(applicationId);
-        event.setEventType(ApplicationEventType.fromValue(request.event().eventType()));
+        event.setEventType(parseEventType(request.event().eventType()));
         event.setTitle(request.event().title());
         event.setDescription(request.event().description());
         if (stageChanged) {
@@ -116,16 +123,15 @@ public class EmailUpdateService {
                         : request.position().trim());
         application.setJobDescription("");
         application.setNotes("Created automatically from a detected email.");
-        ApplicationStage stage = request.suggestedStage() == null
-                ? ApplicationStage.APPLIED
-                : ApplicationStage.fromValue(request.suggestedStage());
+        ApplicationStage parsed = parseStage(request.suggestedStage());
+        ApplicationStage stage = parsed == null ? ApplicationStage.APPLIED : parsed;
         application.setStage(stage);
         application = applicationRepository.save(application);
 
         ApplicationEvent event = new ApplicationEvent();
         event.setUserId(request.userId());
         event.setApplicationId(application.getId());
-        event.setEventType(ApplicationEventType.fromValue(request.event().eventType()));
+        event.setEventType(parseEventType(request.event().eventType()));
         event.setTitle(request.event().title());
         event.setDescription(request.event().description());
         event.setStageTo(stage);
@@ -136,6 +142,37 @@ public class EmailUpdateService {
 
         saveRecommendations(application.getId(), request.userId(), request.recommendations());
         return new EmailCreateResponse(true, application.getId());
+    }
+
+    /** Lifecycle position of each stage; email updates may only ever move applications forward. */
+    private static int rank(ApplicationStage stage) {
+        return switch (stage) {
+            case DRAFT -> 0;
+            case APPLIED -> 1;
+            case FOLLOW_UP -> 2;
+            case INTERVIEW -> 3;
+            case OFFER -> 4;
+            case CLOSED -> 5; // terminal — reachable from anywhere
+        };
+    }
+
+    private static ApplicationStage parseStage(String wireValue) {
+        if (wireValue == null) {
+            return null;
+        }
+        try {
+            return ApplicationStage.fromValue(wireValue);
+        } catch (IllegalArgumentException e) {
+            throw new InvalidWireValueException("Unknown application stage: " + wireValue, e);
+        }
+    }
+
+    private static ApplicationEventType parseEventType(String wireValue) {
+        try {
+            return ApplicationEventType.fromValue(wireValue);
+        } catch (IllegalArgumentException e) {
+            throw new InvalidWireValueException("Unknown event type: " + wireValue, e);
+        }
     }
 
     private void saveRecommendations(UUID applicationId, UUID userId, List<EmailRecommendation> items) {

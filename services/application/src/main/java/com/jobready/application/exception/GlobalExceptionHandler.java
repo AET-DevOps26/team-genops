@@ -28,12 +28,12 @@ public class GlobalExceptionHandler {
     }
 
     /**
-     * Bad enum wire values (stage, event type) sent by internal callers surface as
-     * {@code IllegalArgumentException} from the generated {@code fromValue} — a caller error,
-     * not a server error.
+     * Bad enum wire values (stage, event type) sent by internal callers — a caller error, not a
+     * server error. Deliberately NOT a blanket {@code IllegalArgumentException} handler: genuine
+     * programming errors must keep surfacing as 500s.
      */
-    @ExceptionHandler(IllegalArgumentException.class)
-    public ResponseEntity<Error> handleIllegalArgument(IllegalArgumentException ex) {
+    @ExceptionHandler(InvalidWireValueException.class)
+    public ResponseEntity<Error> handleInvalidWireValue(InvalidWireValueException ex) {
         return ResponseEntity.status(HttpStatus.UNPROCESSABLE_ENTITY)
                 .body(new Error().code("VALIDATION_ERROR").message(ex.getMessage()));
     }

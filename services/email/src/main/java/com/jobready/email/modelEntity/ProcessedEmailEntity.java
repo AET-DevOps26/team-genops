@@ -50,7 +50,7 @@ public class ProcessedEmailEntity {
     @Column(columnDefinition = "text")
     private String body;
 
-    /** Detection-pipeline lifecycle: pending → analyzed | irrelevant | failed. */
+    /** Detection-pipeline lifecycle: pending → analyzed | irrelevant | low_confidence | failed. */
     @Column(name = "analysis_status", nullable = false, length = 20)
     private String analysisStatus = AnalysisStatus.PENDING;
 
@@ -66,6 +66,9 @@ public class ProcessedEmailEntity {
         public static final String PENDING = "pending";
         public static final String ANALYZED = "analyzed";
         public static final String IRRELEVANT = "irrelevant";
+        /** Relevant per the LLM, but below the apply/create confidence thresholds. */
+        public static final String LOW_CONFIDENCE = "low_confidence";
+
         public static final String FAILED = "failed";
 
         private AnalysisStatus() {}
