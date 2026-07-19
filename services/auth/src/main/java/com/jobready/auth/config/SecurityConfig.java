@@ -37,7 +37,8 @@ public class SecurityConfig {
                                 AuthApi.PATH_LOGIN,
                                 AuthApi.PATH_REFRESH_TOKEN,
                                 JwksController.PATH,
-                                "/actuator/health/**")
+                                "/actuator/health/**",
+                                "/actuator/prometheus")
                         .permitAll()
                         .anyRequest()
                         .authenticated())

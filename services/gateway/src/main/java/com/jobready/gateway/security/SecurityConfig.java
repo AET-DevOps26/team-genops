@@ -58,6 +58,8 @@ public class SecurityConfig {
                         // k8s liveness/readiness probes must never require a token.
                         .requestMatchers("/actuator/health/**")
                         .permitAll()
+                        .requestMatchers("/actuator/prometheus")
+                        .permitAll()
                         // Anonymous auth flows: you cannot present a token to obtain your first token.
                         .requestMatchers(HttpMethod.POST, PUBLIC_AUTH_POST)
                         .permitAll()

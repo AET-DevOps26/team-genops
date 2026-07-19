@@ -16,3 +16,8 @@ spec:
       port: {{ .Values.application.port }}
       targetPort: {{ .Values.application.port }}
       protocol: TCP
+    # Actuator (health + prometheus scrape) — never routed by the ingress.
+    - name: management
+      port: 8090
+      targetPort: 8090
+      protocol: TCP
