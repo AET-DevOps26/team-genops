@@ -9,7 +9,7 @@ pieces; only this proves the cookies a real server sets are the cookies a real g
 import httpx
 import pytest
 
-from e2e_tests.conftest import BrowserSession, User, new_email
+from e2e_tests.conftest import MGMT_URL, BrowserSession, User, new_email
 
 ACCESS_COOKIE = "jr_access"
 REFRESH_COOKIE = "jr_refresh"
@@ -190,9 +190,13 @@ def test_jwks_is_public_and_exposes_no_private_key(client: BrowserSession):
 # ---------------------------------------------------------------- the gateway's own surface
 
 
-def test_health_probes_are_reachable_without_a_token(client: BrowserSession):
-    """k8s liveness/readiness probes cannot carry a JWT, so they must never require one."""
-    assert client.get("/actuator/health/readiness").status_code == 200
+def test_health_probes_are_reachable_without_a_token():
+    """
+    k8s liveness/readiness probes cannot carry a JWT, so they must never require one.
+    They live on the management port — the kubelet talks to it directly; the routed
+    port never serves them (see the not-exposed test below).
+    """
+    assert httpx.get(f"{MGMT_URL}/actuator/health/readiness", timeout=5.0).status_code == 200
 
 
 @pytest.mark.parametrize("path", ["/actuator/gateway/routes", "/actuator/env", "/actuator/beans"])

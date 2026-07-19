@@ -59,6 +59,9 @@ services:
     restart: unless-stopped
     ports:
       - "8081:8081"
+      # Management port (health + metrics) — host-published so the e2e suite can
+      # probe readiness the same way the kubelet does (never via the routed port).
+      - "8090:8090"
     environment:
       AUTH_URI: http://auth:8080
       WEB_CLIENT_URI: http://web-client:80
