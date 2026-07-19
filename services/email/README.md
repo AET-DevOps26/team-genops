@@ -36,6 +36,27 @@ The whole pipeline is **disabled while `INTERNAL_SERVICE_TOKEN` is blank** (and 
 APIs it calls reject everything without the token — fail-closed). Configuration:
 `GENAI_URL`, `APPLICATION_SERVICE_URL`, `INTERNAL_SERVICE_TOKEN` (see `.env.example`).
 
+## Kubernetes deployment
+
+The Helm chart (`infra/helm/jobready/`) deploys email behind `email.enabled`. CD (Ansible
+`deploy.yml`) flips that flag automatically based on whether the vault holds the Gmail
+credentials (`vault_google_client_id/secret`, `vault_email_token_enc_key`,
+`vault_state_signing_key`) and creates the `email-secrets` Secret from them. The gateway
+routes `/api/v1/email/**` here (`EMAIL_URI`), with the OAuth callback public at the edge
+(signed `state` is the trust anchor).
+
+Per-host manual steps:
+1. Add the four vault vars (`ansible-vault edit inventories/<env>/group_vars/vault.yml`).
+2. Register `https://<ingress-host>/api/v1/email/connections/gmail/callback` as an authorized
+   redirect URI in the Google Cloud console (the chart derives `GOOGLE_REDIRECT_URI` and
+   `FRONTEND_REDIRECT_URL` from `ingress.host`).
+
+**Never rotate `EMAIL_TOKEN_ENC_KEY` casually** — a new key orphans every stored Gmail token
+and all users must reconnect their mailbox.
+
+Smoke check after deploy: logged in, `GET https://<host>/api/v1/email/connections` returns
+`{"connected": false}` (not a 404), and the Connect flow on the Profile page round-trips.
+
 ## Single-instance assumptions
 
 `@Scheduled` polling + analysis and the in-process OAuth nonce store are per-process — running

@@ -42,6 +42,8 @@ jobs:
             image: jobready-application
           - context: services/document
             image: jobready-document
+          - context: services/email
+            image: jobready-email
           - context: web-client
             image: jobready-web-client
           - context: services/gateway
