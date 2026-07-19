@@ -91,7 +91,9 @@ public class AuthServiceImpl implements AuthService {
             UUID userId = jwtService.validateRefreshToken(refreshToken);
             jwtService.revokeRefreshToken(refreshToken);
             User user = userRepository.findById(userId).orElseThrow(InvalidCredentialsException::new);
-            return issueSession(user);
+            IssuedSession session = issueSession(user);
+            auditLog.refreshSucceeded();
+            return session;
         } catch (InvalidCredentialsException e) {
             auditLog.refreshRejected();
             throw e;

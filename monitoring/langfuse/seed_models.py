@@ -99,11 +99,7 @@ def main() -> int:
                 print(f"= {model['modelName']}: already exists, skipping")
                 continue
             raise
-        print(
-            f"+ {model['modelName']}: registered "
-            f"(in ${model['inputPrice'] * 1e6:.4f}/1M, "
-            f"out ${model['outputPrice'] * 1e6:.4f}/1M)"
-        )
+        print(f"+ {model['modelName']}: registered (in ${model['inputPrice'] * 1e6:.4f}/1M, out ${model['outputPrice'] * 1e6:.4f}/1M)")
     return 0
 
 
@@ -115,8 +111,7 @@ if __name__ == "__main__":
         sys.exit(1)
     except urllib.error.URLError as e:
         print(
-            f"Cannot reach Langfuse at {os.environ.get('LANGFUSE_SEED_HOST', 'http://localhost:3000')} "
-            f"— is the monitoring stack up? ({e})",
+            f"Cannot reach Langfuse at {os.environ.get('LANGFUSE_SEED_HOST', 'http://localhost:3000')} — is the monitoring stack up? ({e})",
             file=sys.stderr,
         )
         sys.exit(1)

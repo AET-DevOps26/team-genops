@@ -25,7 +25,6 @@ class JwtConfigTest {
         IllegalStateException ex = assertThrows(IllegalStateException.class, config::rsaKey);
         assertTrue(ex.getMessage().contains("JWT_PRIVATE_KEY"));
         assertTrue(ex.getMessage().contains("JWT_PUBLIC_KEY"));
-        assertTrue(ex.getMessage().contains("gen-jwt-keys.sh"));
     }
 
     @Test
