@@ -123,7 +123,11 @@
               - "{{ values_file }}"
             values: "{{ helm_overrides }}"
             wait: true
-            wait_timeout: "8m0s"
+            # 15m, not 8m: the prod namespace ResourceQuota (limits.cpu 3400m,
+            # ~500m headroom) admits only ONE 500m surge pod at a time, so the
+            # five Spring rollouts serialize — ~90s each plus pulls ≈ 10min of
+            # legitimate converging that 8m cut short with every pod healthy.
+            wait_timeout: "15m0s"
 
       rescue:
         - name: Get pod status
@@ -166,5 +170,5 @@
         - name: Re-raise the deploy failure
           ansible.builtin.fail:
             msg: >-
-              Helm deploy did not converge within 8m0s — see pod status and
+              Helm deploy did not converge within 15m0s — see pod status and
               describe output above for the real cause.
