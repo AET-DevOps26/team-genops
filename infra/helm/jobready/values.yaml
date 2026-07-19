@@ -61,7 +61,9 @@ postgres:
       cpu: "100m"
     limits:
       memory: "512Mi"
-      cpu: "500m"
+      # Right-sized 2026-07-19 (observed ~12m; no JVM startup burst): frees
+      # 300m of the namespace limits-quota for the monitoring namespace split.
+      cpu: "200m"
 
 redis:
   # Auth uses Redis for server-side sessions (split-token BFF). Required —
@@ -85,9 +87,9 @@ auth:
   port: 8080
 
 
-  # If left blank, auth self-generates an EPHEMERAL keypair at startup —
-  # tokens are invalidated on every restart and differ across replicas.
-  # Set this for stable sessions / >1 replica.
+  # Secret holding JWT_PRIVATE_KEY + JWT_PUBLIC_KEY. REQUIRED — auth fails
+  # fast at startup if the keys are blank (no self-generated fallback).
+  # Generate values with scripts/gen-jwt-keys.sh.
   jwtSecret: auth-jwt
 
   # Session cookies use Secure=true → browsers only send them over HTTPS.
@@ -243,10 +245,9 @@ networkPolicy:
   # exempts host→pod probes (e.g. Cilium); set to the node CIDR if it does not.
   probeCidr: ""
 
-  # Namespace where Prometheus runs (the monitoring stack lives in its own
-  # namespace, never alongside the app). When set, pods labelled
-  # monitoring: "true" accept ingress from that namespace so scrapes work
-  # under default-deny. "" = no monitoring stack yet, allowance not rendered.
+  # Namespace Prometheus scrapes from. When set, pods labelled monitoring: "true"
+  # accept ingress from that namespace. "" = policy not rendered.
+  #   prod (TUM): genops-monitoring
   monitoringNamespace: ""
 
 ingress:

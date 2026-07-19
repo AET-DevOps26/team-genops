@@ -1,0 +1,39 @@
+# Grafana provisioning — everything from version-controlled files, zero UI setup.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-provisioning
+  namespace: {{ .Release.Namespace }}
+data:
+  # Datasource points at the operator-managed Prometheus service. Same stable
+  # uid `prometheus` the dashboards reference.
+  datasource.yml: |
+    apiVersion: 1
+    datasources:
+      - name: Prometheus
+        uid: prometheus
+        type: prometheus
+        access: proxy
+        url: http://prometheus-operated:9090
+        isDefault: true
+        editable: false
+  provider.yml: |
+    apiVersion: 1
+    providers:
+      - name: jobready
+        folder: JobReady
+        type: file
+        disableDeletion: true
+        allowUiUpdates: false
+        options:
+          path: /var/lib/grafana/dashboards
+---
+# Dashboards — the single source is files/dashboards/*.json in this chart (the
+# local compose Grafana mounts the same directory). Edit the JSON there only.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboards
+  namespace: {{ .Release.Namespace }}
+data:
+{{ (.Files.Glob "files/dashboards/*.json").AsConfig | indent 2 }}

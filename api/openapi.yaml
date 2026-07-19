@@ -71,7 +71,18 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
         '422':
-          description: Validation error (e.g. password too short)
+          description: Validation error (e.g. password too short or missing a required character class)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '429':
+          description: Too many registration attempts from this address; retry after the period in the Retry-After header
+          headers:
+            Retry-After:
+              description: Seconds until registration may be retried
+              schema:
+                type: integer
           content:
             application/json:
               schema:
@@ -104,6 +115,17 @@ paths:
                 $ref: '#/components/schemas/UserResponse'
         '401':
           description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '429':
+          description: Account temporarily locked after too many failed attempts; retry after the period in the Retry-After header
+          headers:
+            Retry-After:
+              description: Seconds until login may be retried
+              schema:
+                type: integer
           content:
             application/json:
               schema:
@@ -1608,7 +1630,12 @@ components:
         password:
           type: string
           format: password
-          minLength: 8
+          # Composition policy: length >= 12 with at least one lowercase, one
+          # uppercase, one digit, and one non-alphanumeric character. Login is
+          # deliberately NOT held to this — accounts created under the old
+          # 8-char rule must still be able to sign in.
+          minLength: 12
+          pattern: '^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).*$'
 
     LoginRequest:
       type: object

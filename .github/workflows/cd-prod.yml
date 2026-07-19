@@ -81,8 +81,12 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
+      # env, not inline ${{ }}: interpolating a secret into the script lets bash
+      # expand any $/`/\ inside it, corrupting the written file.
       - name: Write Rancher kubeconfig
-        run: echo "${{ secrets.RANCHER_KUBECONFIG }}" > "$RUNNER_TEMP/kubeconfig"
+        env:
+          KUBECONFIG_CONTENT: ${{ secrets.RANCHER_KUBECONFIG }}
+        run: printf '%s' "$KUBECONFIG_CONTENT" > "$RUNNER_TEMP/kubeconfig"
 
       # Trigger interpretation lives here, not in the action: releases arrive
       # as v1.2.3 but images are tagged 1.2.3 (promote-images above), so strip
@@ -93,6 +97,12 @@ jobs:
           IMAGE_TAG: ${{ github.event.inputs.image_tag || github.event.release.tag_name }}
         run: echo "tag=${IMAGE_TAG#v}" >> "$GITHUB_OUTPUT"
 
+      # Single source for the public host is the Helm values file the deploy
+      # itself uses — never a copy in this workflow that could drift.
+      - name: Read public host from values-prod
+        id: host
+        run: echo "app_url=https://$(yq '.ingress.host' infra/helm/jobready/values-prod.yaml)" >> "$GITHUB_OUTPUT"
+
       - name: Deploy via Ansible
         uses: ./.github/actions/ansible-deploy
         env:
@@ -101,5 +111,4 @@ jobs:
           inventory: inventories/prod/hosts.yml
           image_tag: ${{ steps.tag.outputs.tag }}
           vault_password: ${{ secrets.ANSIBLE_VAULT_PASSWORD_PROD }}
-          # Public host from helm/jobready/values-prod.yaml (ingress.host)
-          app_url: https://jobready.stud.k8s.aet.cit.tum.de
+          app_url: ${{ steps.host.outputs.app_url }}

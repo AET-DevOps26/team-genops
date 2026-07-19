@@ -5,6 +5,7 @@ import com.jobready.auth.exception.InvalidCredentialsException;
 import com.jobready.auth.modelEntity.User;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.List;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.redis.core.StringRedisTemplate;
@@ -27,6 +28,8 @@ public class JwtServiceImpl implements JwtService {
         JwtClaimsSet claims = JwtClaimsSet.builder()
                 .subject(user.getId().toString())
                 .claim("email", user.getEmail())
+                .issuer(props.getIssuer())
+                .audience(List.of(props.getAudience()))
                 .issuedAt(now)
                 .expiresAt(now.plusSeconds(props.getAccessTokenExpiry()))
                 .build();

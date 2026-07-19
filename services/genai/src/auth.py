@@ -69,7 +69,13 @@ async def get_current_user_id(request: Request) -> str:
     token = _extract_token(request)
     try:
         jwks = await _get_jwks()
-        payload = jwt.decode(token, jwks, algorithms=["RS256"])
+        payload = jwt.decode(
+            token,
+            jwks,
+            algorithms=["RS256"],
+            issuer=settings.auth_jwt_issuer,
+            audience=settings.auth_jwt_audience,
+        )
         user_id: str = payload.get("sub")
         if not user_id:
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
@@ -79,7 +85,13 @@ async def get_current_user_id(request: Request) -> str:
         # Retry once with force-refreshed JWKS before giving up.
         try:
             jwks = await _get_jwks(force_refresh=True)
-            payload = jwt.decode(token, jwks, algorithms=["RS256"])
+            payload = jwt.decode(
+                token,
+                jwks,
+                algorithms=["RS256"],
+                issuer=settings.auth_jwt_issuer,
+                audience=settings.auth_jwt_audience,
+            )
             user_id = payload.get("sub")
             if not user_id:
                 raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")

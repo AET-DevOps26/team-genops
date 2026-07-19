@@ -14,3 +14,9 @@ chart_path: "{{ playbook_dir }}/../../helm/jobready"
 values_file: "{{ chart_path }}/values-prod.yaml"
 image_tag: "latest"                    # override: -e image_tag=sha-<short>
 ingress_host: ""                       # empty → ingress.host comes from values-prod.yaml
+
+# Monitoring stack (playbooks/monitoring.yml) — prod/TUM only. Absent from the
+# dev inventory on purpose: dev/AKS runs no monitoring; local uses compose.
+monitoring_namespace: genops-monitoring
+monitoring_chart_path: "{{ playbook_dir }}/../../helm/monitoring"
+grafana_url: "https://genops-grafana.stud.k8s.aet.cit.tum.de"

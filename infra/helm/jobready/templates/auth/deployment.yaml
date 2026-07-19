@@ -22,6 +22,7 @@ spec:
     metadata:
       labels:
         app: auth
+        monitoring: "true"
     spec:
       {{- with .Values.global.imagePullSecrets }}
       imagePullSecrets:
@@ -63,6 +64,8 @@ spec:
           ports:
             - containerPort: {{ .Values.auth.port }}
           env:
+            - name: APP_VERSION
+              value: "{{ .Values.auth.tag }}"
             - name: POSTGRES_DB
               valueFrom:
                 secretKeyRef:
@@ -83,6 +86,10 @@ spec:
             # Server-side session store (split-token BFF).
             - name: REDIS_URL
               value: redis://redis:6379
+            # CSRF origin allow-list: exactly the public origin the SPA is served
+            # from. Derived from ingress.host so it can never drift per environment.
+            - name: AUTH_ALLOWED_ORIGINS
+              value: "https://{{ .Values.ingress.host }}"
             {{- if .Values.auth.jwtSecret }}
             # Stable RSA signing keys from a Secret. Without these auth generates
             # an ephemeral keypair at startup (tokens die on restart / per replica).
@@ -107,7 +114,7 @@ spec:
           livenessProbe:
             httpGet:
               path: /actuator/health/liveness
-              port: {{ .Values.auth.port }}
+              port: 8090
             initialDelaySeconds: 60
             periodSeconds: 15
             failureThreshold: 3
@@ -115,7 +122,7 @@ spec:
           readinessProbe:
             httpGet:
               path: /actuator/health/readiness
-              port: {{ .Values.auth.port }}
+              port: 8090
             initialDelaySeconds: 30
             periodSeconds: 10
             failureThreshold: 3

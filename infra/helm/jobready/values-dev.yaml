@@ -9,13 +9,47 @@ namespace:
   # Ansible's deploy.yml creates the namespace BEFORE the secrets.
   create: false
 
+# --- Dev-only CPU right-sizing (single-node AKS) -----------------------------
+# The default 100m requests × 8 workloads reserve ~650m at steady state. A full
+# chart upgrade surges every RollingUpdate deployment (maxSurge 1 / maxUnavailable
+# 0) at once, briefly doubling that — the node runs out of CPU, the new postgres
+# (strategy Recreate: old pod already gone) can't schedule, and the DB-dependent
+# surge pods deadlock waiting for it until helm --wait times out.
+# Observed idle usage is ~12m per Spring service (see values.yaml auth note), so
+# 50m requests keep 4x headroom while halving the reservation. Limits unchanged.
 postgres:
   storageClassName: managed-csi               # "" also works (AKS default)
+  resources:
+    requests:
+      cpu: "50m"
+
+auth:
+  resources:
+    requests:
+      cpu: "50m"
+
+application:
+  resources:
+    requests:
+      cpu: "50m"
+
+document:
+  resources:
+    requests:
+      cpu: "50m"
+
+gateway:
+  resources:
+    requests:
+      cpu: "50m"
 
 genai:
   # Reuse the genai-secrets Secret (created by Ansible deploy.yml) for Langfuse
   # Cloud keys too. Tracing stays off until the vault_langfuse_* vars are set.
   langfuseSecret: genai-secrets
+  resources:
+    requests:
+      cpu: "50m"
 
 email:
   # For manual helm runs. CD (Ansible deploy.yml) overrides this flag based on

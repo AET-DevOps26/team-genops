@@ -29,14 +29,29 @@ public class AuthController implements AuthApi {
 
     @Override
     public ResponseEntity<UserResponse> register(RegisterRequest registerRequest) {
-        IssuedSession session = authService.register(registerRequest);
+        IssuedSession session = authService.register(registerRequest, clientIp());
         return ResponseEntity.status(201).headers(sessionCookies(session)).body(session.user());
     }
 
     @Override
     public ResponseEntity<UserResponse> login(LoginRequest loginRequest) {
-        IssuedSession session = authService.login(loginRequest);
+        IssuedSession session = authService.login(loginRequest, clientIp());
         return ResponseEntity.ok().headers(sessionCookies(session)).body(session.user());
+    }
+
+    /**
+     * Real client IP for the brute-force throttle. Requests arrive via
+     * ingress-nginx → gateway, so remoteAddr is always the gateway pod; the caller's
+     * address travels in X-Forwarded-For (first entry), which is trustworthy here
+     * because the ingress controller owns the header at the edge and NetworkPolicy
+     * guarantees auth is only reachable through the gateway.
+     */
+    private String clientIp() {
+        String forwardedFor = request.getHeader("X-Forwarded-For");
+        if (forwardedFor != null && !forwardedFor.isBlank()) {
+            return forwardedFor.split(",")[0].trim();
+        }
+        return request.getRemoteAddr();
     }
 
     @Override

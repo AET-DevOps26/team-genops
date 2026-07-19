@@ -1,0 +1,82 @@
+# Grafana — deliberately STATELESS (documented deviation from the team rules
+# file, which asks for a PV): every dashboard and the datasource are provisioned
+# from version-controlled files, so state survives restarts by construction, and
+# a PV would only let UI edits drift from git ("dashboards are code").
+#
+# Prerequisite (hand-made, never committed): the {{ .Values.grafana.adminSecret }}
+# Secret — see values.yaml header.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: grafana
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app: grafana
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: grafana
+  template:
+    metadata:
+      labels:
+        app: grafana
+      annotations:
+        # Roll the pod whenever provisioning or a dashboard JSON changes —
+        # replaces the manual `rollout restart` step of the kubectl era.
+        checksum/config: {{ include (print $.Template.BasePath "/grafana-configmaps.yaml") . | sha256sum }}
+    spec:
+      containers:
+        - name: grafana
+          image: "{{ .Values.grafana.image }}:{{ .Values.grafana.tag }}"
+          ports:
+            - containerPort: 3000
+          env:
+            - name: GF_SECURITY_ADMIN_USER
+              value: admin
+            - name: GF_SECURITY_ADMIN_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.grafana.adminSecret }}
+                  key: admin-password
+            - name: GF_USERS_ALLOW_SIGN_UP
+              value: "false"
+            - name: GF_ANALYTICS_REPORTING_ENABLED
+              value: "false"
+          volumeMounts:
+            - name: provisioning-datasources
+              mountPath: /etc/grafana/provisioning/datasources
+            - name: provisioning-dashboards
+              mountPath: /etc/grafana/provisioning/dashboards
+            - name: dashboards
+              mountPath: /var/lib/grafana/dashboards
+          readinessProbe:
+            httpGet:
+              path: /api/health
+              port: 3000
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /api/health
+              port: 3000
+            initialDelaySeconds: 30
+            periodSeconds: 15
+          resources:
+            {{- toYaml .Values.grafana.resources | nindent 12 }}
+      volumes:
+        - name: provisioning-datasources
+          configMap:
+            name: grafana-provisioning
+            items:
+              - key: datasource.yml
+                path: datasource.yml
+        - name: provisioning-dashboards
+          configMap:
+            name: grafana-provisioning
+            items:
+              - key: provider.yml
+                path: provider.yml
+        - name: dashboards
+          configMap:
+            name: grafana-dashboards

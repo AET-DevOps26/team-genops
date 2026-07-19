@@ -15,5 +15,5 @@
 # command is invoked from), not to this file.
 include:
   - monitoring/langfuse/docker-compose.yml
-  # - monitoring/prometheus/docker-compose.yml   # future
-  # - monitoring/grafana/docker-compose.yml      # future
+  - monitoring/prometheus/docker-compose.yml
+  - monitoring/grafana/docker-compose.yml

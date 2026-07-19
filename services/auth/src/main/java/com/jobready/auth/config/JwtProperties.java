@@ -11,4 +11,6 @@ public class JwtProperties {
     private long accessTokenExpiry;
     private long refreshTokenExpiry;
     private String keyId;
+    private String issuer;
+    private String audience;
 }

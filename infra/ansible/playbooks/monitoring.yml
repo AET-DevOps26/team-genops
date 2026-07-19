@@ -1,0 +1,67 @@
+# Deploys the Prometheus/Grafana monitoring chart (infra/helm/monitoring).
+#
+# No image_tag: the chart ships config (CRs, dashboards, rules), not our
+# images, so "deploy" means "sync the chart from this checkout".
+- name: Deploy JobReady monitoring
+  hosts: all
+  gather_facts: false
+  tasks:
+    - name: Assert this inventory targets an environment with monitoring
+      ansible.builtin.assert:
+        that:
+          - monitoring_namespace is defined
+          - (monitoring_namespace | trim | length) > 0
+        fail_msg: >-
+          monitoring_namespace is not set for this inventory. The monitoring
+          stack is prod/TUM-only — run with -i inventories/prod/hosts.yml.
+
+    - name: Assert the Grafana admin password is in the vault
+      ansible.builtin.assert:
+        that:
+          - vault_grafana_admin_password is defined
+          - (vault_grafana_admin_password | trim | length) >= 12
+        fail_msg: >-
+          vault_grafana_admin_password is missing (or shorter than 12 chars).
+          Add it to the encrypted vault:
+          ansible-vault edit inventories/prod/group_vars/all/vault.yml
+
+    # Same pattern as postgres-secret in deploy.yml: the playbook owns the
+    # Secret (created outside the chart, from the vault); the chart references
+    # it by name (grafana.adminSecret). Grafana is stateless, so a rotated
+    # vault value takes effect on its next pod restart.
+    - name: Create grafana-admin secret
+      kubernetes.core.k8s:
+        kubeconfig: "{{ kubeconfig }}"
+        state: present
+        definition:
+          apiVersion: v1
+          kind: Secret
+          metadata:
+            name: grafana-admin
+            namespace: "{{ monitoring_namespace }}"
+          stringData:
+            admin-password: "{{ vault_grafana_admin_password }}"
+
+    - name: Deploy monitoring chart
+      kubernetes.core.helm:
+        kubeconfig: "{{ kubeconfig }}"
+        name: monitoring
+        chart_ref: "{{ monitoring_chart_path }}"
+        release_namespace: "{{ monitoring_namespace }}"
+        state: present
+        wait: true
+        timeout: 5m
+
+    # Outside-in check: helm --wait proved the pods are Ready; this proves the
+    # route to Grafana — LB, ingress, TLS, DNS. validate_certs stays on: an
+    # untrusted (staging-issuer) certificate must fail the deploy.
+    - name: Smoke check Grafana
+      ansible.builtin.uri:
+        url: "{{ grafana_url }}/api/health"
+        validate_certs: true
+        status_code: 200
+      register: grafana_health
+      retries: 12
+      delay: 10
+      until: grafana_health.status == 200
+      when: (grafana_url | default('') | length) > 0

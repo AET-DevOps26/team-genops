@@ -17,9 +17,6 @@ repos:
       - id: check-added-large-files
         args: [--maxkb=500]
       - id: detect-private-key
-        # The vault example holds "...paste private.pem..." placeholders inside
-        # PEM markers, not real keys; real vault files are encrypted + gitignored.
-        exclude: ^infra/ansible/group_vars/vault\.example\.yml$
 
   # Workflow linting. actionlint has no project-local install, so the pin below
   # is the single source of truth — CI's infra-lint job runs this same hook via

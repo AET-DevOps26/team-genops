@@ -1,0 +1,64 @@
+#   helm upgrade --install monitoring infra/helm/monitoring -n genops-monitoring
+#
+# Prerequisite: the grafana-admin Secret. The Ansible pipeline creates it from
+# the vault (vault_grafana_admin_password → playbooks/monitoring.yml). For a
+# manual install without Ansible:
+#   kubectl -n genops-monitoring create secret generic grafana-admin \
+#     --from-literal=admin-password='<strong password>'
+
+# The namespace the app chart (infra/helm/jobready) is deployed in — scrape
+# targets live there; Prometheus gets a namespaced Role there to discover them.
+# Cross-namespace scrape ingress is admitted by the APP chart's
+# allow-monitoring-scrape policy (networkPolicy.monitoringNamespace in
+# values-prod must equal the namespace this chart is installed into).
+appNamespace: ge86yog-devops-genops
+
+# NetworkPolicies for the monitoring pods themselves (Grafana reachable only
+# from the platform ingress; Prometheus only from Grafana).
+networkPolicy:
+  enabled: true
+  ingressNamespace: ingress-nginx
+
+prometheus:
+  replicas: 1
+  retention: 7d
+  storageClassName: csi-rbd-sc
+  storageSize: 5Gi
+  scrapeInterval: 15s
+  resources:
+    requests:
+      memory: 400Mi
+      cpu: 50m
+    limits:
+      memory: 800Mi
+      cpu: 250m
+  # The operator injects config-reloader sidecars WITHOUT limits by default;
+  # the namespace ResourceQuota requires limits on every container.
+  configReloaderResources:
+    requests:
+      memory: 32Mi
+      cpu: 10m
+    limits:
+      memory: 64Mi
+      cpu: 50m
+
+grafana:
+  image: grafana/grafana
+  tag: 12.1.1
+  # Name of the Secret holding key `admin-password`
+  adminSecret: grafana-admin
+  resources:
+    requests:
+      memory: 128Mi
+      cpu: 25m
+    limits:
+      memory: 256Mi
+      cpu: 150m
+
+ingress:
+  ingressClassName: nginx
+  host: genops-grafana.stud.k8s.aet.cit.tum.de
+  # PRODUCTION issuer — TUM defaults to the untrusted staging issuer without it.
+  clusterIssuer: letsencrypt-prod
+  tls:
+    secretName: grafana-tls

@@ -1,8 +1,10 @@
 name: Destroy - Prod (Rancher)
 
-# Manual-only teardown of the prod namespace contents (helm release + secrets),
-# for a clean redeploy. Gated twice: the `production` environment approval AND
-# a typed confirmation that must match the namespace.
+# Manual-only teardown of the prod namespace contents (app + monitoring helm
+# releases and their secrets), for a clean redeploy — cd-prod and
+# cd-monitoring rebuild both without manual steps. Gated twice: the
+# `production` environment approval AND a typed confirmation that must match
+# the namespace.
 on:
   workflow_dispatch:
     inputs:
@@ -10,7 +12,7 @@ on:
         description: "Type the namespace (ge86yog-devops-genops) to confirm"
         required: true
       wipe_data:
-        description: "Also delete the postgres PVC (ALL DB DATA IS LOST)"
+        description: "Also delete the postgres + Prometheus PVCs (ALL DB DATA AND METRICS HISTORY ARE LOST)"
         type: boolean
         default: false
       wipe_tls:
@@ -35,8 +37,12 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
+      # env, not inline ${{ }}: interpolating a secret into the script lets bash
+      # expand any $/`/\ inside it, corrupting the written file.
       - name: Write Rancher kubeconfig
-        run: echo "${{ secrets.RANCHER_KUBECONFIG }}" > "$RUNNER_TEMP/kubeconfig"
+        env:
+          KUBECONFIG_CONTENT: ${{ secrets.RANCHER_KUBECONFIG }}
+        run: printf '%s' "$KUBECONFIG_CONTENT" > "$RUNNER_TEMP/kubeconfig"
 
       - uses: actions/setup-python@v6
         with:
@@ -59,9 +65,10 @@ jobs:
           CONFIRM: ${{ github.event.inputs.confirm }}
           WIPE_DATA: ${{ github.event.inputs.wipe_data }}
           WIPE_TLS: ${{ github.event.inputs.wipe_tls }}
+          vault_password: ${{ secrets.ANSIBLE_VAULT_PASSWORD_PROD }}
         run: |
           trap 'rm -f vault-pass' EXIT
-          echo "${{ secrets.ANSIBLE_VAULT_PASSWORD_PROD }}" > vault-pass
+          printf '%s' "$vault_password" > vault-pass
           ansible-playbook -i inventories/prod/hosts.yml playbooks/destroy.yml \
             --vault-password-file vault-pass \
             -e destroy_confirm="$CONFIRM" \

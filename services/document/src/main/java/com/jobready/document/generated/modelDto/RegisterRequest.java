@@ -67,7 +67,7 @@ public class RegisterRequest {
    * Get password
    * @return password
    */
-  @NotNull @Size(min = 8) 
+  @NotNull @Pattern(regexp = "^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[^A-Za-z0-9]).*$") @Size(min = 12) 
   @Schema(name = "password", requiredMode = Schema.RequiredMode.REQUIRED)
   @JsonProperty("password")
   public String getPassword() {

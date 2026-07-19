@@ -27,6 +27,10 @@ class Settings(BaseSettings):
 
     # JWT — public key fetched from auth service to verify Bearer tokens
     auth_jwks_url: str = "http://auth:8080/api/v1/auth/.well-known/jwks.json"
+    # iss/aud claims every access token must carry — values must match what the
+    # auth service stamps (see auth's application.properties).
+    auth_jwt_issuer: str = "https://jobready-auth"
+    auth_jwt_audience: str = "jobready"
 
     # Document service (profile data)
     document_service_url: str = "http://document:8080"

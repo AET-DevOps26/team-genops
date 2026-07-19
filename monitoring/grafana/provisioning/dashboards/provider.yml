@@ -1,0 +1,14 @@
+# File provider — loads every dashboard JSON under /var/lib/grafana/dashboards
+# (mounted read-only from infra/helm/monitoring/files/dashboards — the single
+# source shared with the prod chart). Dashboards are code:
+# edit the JSON in git, never the UI.
+apiVersion: 1
+
+providers:
+  - name: jobready
+    folder: JobReady
+    type: file
+    disableDeletion: true
+    allowUiUpdates: false
+    options:
+      path: /var/lib/grafana/dashboards

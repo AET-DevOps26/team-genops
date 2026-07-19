@@ -1,6 +1,8 @@
+import os
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
+from prometheus_client import Gauge
 from prometheus_fastapi_instrumentator import Instrumentator
 
 from src.db.pool import close_db, init_db
@@ -27,6 +29,12 @@ app = FastAPI(
 )
 
 Instrumentator().instrument(app).expose(app)
+
+# Constant-1 gauge carrying the running version as a label, so Grafana can
+# correlate releases with behaviour changes. APP_VERSION is the image tag
+# injected by Helm; "dev" when run locally. Mirrors AppInfoConfig in the
+# Spring services.
+Gauge("app_info", "Deployed application version (value is constant 1)", ["version"]).labels(version=os.getenv("APP_VERSION", "dev")).set(1)
 
 app.include_router(chat_router)
 app.include_router(internal_analysis_router)

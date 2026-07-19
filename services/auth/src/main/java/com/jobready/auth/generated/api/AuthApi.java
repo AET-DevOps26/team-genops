@@ -106,6 +106,7 @@ public interface AuthApi {
      * @param loginRequest  (required)
      * @return Login successful; session cookies set (status code 200)
      *         or Invalid credentials (status code 401)
+     *         or Account temporarily locked after too many failed attempts; retry after the period in the Retry-After header (status code 429)
      */
     @Operation(
         operationId = "login",
@@ -117,6 +118,9 @@ public interface AuthApi {
                 @Content(mediaType = "application/json", schema = @Schema(implementation = UserResponse.class))
             }),
             @ApiResponse(responseCode = "401", description = "Invalid credentials", content = {
+                @Content(mediaType = "application/json", schema = @Schema(implementation = Error.class))
+            }),
+            @ApiResponse(responseCode = "429", description = "Account temporarily locked after too many failed attempts; retry after the period in the Retry-After header", content = {
                 @Content(mediaType = "application/json", schema = @Schema(implementation = Error.class))
             })
         }
@@ -134,6 +138,11 @@ public interface AuthApi {
             for (MediaType mediaType: MediaType.parseMediaTypes(request.getHeader("Accept"))) {
                 if (mediaType.isCompatibleWith(MediaType.valueOf("application/json"))) {
                     String exampleString = "{ \"id\" : \"046b6c7f-0b8a-43b9-b35d-6489e6daee91\", \"email\" : \"email\", \"created_at\" : \"2000-01-23T04:56:07.000+00:00\" }";
+                    ApiUtil.setExampleResponse(request, "application/json", exampleString);
+                    break;
+                }
+                if (mediaType.isCompatibleWith(MediaType.valueOf("application/json"))) {
+                    String exampleString = "{ \"code\" : \"INVALID_CREDENTIALS\", \"message\" : \"Email or password is incorrect\", \"details\" : { \"key\" : \"\" } }";
                     ApiUtil.setExampleResponse(request, "application/json", exampleString);
                     break;
                 }
@@ -245,7 +254,8 @@ public interface AuthApi {
      * @param registerRequest  (required)
      * @return Account created; session cookies set (status code 201)
      *         or Email already registered (status code 409)
-     *         or Validation error (e.g. password too short) (status code 422)
+     *         or Validation error (e.g. password too short or missing a required character class) (status code 422)
+     *         or Too many registration attempts from this address; retry after the period in the Retry-After header (status code 429)
      */
     @Operation(
         operationId = "register",
@@ -259,7 +269,10 @@ public interface AuthApi {
             @ApiResponse(responseCode = "409", description = "Email already registered", content = {
                 @Content(mediaType = "application/json", schema = @Schema(implementation = Error.class))
             }),
-            @ApiResponse(responseCode = "422", description = "Validation error (e.g. password too short)", content = {
+            @ApiResponse(responseCode = "422", description = "Validation error (e.g. password too short or missing a required character class)", content = {
+                @Content(mediaType = "application/json", schema = @Schema(implementation = Error.class))
+            }),
+            @ApiResponse(responseCode = "429", description = "Too many registration attempts from this address; retry after the period in the Retry-After header", content = {
                 @Content(mediaType = "application/json", schema = @Schema(implementation = Error.class))
             })
         }
@@ -277,6 +290,11 @@ public interface AuthApi {
             for (MediaType mediaType: MediaType.parseMediaTypes(request.getHeader("Accept"))) {
                 if (mediaType.isCompatibleWith(MediaType.valueOf("application/json"))) {
                     String exampleString = "{ \"id\" : \"046b6c7f-0b8a-43b9-b35d-6489e6daee91\", \"email\" : \"email\", \"created_at\" : \"2000-01-23T04:56:07.000+00:00\" }";
+                    ApiUtil.setExampleResponse(request, "application/json", exampleString);
+                    break;
+                }
+                if (mediaType.isCompatibleWith(MediaType.valueOf("application/json"))) {
+                    String exampleString = "{ \"code\" : \"INVALID_CREDENTIALS\", \"message\" : \"Email or password is incorrect\", \"details\" : { \"key\" : \"\" } }";
                     ApiUtil.setExampleResponse(request, "application/json", exampleString);
                     break;
                 }
