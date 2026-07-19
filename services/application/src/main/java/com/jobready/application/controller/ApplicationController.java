@@ -1,6 +1,7 @@
 package com.jobready.application.controller;
 
 import com.jobready.application.generated.api.ApplicationsApi;
+import com.jobready.application.generated.modelDto.ApplicationEventList;
 import com.jobready.application.generated.modelDto.ApplicationList;
 import com.jobready.application.generated.modelDto.ApplicationStage;
 import com.jobready.application.generated.modelDto.ApplicationSummary;
@@ -73,6 +74,11 @@ public class ApplicationController implements ApplicationsApi {
     public ResponseEntity<Void> deleteRecommendation(UUID id, UUID recommendationId) {
         applicationService.deleteRecommendation(currentUserId(), id, recommendationId);
         return ResponseEntity.noContent().build();
+    }
+
+    @Override
+    public ResponseEntity<ApplicationEventList> listApplicationEvents(UUID id) {
+        return ResponseEntity.ok(applicationService.listEvents(currentUserId(), id));
     }
 
     /** The owner is always the JWT {@code sub} claim — never read from the request. */

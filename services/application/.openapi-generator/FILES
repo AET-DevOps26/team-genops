@@ -1,5 +1,8 @@
 src/main/java/com/jobready/application/generated/api/ApiUtil.java
 src/main/java/com/jobready/application/generated/api/ApplicationsApi.java
+src/main/java/com/jobready/application/generated/modelDto/ApplicationEvent.java
+src/main/java/com/jobready/application/generated/modelDto/ApplicationEventList.java
+src/main/java/com/jobready/application/generated/modelDto/ApplicationEventType.java
 src/main/java/com/jobready/application/generated/modelDto/ApplicationList.java
 src/main/java/com/jobready/application/generated/modelDto/ApplicationStage.java
 src/main/java/com/jobready/application/generated/modelDto/ApplicationSummary.java
@@ -20,6 +23,8 @@ src/main/java/com/jobready/application/generated/modelDto/GmailAuthorizeResponse
 src/main/java/com/jobready/application/generated/modelDto/InterviewCompetency.java
 src/main/java/com/jobready/application/generated/modelDto/InterviewResult.java
 src/main/java/com/jobready/application/generated/modelDto/JobApplication.java
+src/main/java/com/jobready/application/generated/modelDto/JobPostingExtractRequest.java
+src/main/java/com/jobready/application/generated/modelDto/JobPostingExtraction.java
 src/main/java/com/jobready/application/generated/modelDto/Language.java
 src/main/java/com/jobready/application/generated/modelDto/LanguageProficiency.java
 src/main/java/com/jobready/application/generated/modelDto/LanguageRequest.java

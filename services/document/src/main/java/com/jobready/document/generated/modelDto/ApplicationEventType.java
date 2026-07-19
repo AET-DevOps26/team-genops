@@ -16,27 +16,29 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonValue;
 
 /**
- * Application lifecycle stage: `draft` → `applied` → `follow_up` → `interview` → `offer` → `closed`. `draft` is the entry stage — the user is still preparing the application and has not applied yet. 
+ * What kind of timeline event this is.
  */
 
 @Generated(value = "org.openapitools.codegen.languages.SpringCodegen", comments = "Generator version: 7.23.0")
-public enum ApplicationStage {
+public enum ApplicationEventType {
   
-  DRAFT("draft"),
+  STAGE_CHANGE("stage_change"),
   
-  APPLIED("applied"),
+  EMAIL_RECEIVED("email_received"),
   
-  FOLLOW_UP("follow_up"),
+  INTERVIEW_SCHEDULED("interview_scheduled"),
   
-  INTERVIEW("interview"),
+  OFFER_RECEIVED("offer_received"),
   
-  OFFER("offer"),
+  REJECTION("rejection"),
   
-  CLOSED("closed");
+  INFO_REQUESTED("info_requested"),
+  
+  NOTE("note");
 
   private final String value;
 
-  ApplicationStage(String value) {
+  ApplicationEventType(String value) {
     this.value = value;
   }
 
@@ -51,8 +53,8 @@ public enum ApplicationStage {
   }
 
   @JsonCreator
-  public static ApplicationStage fromValue(String value) {
-    for (ApplicationStage b : ApplicationStage.values()) {
+  public static ApplicationEventType fromValue(String value) {
+    for (ApplicationEventType b : ApplicationEventType.values()) {
       if (b.value.equals(value)) {
         return b;
       }

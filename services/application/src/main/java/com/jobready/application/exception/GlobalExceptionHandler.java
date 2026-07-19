@@ -28,6 +28,17 @@ public class GlobalExceptionHandler {
     }
 
     /**
+     * Bad enum wire values (stage, event type) sent by internal callers surface as
+     * {@code IllegalArgumentException} from the generated {@code fromValue} — a caller error,
+     * not a server error.
+     */
+    @ExceptionHandler(IllegalArgumentException.class)
+    public ResponseEntity<Error> handleIllegalArgument(IllegalArgumentException ex) {
+        return ResponseEntity.status(HttpStatus.UNPROCESSABLE_ENTITY)
+                .body(new Error().code("VALIDATION_ERROR").message(ex.getMessage()));
+    }
+
+    /**
      * Bean-validation failures on {@code @Valid} request bodies. The OpenAPI contract promises
      * 422 + the shared Error schema here, so map Spring's default 400 onto that shape.
      */
