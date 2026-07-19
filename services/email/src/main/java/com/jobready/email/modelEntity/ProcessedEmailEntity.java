@@ -45,4 +45,29 @@ public class ProcessedEmailEntity {
 
     @Column(name = "processed_at", nullable = false)
     private Instant processedAt = Instant.now();
+
+    /** Extracted plain-text body (truncated), used for LLM classification. */
+    @Column(columnDefinition = "text")
+    private String body;
+
+    /** Detection-pipeline lifecycle: pending → analyzed | irrelevant | failed. */
+    @Column(name = "analysis_status", nullable = false, length = 20)
+    private String analysisStatus = AnalysisStatus.PENDING;
+
+    @Column(name = "analysis_attempts", nullable = false)
+    private int analysisAttempts;
+
+    /** Application this email was matched to (or auto-created), if any. */
+    @Column(name = "matched_application_id")
+    private UUID matchedApplicationId;
+
+    /** Allowed {@code analysis_status} values (mirrors the DB CHECK constraint). */
+    public static final class AnalysisStatus {
+        public static final String PENDING = "pending";
+        public static final String ANALYZED = "analyzed";
+        public static final String IRRELEVANT = "irrelevant";
+        public static final String FAILED = "failed";
+
+        private AnalysisStatus() {}
+    }
 }

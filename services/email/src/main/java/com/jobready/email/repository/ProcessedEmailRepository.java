@@ -4,6 +4,7 @@ import com.jobready.email.modelEntity.ProcessedEmailEntity;
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
+import org.springframework.data.domain.Limit;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
@@ -34,8 +35,8 @@ public interface ProcessedEmailRepository extends JpaRepository<ProcessedEmailEn
     @Modifying
     @Query(
             value = "INSERT INTO email.processed_emails "
-                    + "(id, user_id, message_id, subject, sender, snippet, received_at, processed_at) "
-                    + "VALUES (gen_random_uuid(), :userId, :messageId, :subject, :sender, :snippet, "
+                    + "(id, user_id, message_id, subject, sender, snippet, body, received_at, processed_at) "
+                    + "VALUES (gen_random_uuid(), :userId, :messageId, :subject, :sender, :snippet, :body, "
                     + ":receivedAt, NOW()) "
                     + "ON CONFLICT (user_id, message_id) DO NOTHING",
             nativeQuery = true)
@@ -45,5 +46,9 @@ public interface ProcessedEmailRepository extends JpaRepository<ProcessedEmailEn
             @Param("subject") String subject,
             @Param("sender") String sender,
             @Param("snippet") String snippet,
+            @Param("body") String body,
             @Param("receivedAt") Instant receivedAt);
+
+    /** The analyzer's work queue, oldest first so no email starves. */
+    List<ProcessedEmailEntity> findByAnalysisStatusOrderByProcessedAtAsc(String analysisStatus, Limit limit);
 }

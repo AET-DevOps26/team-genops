@@ -30,16 +30,19 @@ public class EmailPoller {
     private final ProcessedEmailRepository processedEmailRepository;
     private final GoogleOAuthClient googleOAuthClient;
     private final GmailClient gmailClient;
+    private final EmailAnalysisService emailAnalysisService;
 
     public EmailPoller(
             EmailConnectionRepository connectionRepository,
             ProcessedEmailRepository processedEmailRepository,
             GoogleOAuthClient googleOAuthClient,
-            GmailClient gmailClient) {
+            GmailClient gmailClient,
+            EmailAnalysisService emailAnalysisService) {
         this.connectionRepository = connectionRepository;
         this.processedEmailRepository = processedEmailRepository;
         this.googleOAuthClient = googleOAuthClient;
         this.gmailClient = gmailClient;
+        this.emailAnalysisService = emailAnalysisService;
     }
 
     @Scheduled(
@@ -62,6 +65,11 @@ public class EmailPoller {
             } catch (Exception e) { // one bad connection must not stop the rest
                 log.error("Polling failed for user {}", connection.getUserId(), e);
             }
+        }
+        // Classify what was just stored (and retry earlier leftovers). Never throws.
+        int analyzed = emailAnalysisService.analyzePending();
+        if (analyzed > 0) {
+            log.info("Detection pipeline finalized {} email(s)", analyzed);
         }
         return total;
     }
@@ -88,6 +96,7 @@ public class EmailPoller {
                         msg.subject(),
                         msg.sender(),
                         msg.snippet(),
+                        msg.body(),
                         msg.receivedAt());
             } catch (Exception e) { // one broken message (e.g. deleted → 404) must not block the rest
                 log.warn("Skipping message {} for user {}: {}", messageId, connection.getUserId(), e.toString());
