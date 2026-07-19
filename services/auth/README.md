@@ -163,3 +163,17 @@ Do these to keep "homemade" a defensible security posture rather than an acciden
 ### Tier 3 — deferred (documented, not scheduled)
 - TOTP MFA · automated signing-key rotation (multi-key JWKS overlap) · HSTS + security headers at
   the gateway. Revisit only if time allows or the service moves toward real production use.
+
+## Testing
+
+```sh
+./mvnw test                # full suite
+./mvnw verify              # build + test + package — mirrors CI (Spotless + Checkstyle)
+```
+
+What's covered: JWT issue/verify round-trips and decoder config (`JwtIssueVerifyTest`,
+`JwtConfigTest` — tests generate their own ephemeral RSA pair, no `.env` keys needed),
+login-attempt throttling and lockouts (`LoginAttemptServiceTest`), the security audit log
+(`SecurityAuditLogTest`), origin validation (`OriginValidationFilterTest`), and the auth
+service logic itself (`AuthServiceImplTest`). Cookie/refresh flows that need real Redis and a
+real gateway are covered by the black-box suite in [`e2e_tests/`](../../e2e_tests/).
