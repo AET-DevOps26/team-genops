@@ -19,8 +19,8 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "up{job=~\"spring-services|genai\"}",
-          "legendFormat": "{{instance}}",
+          "expr": "up{job=~\"auth|application|document|gateway|genai\"}",
+          "legendFormat": "{{job}}",
           "instant": true
         }
       ],

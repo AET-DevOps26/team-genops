@@ -11,18 +11,28 @@ rule_files:
 scrape_configs:
   # Spring Boot services — Micrometer on the management port (8090), which the
   # ingress/gateway never route; only reachable inside the compose network.
-  - job_name: spring-services
+  # One job PER service, named exactly like the k8s Service: in prod the
+  # Prometheus Operator sets job=<Service name>, and the shared dashboards
+  # filter on that label — same names here or the panels split by environment.
+  - job_name: auth
     metrics_path: /actuator/prometheus
     static_configs:
-      - targets:
-          - auth:8090
-          - application:8090
-          - document:8090
-          - gateway:8090
+      - targets: [auth:8090]
+  - job_name: application
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets: [application:8090]
+  - job_name: document
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets: [document:8090]
+  - job_name: gateway
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets: [gateway:8090]
 
   # FastAPI genai — prometheus-fastapi-instrumentator on the app port.
   - job_name: genai
     metrics_path: /metrics
     static_configs:
-      - targets:
-          - genai:8000
+      - targets: [genai:8000]
