@@ -5,6 +5,7 @@ callers may instead send an `Authorization: Bearer` header. We accept either and
 verify the token using the auth service's public key (JWKS).
 """
 
+import secrets
 import time
 
 import httpx
@@ -86,6 +87,23 @@ async def get_current_user_id(request: Request) -> str:
         except JWTError:
             # Still failed after refresh — token is genuinely invalid or expired
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid or expired token") from first_error
+
+
+async def require_internal_token(request: Request) -> None:
+    """
+    FastAPI dependency for /internal/** routes — verifies the static service token
+    (`INTERNAL_SERVICE_TOKEN`) sent as `Authorization: Bearer` by trusted backend
+    callers (the email service). Unlike user routes there is no JWT: the caller acts
+    in the background with no live user request. Rejects everything when no token is
+    configured, so the internal API is fail-closed.
+    """
+    auth_header = request.headers.get("Authorization", "")
+    scheme, _, presented = auth_header.partition(" ")
+    if not settings.internal_service_token or scheme.lower() != "bearer" or not secrets.compare_digest(presented, settings.internal_service_token):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Missing or invalid internal service token",
+        )
 
 
 async def get_access_token(request: Request) -> str:
