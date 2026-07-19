@@ -109,8 +109,8 @@
       when: (ingress_host | default('')) | length > 0
 
     # Wrapped so a --wait timeout dumps the ACTUAL pod failure instead of the
-    # opaque "context deadline exceeded". The rescue prints status + events for
-    # every not-Running pod, then re-raises so CD still fails.
+    # opaque "context deadline exceeded". The rescue prints status, events, and
+    # last crash logs for every unhealthy pod, then re-raises so CD still fails.
     - name: Deploy JobReady chart
       block:
         - name: Run Helm upgrade
@@ -123,7 +123,11 @@
               - "{{ values_file }}"
             values: "{{ helm_overrides }}"
             wait: true
-            wait_timeout: "8m0s"
+            # 15m, not 8m: the prod namespace ResourceQuota (limits.cpu 3400m,
+            # ~500m headroom) admits only ONE 500m surge pod at a time, so the
+            # five Spring rollouts serialize — ~90s each plus pulls ≈ 10min of
+            # legitimate converging that 8m cut short with every pod healthy.
+            wait_timeout: "15m0s"
 
       rescue:
         - name: Get pod status
@@ -137,14 +141,24 @@
           ansible.builtin.debug:
             var: _pods.stdout_lines
 
-        - name: Describe not-Running pods (image, events, probe failures)
+        # Selecting on status.phase misses the pods that matter most: a
+        # CrashLoopBackOff pod's phase IS "Running" (the pod runs; its container
+        # keeps dying). Select on readiness instead — every pod that is not
+        # fully Ready or not Running is broken during a stuck rollout.
+        - name: Describe unhealthy pods (image, events, probe failures)
           ansible.builtin.shell:
             cmd: >-
               set -o pipefail;
               pods=$(kubectl --kubeconfig {{ kubeconfig }} -n {{ namespace }}
-                get pods --field-selector=status.phase!=Running -o name);
-              [ -z "$pods" ] && echo "(all pods Running — likely a failing readiness probe)" && exit 0;
-              kubectl --kubeconfig {{ kubeconfig }} -n {{ namespace }} describe $pods
+                get pods --no-headers
+                | awk '{split($2, r, "/"); if (r[1] != r[2] || $3 != "Running") print $1}');
+              [ -z "$pods" ] && echo "(all pods Ready — timeout was elsewhere: jobs, PVCs, ingress?)" && exit 0;
+              for p in $pods; do
+                echo "=================== $p ===================";
+                kubectl --kubeconfig {{ kubeconfig }} -n {{ namespace }} describe pod "$p";
+                echo "--- last log of previous (crashed) attempt ---";
+                kubectl --kubeconfig {{ kubeconfig }} -n {{ namespace }} logs "$p" --previous --tail=40 2>&1 || true;
+              done
           changed_when: false
           failed_when: false
           register: _describe
@@ -156,5 +170,5 @@
         - name: Re-raise the deploy failure
           ansible.builtin.fail:
             msg: >-
-              Helm deploy did not converge within 8m0s — see pod status and
+              Helm deploy did not converge within 15m0s — see pod status and
               describe output above for the real cause.
