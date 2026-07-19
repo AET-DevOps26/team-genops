@@ -45,44 +45,58 @@ class LoginAttemptServiceTest {
 
     @Test
     void underThresholdIsAllowed() {
-        when(valueOps.get(LOGIN_KEY)).thenReturn("4");
-        assertDoesNotThrow(() -> service.checkLoginAllowed(EMAIL, IP));
+        when(valueOps.increment(LOGIN_KEY)).thenReturn(4L);
+        assertDoesNotThrow(() -> service.reserveLoginAttempt(EMAIL, IP));
     }
 
     @Test
-    void atThresholdIsLockedWithRemainingTtlAsRetryAfter() {
-        when(valueOps.get(LOGIN_KEY)).thenReturn("5");
+    void overThresholdIsLockedWithRemainingTtlAsRetryAfter() {
+        when(valueOps.increment(LOGIN_KEY)).thenReturn(6L);
         when(redisTemplate.getExpire(LOGIN_KEY)).thenReturn(321L);
 
         TooManyAttemptsException ex =
-                assertThrows(TooManyAttemptsException.class, () -> service.checkLoginAllowed(EMAIL, IP));
+                assertThrows(TooManyAttemptsException.class, () -> service.reserveLoginAttempt(EMAIL, IP));
         assertEquals(321, ex.getRetryAfterSeconds());
     }
 
     @Test
-    void firstFailureStartsTheWindow() {
+    void firstAttemptStartsTheWindow() {
         when(valueOps.increment(LOGIN_KEY)).thenReturn(1L);
 
-        service.recordLoginFailure(EMAIL, IP);
+        service.reserveLoginAttempt(EMAIL, IP);
 
         verify(redisTemplate).expire(LOGIN_KEY, Duration.ofSeconds(900));
         verify(auditLog, never()).lockoutTriggered(EMAIL, IP, 1);
     }
 
+    /**
+     * The INCR is the admission decision: every attempt reserves its slot before any
+     * BCrypt work, so a parallel burst serializes in Redis instead of racing a read.
+     */
     @Test
-    void thresholdCrossingFailureAuditsLockout() {
+    void reservationIncrementsBeforeAdmitting() {
         when(valueOps.increment(LOGIN_KEY)).thenReturn(5L);
 
-        service.recordLoginFailure(EMAIL, IP);
+        assertDoesNotThrow(() -> service.reserveLoginAttempt(EMAIL, IP));
+
+        verify(valueOps).increment(LOGIN_KEY);
+        verify(valueOps, never()).get(LOGIN_KEY);
+    }
+
+    @Test
+    void thresholdCrossingAttemptAuditsLockoutButIsStillAdmitted() {
+        when(valueOps.increment(LOGIN_KEY)).thenReturn(5L);
+
+        assertDoesNotThrow(() -> service.reserveLoginAttempt(EMAIL, IP));
 
         verify(auditLog).lockoutTriggered(EMAIL, IP, 5);
     }
 
     @Test
     void emailKeyIsCaseInsensitive() {
-        when(valueOps.get(LOGIN_KEY)).thenReturn(null);
-        assertDoesNotThrow(() -> service.checkLoginAllowed("Jane@Example.COM", IP));
-        verify(valueOps).get(LOGIN_KEY);
+        when(valueOps.increment(LOGIN_KEY)).thenReturn(1L);
+        assertDoesNotThrow(() -> service.reserveLoginAttempt("Jane@Example.COM", IP));
+        verify(valueOps).increment(LOGIN_KEY);
     }
 
     @Test

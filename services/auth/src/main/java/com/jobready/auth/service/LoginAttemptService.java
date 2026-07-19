@@ -9,10 +9,14 @@ import org.springframework.stereotype.Service;
 /**
  * Redis-backed brute-force throttling.
  *
- * <p>Login failures are counted per email+IP (an attacker spraying one account from
+ * <p>Login attempts are counted per email+IP (an attacker spraying one account from
  * one address locks only that pairing; keying per-email alone would let an attacker
- * deliberately lock a victim out). Failures for nonexistent emails are counted too —
- * otherwise the lockout's very presence would leak whether an account exists.
+ * deliberately lock a victim out). Attempts for nonexistent emails are counted too —
+ * otherwise the lockout's very presence would leak whether an account exists. The
+ * count is reserved atomically BEFORE password verification: a check-then-record
+ * split would let a parallel burst pass the check en masse during the ~100ms BCrypt
+ * window, multiplying the configured limit by the server's concurrency. A successful
+ * login clears the counter, so only unbroken failure streaks accumulate.
  *
  * <p>Registration is throttled per IP regardless of outcome, which is the mitigation
  * for the (documented) email-enumeration oracle on register.
@@ -42,20 +46,20 @@ public class LoginAttemptService {
         this.window = Duration.ofSeconds(windowSeconds);
     }
 
-    /** Throws {@link TooManyAttemptsException} if this email+IP pairing is locked out. */
-    public void checkLoginAllowed(String email, String ip) {
-        String key = loginKey(email, ip);
-        String count = redisTemplate.opsForValue().get(key);
-        if (count != null && Integer.parseInt(count) >= loginMaxFailures) {
-            throw new TooManyAttemptsException(retryAfterSeconds(key));
-        }
-    }
-
-    public void recordLoginFailure(String email, String ip) {
+    /**
+     * Atomically reserves one login attempt for this email+IP pairing, throwing
+     * {@link TooManyAttemptsException} once the pairing is over its limit. The INCR
+     * is the admission decision itself — Redis serializes it, so a parallel burst
+     * cannot slip past the limit the way a read-check before BCrypt could.
+     */
+    public void reserveLoginAttempt(String email, String ip) {
         String key = loginKey(email, ip);
         Long count = redisTemplate.opsForValue().increment(key);
         if (count != null && count == 1) {
             redisTemplate.expire(key, window);
+        }
+        if (count != null && count > loginMaxFailures) {
+            throw new TooManyAttemptsException(retryAfterSeconds(key));
         }
         if (count != null && count == loginMaxFailures) {
             auditLog.lockoutTriggered(email, ip, count);

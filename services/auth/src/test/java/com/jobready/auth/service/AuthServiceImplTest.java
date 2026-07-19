@@ -172,7 +172,8 @@ class AuthServiceImplTest {
                 .isInstanceOf(InvalidCredentialsException.class);
 
         verify(jwtService, never()).generateAccessToken(any());
-        verify(loginAttemptService).recordLoginFailure(EMAIL, IP);
+        // The attempt was already reserved up front; failure adds no second count.
+        verify(loginAttemptService).reserveLoginAttempt(EMAIL, IP);
         verify(auditLog).loginFailed(EMAIL, IP);
         verify(loginAttemptService, never()).resetLoginFailures(anyString(), anyString());
     }
@@ -187,7 +188,7 @@ class AuthServiceImplTest {
 
     @Test
     void login_lockedOutIsBlockedBeforeAnyCredentialWork() {
-        doThrow(new TooManyAttemptsException(900)).when(loginAttemptService).checkLoginAllowed(EMAIL, IP);
+        doThrow(new TooManyAttemptsException(900)).when(loginAttemptService).reserveLoginAttempt(EMAIL, IP);
 
         assertThatThrownBy(() -> service.login(new LoginRequest(EMAIL, "secret"), IP))
                 .isInstanceOf(TooManyAttemptsException.class);
@@ -225,7 +226,7 @@ class AuthServiceImplTest {
 
         // The timing-equalizing dummy compare: same BCrypt cost as the found-user path.
         verify(passwordEncoder, times(1)).matches(eq("secret"), anyString());
-        verify(loginAttemptService).recordLoginFailure(EMAIL, IP);
+        verify(loginAttemptService).reserveLoginAttempt(EMAIL, IP);
         verify(auditLog).loginFailed(EMAIL, IP);
     }
 

@@ -59,7 +59,9 @@ public class AuthServiceImpl implements AuthService {
     public IssuedSession login(LoginRequest request, String clientIp) {
         String email = request.getEmail();
         try {
-            loginAttemptService.checkLoginAllowed(email, clientIp);
+            // Reserve BEFORE the BCrypt work: the attempt is counted whatever its
+            // outcome, so a parallel burst cannot outrun the limit; success resets.
+            loginAttemptService.reserveLoginAttempt(email, clientIp);
         } catch (TooManyAttemptsException e) {
             auditLog.loginBlocked(email, clientIp);
             throw e;
@@ -70,7 +72,6 @@ public class AuthServiceImpl implements AuthService {
         boolean matches =
                 passwordEncoder.matches(request.getPassword(), user != null ? user.getPasswordHash() : DUMMY_HASH);
         if (user == null || !matches) {
-            loginAttemptService.recordLoginFailure(email, clientIp);
             auditLog.loginFailed(email, clientIp);
             throw new InvalidCredentialsException();
         }
