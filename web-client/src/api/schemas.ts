@@ -56,3 +56,7 @@ export type GeneratedDocumentList = Schemas["GeneratedDocumentList"];
 export type GeneratedDocumentType = Schemas["GeneratedDocumentType"];
 export type CreateGeneratedDocumentRequest =
   Schemas["CreateGeneratedDocumentRequest"];
+
+// Email integration (email service)
+export type EmailConnectionStatus = Schemas["EmailConnectionStatus"];
+export type GmailAuthorizeResponse = Schemas["GmailAuthorizeResponse"];

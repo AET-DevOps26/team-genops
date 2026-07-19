@@ -1,10 +1,27 @@
+import { useEffect, useState } from "react";
 import type { ReactNode } from "react";
-import { NavLink, Outlet, useNavigate } from "react-router-dom";
+import {
+  NavLink,
+  Outlet,
+  useNavigate,
+  useSearchParams,
+} from "react-router-dom";
 import { useAppDispatch, useAppSelector } from "~/store/hooks";
 import { logout } from "~/services/auth/authSlice";
+import { api } from "~/services/apiClient";
 import { Tag } from "~/components/ui";
 import { useListApplicationsQuery } from "~/services/applications/applicationsApi";
 import { useGetProfileQuery } from "~/services/profile/profileApi";
+
+// Human-readable copy for the `?email_error=` reasons the email service can redirect with.
+const EMAIL_ERROR_MESSAGES: Record<string, string> = {
+  exchange_failed: "Couldn't complete the Gmail connection. Please try again.",
+  missing_refresh_token:
+    "Gmail didn’t grant offline access. Connect again and allow JobReady to stay connected.",
+};
+
+/** Dismissible notice shown after the Gmail OAuth flow redirects the browser back to the app. */
+type EmailNotice = { kind: "success" | "error"; message: string };
 
 function NavItem({
   to,
@@ -170,6 +187,40 @@ export function AppShell() {
     "status" in profileError &&
     profileError.status === 404;
 
+  // The Gmail OAuth callback (started from Profile or onboarding) redirects the browser back to
+  // the app with `?email_connected=1` or `?email_error=<reason>` — and it can land on ANY route
+  // (default is the dashboard), so we handle it here in the shell. On success we invalidate the
+  // cached connection status so the Profile section reflects it. Params are stripped afterward so
+  // a reload doesn't re-show the notice.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [emailNotice, setEmailNotice] = useState<EmailNotice | null>(null);
+
+  useEffect(() => {
+    const connected = searchParams.get("email_connected");
+    const errorReason = searchParams.get("email_error");
+    if (!connected && !errorReason) return;
+
+    if (connected) {
+      dispatch(api.util.invalidateTags(["Email"]));
+      setEmailNotice({
+        kind: "success",
+        message: "Gmail connected. We’ll keep your pipeline up to date.",
+      });
+    } else if (errorReason) {
+      setEmailNotice({
+        kind: "error",
+        message:
+          EMAIL_ERROR_MESSAGES[errorReason] ??
+          "Something went wrong connecting Gmail.",
+      });
+    }
+
+    const next = new URLSearchParams(searchParams);
+    next.delete("email_connected");
+    next.delete("email_error");
+    setSearchParams(next, { replace: true });
+  }, [searchParams, setSearchParams, dispatch]);
+
   return (
     <div className="flex h-screen bg-ink text-fg">
       <aside className="flex w-60 shrink-0 flex-col border-r border-line bg-raised/60 px-3 py-5">
@@ -256,7 +307,26 @@ export function AppShell() {
         </div>
       </aside>
 
-      <main className="h-screen min-w-0 flex-1 overflow-hidden">
+      <main className="relative h-screen min-w-0 flex-1 overflow-hidden">
+        {emailNotice && (
+          <div
+            role="status"
+            className={`anim-rise absolute inset-x-0 top-0 z-10 flex items-center justify-between gap-4 px-8 py-3 text-sm ${
+              emailNotice.kind === "success"
+                ? "border-b border-offer/30 bg-offer/10 text-offer"
+                : "border-b border-interview/30 bg-interview/10 text-interview"
+            }`}
+          >
+            <span>{emailNotice.message}</span>
+            <button
+              onClick={() => setEmailNotice(null)}
+              className="shrink-0 opacity-70 transition hover:opacity-100"
+              aria-label="Dismiss"
+            >
+              ×
+            </button>
+          </div>
+        )}
         <Outlet />
       </main>
     </div>

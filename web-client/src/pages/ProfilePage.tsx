@@ -26,6 +26,11 @@ import {
   useUpdateWorkExperienceMutation,
   useUpsertProfileMutation,
 } from "~/services/profile/profileApi";
+import {
+  useAuthorizeGmailMutation,
+  useDeleteEmailConnectionMutation,
+  useGetEmailConnectionQuery,
+} from "~/services/email/emailApi";
 
 // Wire enums straight from the spec (lowercase, match the DB CHECK constraints).
 const SKILL_LEVELS = [
@@ -877,6 +882,95 @@ function LanguagesSection({
   );
 }
 
+// ───────────────────── Connected accounts ─────────────────────
+
+// Gmail connection lives in the email service. Connecting is a full-page redirect
+// off the app to Google's consent screen; the email service redirects back with
+// `?email_connected=1` / `?email_error=…`, surfaced by AppShell wherever the user
+// lands. Here we only show current status and start/tear down the connection.
+function ConnectedAccountsSection() {
+  const { data, isLoading } = useGetEmailConnectionQuery();
+  const [authorize, authorizeState] = useAuthorizeGmailMutation();
+  const [disconnect, disconnectState] = useDeleteEmailConnectionMutation();
+
+  async function connect() {
+    try {
+      const { authorization_url } = await authorize().unwrap();
+      // Full-page navigation (not fetch) — Google's consent flow 302s the browser.
+      window.location.assign(authorization_url);
+    } catch {
+      /* rendered from mutation state */
+    }
+  }
+
+  async function remove() {
+    if (
+      !window.confirm(
+        "Disconnect your Gmail account? JobReady will stop reading new emails.",
+      )
+    )
+      return;
+    try {
+      await disconnect().unwrap();
+    } catch {
+      /* rendered from mutation state */
+    }
+  }
+
+  const connected = data?.connected === true;
+
+  return (
+    <SectionCard title="Connected accounts">
+      <p className="mb-4 text-sm text-dim">
+        Connect Gmail so JobReady can detect application updates from your inbox
+        and keep your pipeline current automatically.
+      </p>
+
+      {isLoading ? (
+        <p className="text-sm text-faint">Loading…</p>
+      ) : connected ? (
+        <div className="flex items-start justify-between gap-4">
+          <div className="min-w-0">
+            <p className="text-sm font-medium">
+              Gmail · <span className="text-dim">{data?.email_address}</span>
+            </p>
+            {data?.connected_at && (
+              <p className="mt-0.5 font-mono text-xs text-faint">
+                Connected {new Date(data.connected_at).toLocaleDateString()}
+              </p>
+            )}
+          </div>
+          <Button
+            type="button"
+            variant="ghost"
+            className="px-4 py-2 text-sm"
+            loading={disconnectState.isLoading}
+            onClick={remove}
+          >
+            Disconnect
+          </Button>
+        </div>
+      ) : (
+        <Button
+          type="button"
+          className="px-5 py-2 text-sm"
+          loading={authorizeState.isLoading}
+          onClick={connect}
+        >
+          Connect Gmail
+        </Button>
+      )}
+
+      <ErrorBanner
+        error={
+          (authorizeState.error ?? disconnectState.error) as
+            NormalizedError | undefined
+        }
+      />
+    </SectionCard>
+  );
+}
+
 // ───────────────────────── Page ─────────────────────────
 
 export default function ProfilePage() {
@@ -927,6 +1021,7 @@ export default function ProfilePage() {
         <EducationSection items={data?.educations ?? []} disabled={!data} />
         <SkillsSection items={data?.skills ?? []} disabled={!data} />
         <LanguagesSection items={data?.languages ?? []} disabled={!data} />
+        <ConnectedAccountsSection />
       </div>
     </div>
   );
