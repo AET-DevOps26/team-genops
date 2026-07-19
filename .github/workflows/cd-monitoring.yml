@@ -13,6 +13,9 @@ on:
     paths:
       - "infra/helm/monitoring/**"
       - "infra/ansible/playbooks/monitoring.yml"
+      # The playbook + summary read monitoring_namespace/grafana_url from the
+      # prod inventory — an edit there must redeploy too.
+      - "infra/ansible/inventories/prod/**"
       - ".github/workflows/cd-monitoring.yml"
   workflow_dispatch:
 
@@ -65,31 +68,20 @@ jobs:
           ansible-playbook -i inventories/prod/hosts.yml playbooks/monitoring.yml \
             --vault-password-file vault-pass
 
-      # Outside-in check: helm --wait proved the pods are Ready; this proves
-      # the route — LB, ingress, TLS, DNS. No -k: an untrusted (staging-issuer)
-      # certificate must fail the deploy.
-      - name: Smoke check Grafana
-        run: |
-          url="https://genops-grafana.stud.k8s.aet.cit.tum.de/api/health"
-          echo "Probing ${url} ..."
-          for i in $(seq 1 12); do
-            if curl -sfo /dev/null --max-time 10 "$url"; then
-              echo "OK (attempt $i)"
-              exit 0
-            fi
-            sleep 10
-          done
-          echo "::error::${url} did not answer within 2 minutes after deploy"
-          exit 1
-
+      # The smoke check lives in the playbook (it owns grafana_url); here we
+      # only echo the deployed facts, read from the same inventory so the
+      # summary can never drift from what Ansible actually used.
       - name: Write deploy summary
         run: |
+          vars=infra/ansible/inventories/prod/group_vars/all/vars.yml
+          ns=$(yq '.monitoring_namespace' "$vars")
+          url=$(yq '.grafana_url' "$vars")
           {
             echo "## Monitoring deployed ✅"
             echo ""
             echo "| | |"
             echo "|---|---|"
-            echo "| Namespace | \`genops-monitoring\` |"
-            echo "| Grafana | https://genops-grafana.stud.k8s.aet.cit.tum.de |"
+            echo "| Namespace | \`${ns}\` |"
+            echo "| Grafana | ${url} |"
             echo ""
           } >> "$GITHUB_STEP_SUMMARY"

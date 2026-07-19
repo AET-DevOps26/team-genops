@@ -51,3 +51,17 @@
         state: present
         wait: true
         timeout: 5m
+
+    # Outside-in check: helm --wait proved the pods are Ready; this proves the
+    # route to Grafana — LB, ingress, TLS, DNS. validate_certs stays on: an
+    # untrusted (staging-issuer) certificate must fail the deploy.
+    - name: Smoke check Grafana
+      ansible.builtin.uri:
+        url: "{{ grafana_url }}/api/health"
+        validate_certs: true
+        status_code: 200
+      register: grafana_health
+      retries: 12
+      delay: 10
+      until: grafana_health.status == 200
+      when: (grafana_url | default('') | length) > 0
