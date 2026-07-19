@@ -1,6 +1,8 @@
 package com.jobready.application.service;
 
 import com.jobready.application.exception.ApplicationNotFoundException;
+import com.jobready.application.generated.modelDto.ApplicationEventList;
+import com.jobready.application.generated.modelDto.ApplicationEventType;
 import com.jobready.application.generated.modelDto.ApplicationList;
 import com.jobready.application.generated.modelDto.ApplicationStage;
 import com.jobready.application.generated.modelDto.ApplicationSummary;
@@ -10,10 +12,13 @@ import com.jobready.application.generated.modelDto.JobApplication;
 import com.jobready.application.generated.modelDto.RecommendationList;
 import com.jobready.application.generated.modelDto.UpdateApplicationRequest;
 import com.jobready.application.modelEntity.Application;
+import com.jobready.application.modelEntity.ApplicationEvent;
 import com.jobready.application.modelEntity.Recommendation;
+import com.jobready.application.repository.ApplicationEventRepository;
 import com.jobready.application.repository.ApplicationRepository;
 import com.jobready.application.repository.OffsetPageRequest;
 import com.jobready.application.repository.RecommendationRepository;
+import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -29,6 +34,7 @@ public class ApplicationServiceImpl implements ApplicationService {
 
     private final ApplicationRepository repository;
     private final RecommendationRepository recommendationRepository;
+    private final ApplicationEventRepository eventRepository;
 
     @Override
     @Transactional
@@ -82,6 +88,7 @@ public class ApplicationServiceImpl implements ApplicationService {
     @Transactional
     public JobApplication update(UUID userId, UUID id, UpdateApplicationRequest request) {
         Application application = require(userId, id);
+        ApplicationStage previousStage = application.getStage();
         application.setCompany(request.getCompany());
         application.setJobTitle(request.getJobTitle());
         application.setJobDescription(request.getJobDescription());
@@ -90,7 +97,24 @@ public class ApplicationServiceImpl implements ApplicationService {
         application.setLinkedinUrl(request.getLinkedinUrl());
         application.setStage(request.getStage());
         application.setNotes(request.getNotes());
+        if (previousStage != request.getStage()) {
+            recordStageChange(application, previousStage, request.getStage());
+        }
         return toDto(repository.save(application));
+    }
+
+    /** Manual stage transitions land on the timeline too, so it reflects the full history. */
+    private void recordStageChange(Application application, ApplicationStage from, ApplicationStage to) {
+        ApplicationEvent event = new ApplicationEvent();
+        event.setUserId(application.getUserId());
+        event.setApplicationId(application.getId());
+        event.setEventType(ApplicationEventType.STAGE_CHANGE);
+        event.setTitle("Stage changed to " + to.getValue());
+        event.setStageFrom(from);
+        event.setStageTo(to);
+        event.setSource(ApplicationEvent.Source.MANUAL);
+        event.setOccurredAt(OffsetDateTime.now());
+        eventRepository.save(event);
     }
 
     @Override
@@ -98,6 +122,7 @@ public class ApplicationServiceImpl implements ApplicationService {
     public void delete(UUID userId, UUID id) {
         Application application = require(userId, id);
         recommendationRepository.deleteByApplicationIdAndUserId(id, userId);
+        eventRepository.deleteByApplicationIdAndUserId(id, userId);
         repository.delete(application);
     }
 
@@ -158,6 +183,31 @@ public class ApplicationServiceImpl implements ApplicationService {
                 .filter(r -> r.getApplicationId().equals(applicationId))
                 .orElseThrow(ApplicationNotFoundException::new);
         recommendationRepository.delete(recommendation);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public ApplicationEventList listEvents(UUID userId, UUID applicationId) {
+        require(userId, applicationId);
+        return new ApplicationEventList()
+                .items(eventRepository.findByApplicationIdAndUserIdOrderByOccurredAtDesc(applicationId, userId).stream()
+                        .map(this::toDto)
+                        .toList());
+    }
+
+    private com.jobready.application.generated.modelDto.ApplicationEvent toDto(ApplicationEvent e) {
+        return new com.jobready.application.generated.modelDto.ApplicationEvent()
+                .id(e.getId())
+                .applicationId(e.getApplicationId())
+                .eventType(e.getEventType())
+                .title(e.getTitle())
+                .description(e.getDescription())
+                .stageFrom(e.getStageFrom())
+                .stageTo(e.getStageTo())
+                .source(com.jobready.application.generated.modelDto.ApplicationEvent.SourceEnum.fromValue(
+                        e.getSource().name().toLowerCase()))
+                .occurredAt(e.getOccurredAt())
+                .createdAt(e.getCreatedAt());
     }
 
     private Application require(UUID userId, UUID id) {

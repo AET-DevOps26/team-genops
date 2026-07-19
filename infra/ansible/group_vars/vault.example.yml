@@ -26,3 +26,22 @@ vault_jwt_private_key: |
   ...paste the full contents of private.pem here...
 vault_jwt_public_key: |
   ...paste the full contents of public.pem here...
+
+# --- Email service (Gmail integration) -------------------------------------
+# All four must be set for the email service to deploy — deploy.yml derives
+# email.enabled from their presence, so leaving them out simply keeps the
+# service off. The OAuth client's redirect URI must ALSO be registered in the
+# Google Cloud console for each host:
+#   https://<ingress-host>/api/v1/email/connections/gmail/callback
+vault_google_client_id: ""
+vault_google_client_secret: ""
+# AES-GCM key encrypting stored Gmail tokens. Generate: openssl rand -hex 32
+# WARNING: rotating this orphans every stored token — users must reconnect.
+vault_email_token_enc_key: ""
+# HMAC key signing the short-lived OAuth state token. Generate: openssl rand -hex 32
+vault_state_signing_key: ""
+
+# Shared static token guarding the /internal/** service-to-service APIs
+# (email → genai/application detection pipeline). Generate: openssl rand -hex 32
+# Optional: leave empty to keep the internal APIs disabled (fail-closed).
+vault_internal_service_token: ""

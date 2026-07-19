@@ -85,6 +85,56 @@
             LANGFUSE_PUBLIC_KEY: "{{ vault_langfuse_public_key | default('') }}"
             LANGFUSE_SECRET_KEY: "{{ vault_langfuse_secret_key | default('') }}"
 
+    # Gmail integration is only viable once the Google OAuth credentials exist in
+    # the vault, so email.enabled follows the vault state: deploys keep working
+    # before the credentials are provisioned, and email turns on automatically
+    # once they are. (The redirect URI must ALSO be registered in the Google
+    # Cloud console for each host — see services/email/README.md.)
+    - name: Determine whether the email service can be enabled
+      ansible.builtin.set_fact:
+        email_enabled: >-
+          {{ (vault_google_client_id | default('') | trim | length > 0)
+             and (vault_google_client_secret | default('') | trim | length > 0)
+             and (vault_email_token_enc_key | default('') | trim | length > 0)
+             and (vault_state_signing_key | default('') | trim | length > 0) }}
+
+    - name: Create email secrets
+      kubernetes.core.k8s:
+        kubeconfig: "{{ kubeconfig }}"
+        state: present
+        definition:
+          apiVersion: v1
+          kind: Secret
+          metadata:
+            name: email-secrets
+            namespace: "{{ namespace }}"
+          stringData:
+            GOOGLE_CLIENT_ID: "{{ vault_google_client_id }}"
+            GOOGLE_CLIENT_SECRET: "{{ vault_google_client_secret }}"
+            # AES-GCM key for Gmail tokens at rest. NEVER rotate casually: a new
+            # key orphans every stored token and users must reconnect Gmail.
+            EMAIL_TOKEN_ENC_KEY: "{{ vault_email_token_enc_key }}"
+            STATE_SIGNING_KEY: "{{ vault_state_signing_key }}"
+      when: email_enabled | bool
+
+    # Shared static token guarding the /internal/** service-to-service APIs
+    # (email → genai/application detection pipeline). Optional: when the vault
+    # var is absent the Secret is not created, internalServiceTokenSecret stays
+    # blank, and the internal APIs stay disabled (fail-closed).
+    - name: Create internal-service-token secret
+      kubernetes.core.k8s:
+        kubeconfig: "{{ kubeconfig }}"
+        state: present
+        definition:
+          apiVersion: v1
+          kind: Secret
+          metadata:
+            name: internal-service-token
+            namespace: "{{ namespace }}"
+          stringData:
+            INTERNAL_SERVICE_TOKEN: "{{ vault_internal_service_token }}"
+      when: (vault_internal_service_token | default('') | trim) | length > 0
+
     # Pin image tags
     # (dev passes the Terraform-computed cloudapp FQDN; prod uses values-prod.yaml).
     - name: Build base Helm value overrides
@@ -102,6 +152,22 @@
             tag: "{{ image_tag }}"
           document:
             tag: "{{ image_tag }}"
+          email:
+            tag: "{{ image_tag }}"
+            # Literal false (a real boolean — a templated value would stringify
+            # and Helm treats any non-empty string, even "false", as truthy).
+            # Flipped to true below when the vault credentials are present.
+            enabled: false
+
+    - name: Enable the email service when its vault credentials are present
+      ansible.builtin.set_fact:
+        helm_overrides: "{{ helm_overrides | combine({'email': {'enabled': true}}, recursive=True) }}"
+      when: email_enabled | bool
+
+    - name: Point the chart at the internal-service-token secret when present
+      ansible.builtin.set_fact:
+        helm_overrides: "{{ helm_overrides | combine({'internalServiceTokenSecret': 'internal-service-token'}) }}"
+      when: (vault_internal_service_token | default('') | trim) | length > 0
 
     - name: Add Ingress host override when provided
       ansible.builtin.set_fact:

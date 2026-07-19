@@ -83,6 +83,15 @@ spec:
               value: http://auth:8080/api/v1/auth/.well-known/jwks.json
             - name: SPRING_PROFILES_ACTIVE
               value: "kubernetes"
+            {{- if .Values.internalServiceTokenSecret }}
+            # Enables the static-token /internal/v1 API for the email pipeline.
+            # Omit internalServiceTokenSecret to keep it disabled (fail-closed).
+            - name: INTERNAL_SERVICE_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.internalServiceTokenSecret }}
+                  key: INTERNAL_SERVICE_TOKEN
+            {{- end }}
           resources:
             {{- toYaml .Values.application.resources | nindent 12 }}
           livenessProbe:

@@ -43,8 +43,15 @@ public class SecurityConfig {
     // keep in sync with auth JwksController.PATH
     private static final String JWKS_PATH = "/api/v1/auth/.well-known/jwks.json";
 
-    private static final Set<String> SKIP_PATHS =
-            Set.of("/api/v1/auth/login", "/api/v1/auth/register", "/api/v1/auth/refresh", JWKS_PATH);
+    /**
+     * Gmail OAuth2 callback. Google redirects the user's browser straight here after consent, so
+     * there is no {@code jr_access} cookie to present — the request's trust anchor is the signed
+     * {@code state} parameter, which the email service validates. Must stay open at the edge.
+     */
+    private static final String GMAIL_OAUTH_CALLBACK = "/api/v1/email/connections/gmail/callback";
+
+    private static final Set<String> SKIP_PATHS = Set.of(
+            "/api/v1/auth/login", "/api/v1/auth/register", "/api/v1/auth/refresh", JWKS_PATH, GMAIL_OAUTH_CALLBACK);
 
     @Bean
     SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
@@ -65,6 +72,10 @@ public class SecurityConfig {
                         .permitAll()
                         // JWKS is public verification material by design.
                         .requestMatchers(HttpMethod.GET, JWKS_PATH)
+                        .permitAll()
+                        // Gmail OAuth2 callback: browser arrives from Google with no token; the
+                        // signed `state` param is the trust anchor (validated by the email service).
+                        .requestMatchers(HttpMethod.GET, GMAIL_OAUTH_CALLBACK)
                         .permitAll()
                         // Only the probe group above is public. Everything else under /actuator
                         // (notably /actuator/gateway/routes, which enumerates the internal topology)

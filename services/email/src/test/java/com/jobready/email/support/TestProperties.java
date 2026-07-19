@@ -24,6 +24,10 @@ public final class TestProperties {
                 new EmailProperties.State(stateSigningKey, 600),
                 "http://localhost:5173",
                 "test-token-enc-key",
-                25);
+                25,
+                "http://localhost:8000",
+                "http://localhost:8082",
+                "test-internal-token",
+                new EmailProperties.Analysis(10, 3, 0.6, 0.8));
     }
 }

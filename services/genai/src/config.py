@@ -39,5 +39,9 @@ class Settings(BaseSettings):
     # Application service (job/company context for tailored documents)
     application_service_url: str = "http://application:8080"
 
+    # Static token guarding /internal/** (shared with the email service).
+    # Blank disables the internal API entirely (fail-closed).
+    internal_service_token: str = ""
+
 
 settings = Settings()  # type: ignore[call-arg]  # openrouter_api_key comes from the env

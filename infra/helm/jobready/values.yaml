@@ -23,6 +23,14 @@ global:
   #     - name: ghcr-pull
   imagePullSecrets: []
 
+# Name of an existing Secret holding INTERNAL_SERVICE_TOKEN — the shared secret guarding
+# the /internal/** service-to-service APIs (email → genai/application detection pipeline).
+# Leave blank to keep the internal APIs disabled (they fail-closed without a token).
+# Create it with:
+#   kubectl create secret generic internal-service-token \
+#     --from-literal=INTERNAL_SERVICE_TOKEN=$(openssl rand -hex 32) -n <namespace>
+internalServiceTokenSecret: ""
+
 namespace:
   # Whether THIS chart creates the Namespace object.
   # Set false when deploying into a pre-existing namespace, or when your
@@ -113,6 +121,38 @@ document:
   tag: latest
   replicas: 1
   port: 8080
+
+  resources:
+    requests:
+      memory: "256Mi"
+      cpu: "100m"
+    limits:
+      memory: "512Mi"
+      cpu: "500m"
+
+email:
+  # Off by default: the OAuth connect flow needs Google credentials in
+  # email.existingSecret and the redirect URI registered per host in the
+  # Google Cloud console. values-dev/prod turn it on.
+  enabled: false
+  image: jobready-email
+  tag: latest
+  # Single-instance by design (in-process Gmail poller + OAuth nonce store) —
+  # do not scale up without adding a Redis leader lock first.
+  replicas: 1
+  port: 8080
+
+  # Existing Secret holding the email service's secrets:
+  #   GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET  — Gmail OAuth client
+  #   EMAIL_TOKEN_ENC_KEY                     — AES-GCM key for tokens at rest.
+  #                                             ROTATING IT ORPHANS ALL STORED GMAIL
+  #                                             TOKENS (users must reconnect).
+  #   STATE_SIGNING_KEY                       — HMAC key for the OAuth state token
+  # Created by Ansible deploy.yml from the vault (vault_google_client_id, ...).
+  existingSecret: email-secrets
+
+  # How often the background poller fetches new emails, in seconds.
+  pollIntervalSeconds: 300
 
   resources:
     requests:

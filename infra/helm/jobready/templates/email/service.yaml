@@ -1,0 +1,20 @@
+{{- if .Values.email.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: email
+  namespace: {{ .Values.global.namespace }}
+  labels:
+    app: email
+    monitoring: "true"
+    {{- include "jobready.labels" . | nindent 4 }}
+spec:
+  type: ClusterIP
+  selector:
+    app: email
+  ports:
+    - name: http
+      port: {{ .Values.email.port }}
+      targetPort: {{ .Values.email.port }}
+      protocol: TCP
+{{- end }}

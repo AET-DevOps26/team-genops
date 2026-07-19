@@ -35,6 +35,9 @@ class EmailPollerTest {
     @Mock
     private GmailClient gmailClient;
 
+    @Mock
+    private EmailAnalysisService emailAnalysisService;
+
     @InjectMocks
     private EmailPoller poller;
 
@@ -48,7 +51,8 @@ class EmailPollerTest {
     }
 
     private GmailClient.MessageMetadata message(String id) {
-        return new GmailClient.MessageMetadata(id, "Subject " + id, "sender@x.com", "snippet", Instant.now());
+        return new GmailClient.MessageMetadata(
+                id, "Subject " + id, "sender@x.com", "snippet", "body text", Instant.now());
     }
 
     @Test
@@ -62,12 +66,17 @@ class EmailPollerTest {
         when(processedEmailRepository.existsByUserIdAndMessageId(userId, "m1")).thenReturn(false);
         when(processedEmailRepository.existsByUserIdAndMessageId(userId, "m2")).thenReturn(true);
         when(processedEmailRepository.insertIgnoringDuplicates(
-                        eq(userId), eq("m1"), anyString(), anyString(), anyString(), any()))
+                        eq(userId), eq("m1"), anyString(), anyString(), anyString(), anyString(), any()))
                 .thenReturn(1);
 
         assertThat(poller.pollOnce()).isEqualTo(1);
         verify(googleOAuthClient, never()).refreshAccessToken(anyString());
         verify(gmailClient, never()).fetchMessage("access-token", "m2");
+        // The stored body reaches the insert, and every poll pass runs the detection pipeline.
+        verify(processedEmailRepository)
+                .insertIgnoringDuplicates(
+                        eq(userId), eq("m1"), anyString(), anyString(), anyString(), eq("body text"), any());
+        verify(emailAnalysisService).analyzePending();
     }
 
     @Test
@@ -82,7 +91,7 @@ class EmailPollerTest {
         when(gmailClient.fetchMessage("access-token", "broken")).thenThrow(new IllegalStateException("404"));
         when(gmailClient.fetchMessage("access-token", "ok")).thenReturn(message("ok"));
         when(processedEmailRepository.insertIgnoringDuplicates(
-                        eq(userId), eq("ok"), anyString(), anyString(), anyString(), any()))
+                        eq(userId), eq("ok"), anyString(), anyString(), anyString(), anyString(), any()))
                 .thenReturn(1);
 
         assertThat(poller.pollOnce()).isEqualTo(1);
@@ -119,7 +128,7 @@ class EmailPollerTest {
                 .thenReturn(false);
         when(gmailClient.fetchMessage("healthy-token", "m1")).thenReturn(message("m1"));
         when(processedEmailRepository.insertIgnoringDuplicates(
-                        eq(healthyUser), eq("m1"), anyString(), anyString(), anyString(), any()))
+                        eq(healthyUser), eq("m1"), anyString(), anyString(), anyString(), anyString(), any()))
                 .thenReturn(1);
 
         assertThat(poller.pollOnce()).isEqualTo(1);

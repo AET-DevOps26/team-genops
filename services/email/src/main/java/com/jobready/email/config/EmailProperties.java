@@ -20,7 +20,14 @@ public record EmailProperties(
         /** Symmetric key used to AES-GCM-encrypt stored OAuth tokens at rest. */
         String tokenEncKey,
         /** How many recent Gmail messages each poll pass fetches per connection. */
-        @DefaultValue("25") int gmailMaxResults) {
+        @DefaultValue("25") int gmailMaxResults,
+        /** Base URL of the genai service (LLM email classification). */
+        @DefaultValue("http://localhost:8000") String genaiUrl,
+        /** Base URL of the application service's internal API. */
+        @DefaultValue("http://localhost:8082") String applicationServiceUrl,
+        /** Shared secret for /internal/** calls; blank disables the detection pipeline. */
+        @DefaultValue("") String internalServiceToken,
+        Analysis analysis) {
 
     public record Google(
             String clientId,
@@ -35,4 +42,15 @@ public record EmailProperties(
     public record State(
             /** HS256 key for the signed single-use OAuth `state` token. */
             String signingKey, @DefaultValue("600") long ttlSeconds) {}
+
+    /** Application-detection pipeline tuning. */
+    public record Analysis(
+            /** Max pending emails classified per poll cycle. */
+            @DefaultValue("10") int batchSize,
+            /** Transient failures per email before it is marked failed. */
+            @DefaultValue("3") int maxAttempts,
+            /** Minimum LLM confidence to update an existing application. */
+            @DefaultValue("0.6") double confidenceThreshold,
+            /** Minimum LLM confidence to auto-create a new application. */
+            @DefaultValue("0.8") double createConfidenceThreshold) {}
 }

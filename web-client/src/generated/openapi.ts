@@ -342,6 +342,31 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/applications/{id}/events": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        /**
+         * List an application's timeline events
+         * @description Returns the timeline of an application owned by the authenticated user, newest first
+         *     by `occurred_at`. Events are appended automatically — from detected emails (source
+         *     `email`) and from manual stage changes (source `manual`) — and record exactly when
+         *     each step happened.
+         */
+        get: operations["listApplicationEvents"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/applications/{id}": {
         parameters: {
             query?: never;
@@ -858,6 +883,39 @@ export interface components {
         };
         RecommendationList: {
             items: components["schemas"]["Recommendation"][];
+        };
+        /**
+         * @description What kind of timeline event this is.
+         * @enum {string}
+         */
+        ApplicationEventType: "stage_change" | "email_received" | "interview_scheduled" | "offer_received" | "rejection" | "info_requested" | "note";
+        ApplicationEvent: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            application_id: string;
+            event_type: components["schemas"]["ApplicationEventType"];
+            /** @description Short human-readable label for the event */
+            title: string;
+            /** @description Longer summary of what happened (LLM-generated for email events) */
+            description?: string | null;
+            stage_from?: components["schemas"]["ApplicationStage"] | null;
+            stage_to?: components["schemas"]["ApplicationStage"] | null;
+            /**
+             * @description Whether the event was derived from a detected email or a manual change
+             * @enum {string}
+             */
+            source: "email" | "manual";
+            /**
+             * Format: date-time
+             * @description When the event actually happened (for email events, the email's received date)
+             */
+            occurred_at: string;
+            /** Format: date-time */
+            created_at: string;
+        };
+        ApplicationEventList: {
+            items: components["schemas"]["ApplicationEvent"][];
         };
         JobPostingExtractRequest: {
             /**
@@ -1790,6 +1848,46 @@ export interface operations {
                 };
             };
             /** @description No such application or recommendation for this user */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    listApplicationEvents: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The application's timeline events */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApplicationEventList"];
+                };
+            };
+            /** @description Missing or invalid access token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description No such application for this user */
             404: {
                 headers: {
                     [name: string]: unknown;

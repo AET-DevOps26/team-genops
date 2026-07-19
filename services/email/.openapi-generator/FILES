@@ -1,5 +1,8 @@
 src/main/java/com/jobready/email/generated/api/ApiUtil.java
 src/main/java/com/jobready/email/generated/api/EmailApi.java
+src/main/java/com/jobready/email/generated/modelDto/ApplicationEvent.java
+src/main/java/com/jobready/email/generated/modelDto/ApplicationEventList.java
+src/main/java/com/jobready/email/generated/modelDto/ApplicationEventType.java
 src/main/java/com/jobready/email/generated/modelDto/ApplicationList.java
 src/main/java/com/jobready/email/generated/modelDto/ApplicationStage.java
 src/main/java/com/jobready/email/generated/modelDto/ApplicationSummary.java

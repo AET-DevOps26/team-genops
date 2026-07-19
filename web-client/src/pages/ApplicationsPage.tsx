@@ -18,8 +18,11 @@ import type {
 import {
   useCreateApplicationMutation,
   useDeleteApplicationMutation,
+  useDeleteRecommendationMutation,
   useExtractJobPostingMutation,
+  useListApplicationEventsQuery,
   useListApplicationsQuery,
+  useListRecommendationsQuery,
   useUpdateApplicationMutation,
 } from "~/services/applications/applicationsApi";
 import { STAGES, stageMeta } from "~/services/applications/stages";
@@ -346,7 +349,113 @@ function DocumentsTab({
   );
 }
 
-type DrawerTab = "overview" | "cover_letter" | "resume";
+/** Timeline of an application: email-detected and manual events, newest first. */
+function TimelineTab({ application }: { application: JobApplication }) {
+  // Events are appended by the background email pipeline, not by user mutations —
+  // refetch on every open so the timeline reflects newly detected emails.
+  const { data, isLoading } = useListApplicationEventsQuery(application.id, {
+    refetchOnMountOrArgChange: true,
+  });
+  const events = data?.items ?? [];
+
+  if (isLoading) return <p className="text-sm text-dim">Loading timeline…</p>;
+  if (events.length === 0) {
+    return (
+      <p className="text-sm text-dim">
+        No timeline events yet. Stage changes and detected emails will show up
+        here with their exact dates.
+      </p>
+    );
+  }
+
+  return (
+    <ol className="space-y-4">
+      {events.map((event) => (
+        <li
+          key={event.id}
+          className="rounded-lg border border-line bg-raised-2/40 p-4"
+        >
+          <div className="mb-1 flex items-center justify-between">
+            <span className="text-sm font-medium">{event.title}</span>
+            <Tag className="text-faint">
+              {new Date(event.occurred_at).toLocaleString()}
+            </Tag>
+          </div>
+          {event.description && (
+            <p className="text-sm text-dim">{event.description}</p>
+          )}
+          <div className="mt-2 flex items-center gap-2">
+            <Tag className="text-faint">
+              {event.event_type.replace(/_/g, " ")}
+            </Tag>
+            <Tag className="text-faint">
+              {event.source === "email" ? "from email" : "manual"}
+            </Tag>
+            {event.stage_from && event.stage_to && (
+              <Tag className="text-dim">
+                {stageMeta(event.stage_from).label} →{" "}
+                {stageMeta(event.stage_to).label}
+              </Tag>
+            )}
+          </div>
+        </li>
+      ))}
+    </ol>
+  );
+}
+
+/** Next-best-action items (recommendations), e.g. follow-ups suggested from detected emails. */
+function ActionItemsTab({ application }: { application: JobApplication }) {
+  const { data, isLoading } = useListRecommendationsQuery(application.id, {
+    refetchOnMountOrArgChange: true,
+  });
+  const [deleteRecommendation] = useDeleteRecommendationMutation();
+  const items = data?.items ?? [];
+
+  if (isLoading)
+    return <p className="text-sm text-dim">Loading action items…</p>;
+  if (items.length === 0) {
+    return (
+      <p className="text-sm text-dim">
+        No action items right now. Suggestions like following up or preparing
+        for an interview appear here when they're derived from your emails.
+      </p>
+    );
+  }
+
+  return (
+    <ul className="space-y-4">
+      {items.map((item) => (
+        <li
+          key={item.id}
+          className="rounded-lg border border-line bg-raised-2/40 p-4"
+        >
+          <div className="mb-1 flex items-center justify-between">
+            <Tag className="text-faint">
+              {new Date(item.created_at).toLocaleString()}
+            </Tag>
+            <button
+              className="tag text-faint transition hover:text-interview"
+              onClick={() =>
+                deleteRecommendation({
+                  applicationId: application.id,
+                  recommendationId: item.id,
+                })
+              }
+            >
+              Dismiss
+            </button>
+          </div>
+          <p className="text-sm font-medium">{item.recommended_action}</p>
+          <p className="mt-1 text-sm text-dim">{item.insight}</p>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+type DrawerTab =
+  "overview" | "timeline" | "actions" | "cover_letter" | "resume";
 
 function DetailDrawer({
   application,
@@ -363,6 +472,8 @@ function DetailDrawer({
 
   const TABS: { key: DrawerTab; label: string }[] = [
     { key: "overview", label: "Overview" },
+    { key: "timeline", label: "Timeline" },
+    { key: "actions", label: "Action items" },
     { key: "cover_letter", label: "Cover letter" },
     { key: "resume", label: "Resume" },
   ];
@@ -488,6 +599,8 @@ function DetailDrawer({
               </div>
             </div>
           )}
+          {tab === "timeline" && <TimelineTab application={application} />}
+          {tab === "actions" && <ActionItemsTab application={application} />}
           {tab === "cover_letter" && (
             <DocumentsTab application={application} type="cover_letter" />
           )}

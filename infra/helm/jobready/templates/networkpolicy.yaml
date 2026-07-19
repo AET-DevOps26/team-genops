@@ -10,7 +10,7 @@ Rendered only when networkPolicy.enabled=true (prod). The model is:
   3. per-service allows — the minimum flows the app actually needs
 
 A NetworkPolicy whose podSelector matches no pod is a harmless no-op, so the
-email rules below are dormant until that service joins the chart.
+email allowances below are no-ops while email.enabled=false.
 
 CHECKLIST when a service joins the chart: it needs its OWN policy (egress to
 its dependencies + ingress from its callers + probeCidr), not just the
@@ -183,6 +183,14 @@ spec:
       ports:
         - protocol: TCP
           port: {{ .Values.document.port }}
+    # Proxy /api/v1/email/** to the email service.
+    - to:
+        - podSelector:
+            matchLabels:
+              app: email
+      ports:
+        - protocol: TCP
+          port: {{ .Values.email.port }}
 ---
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
@@ -259,10 +267,15 @@ spec:
     - Ingress
     - Egress
   ingress:
+    # The gateway proxies public traffic; email calls the static-token
+    # /internal/v1 API (detection pipeline).
     - from:
         - podSelector:
             matchLabels:
               app: gateway
+        - podSelector:
+            matchLabels:
+              app: email
       ports:
         - protocol: TCP
           port: {{ .Values.application.port }}
@@ -358,11 +371,15 @@ spec:
     - Ingress
     - Egress
   ingress:
-    # Only the gateway proxies chat traffic to genai.
+    # The gateway proxies chat traffic; email calls the static-token internal
+    # email-analysis endpoint (detection pipeline).
     - from:
         - podSelector:
             matchLabels:
               app: gateway
+        - podSelector:
+            matchLabels:
+              app: email
       ports:
         - protocol: TCP
           port: {{ .Values.genai.port }}
@@ -400,6 +417,85 @@ spec:
         - protocol: TCP
           port: {{ .Values.document.port }}
     # External HTTPS: OpenRouter (LLM calls) + Langfuse Cloud (tracing).
+    # Restricted to :443 and excluding in-cluster/private ranges so this
+    # cannot become a side door to other pods or cluster infrastructure.
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+            except:
+              - 10.0.0.0/8
+              - 172.16.0.0/12
+              - 192.168.0.0/16
+              - 198.18.0.0/15   # TUM Rancher pod network
+      ports:
+        - protocol: TCP
+          port: 443
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: email
+  namespace: {{ .Values.global.namespace }}
+  labels:
+    {{- include "jobready.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      app: email
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    # Only the gateway proxies /api/v1/email/** to the email service.
+    - from:
+        - podSelector:
+            matchLabels:
+              app: gateway
+      ports:
+        - protocol: TCP
+          port: {{ .Values.email.port }}
+    {{- if .Values.networkPolicy.probeCidr }}
+    - from:
+        - ipBlock:
+            cidr: {{ .Values.networkPolicy.probeCidr }}
+      ports:
+        - protocol: TCP
+          port: {{ .Values.email.port }}
+    {{- end }}
+  egress:
+    # Own schema (Flyway-managed `email`).
+    - to:
+        - podSelector:
+            matchLabels:
+              app: postgres
+      ports:
+        - protocol: TCP
+          port: 5432
+    # Fetch auth's JWKS to verify tokens locally (defense in depth).
+    - to:
+        - podSelector:
+            matchLabels:
+              app: auth
+      ports:
+        - protocol: TCP
+          port: {{ .Values.auth.port }}
+    # Detection pipeline: LLM classification via genai's internal endpoint...
+    - to:
+        - podSelector:
+            matchLabels:
+              app: genai
+      ports:
+        - protocol: TCP
+          port: {{ .Values.genai.port }}
+    # ...and applying verdicts via the application service's internal API.
+    - to:
+        - podSelector:
+            matchLabels:
+              app: application
+      ports:
+        - protocol: TCP
+          port: {{ .Values.application.port }}
+    # External HTTPS: Google OAuth token/userinfo endpoints + the Gmail API.
     # Restricted to :443 and excluding in-cluster/private ranges so this
     # cannot become a side door to other pods or cluster infrastructure.
     - to:

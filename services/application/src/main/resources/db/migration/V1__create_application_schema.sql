@@ -23,6 +23,29 @@ CREATE TABLE application.applications (
     updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+-- Append-only timeline of an application: detected emails, stage changes, interviews, etc.
+-- occurred_at is when the event actually happened (email received date); created_at is the
+-- row's write time. source_message_id (Gmail id) dedupes email-derived events on retries.
+CREATE TABLE application.application_events (
+    id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id           UUID NOT NULL,
+    application_id    UUID NOT NULL REFERENCES application.applications(id) ON DELETE CASCADE,
+    event_type        VARCHAR(50) NOT NULL
+                          CHECK (event_type IN ('stage_change', 'email_received', 'interview_scheduled',
+                                                'offer_received', 'rejection', 'info_requested', 'note')),
+    title             VARCHAR(255) NOT NULL,
+    description       TEXT,
+    stage_from        VARCHAR(50),
+    stage_to          VARCHAR(50),
+    source            VARCHAR(20) NOT NULL CHECK (source IN ('EMAIL', 'MANUAL')),
+    source_message_id VARCHAR(255),
+    -- Backstop for the service's exists-then-insert idempotency: one email may
+    -- produce at most one event per user. NULLs (manual events) are not constrained.
+    CONSTRAINT uq_application_events_user_message UNIQUE (user_id, source_message_id),
+    occurred_at       TIMESTAMPTZ NOT NULL,
+    created_at        TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
 CREATE TABLE application.recommendations (
     id                 UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id            UUID NOT NULL,

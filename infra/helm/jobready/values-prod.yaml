@@ -17,6 +17,15 @@ genai:
   # Reuse the genai-secrets Secret (created by Ansible deploy.yml) for Langfuse
   # Cloud keys too. Tracing stays off until the vault_langfuse_* vars are set.
   langfuseSecret: genai-secrets
+
+email:
+  # For manual helm runs. CD (Ansible deploy.yml) overrides this flag based on
+  # whether the vault holds the Google credentials, so the service only starts
+  # once they are provisioned.
+  # Requires the email-secrets Secret (Ansible deploy.yml, vault_google_* etc.)
+  # and the prod host's redirect URI registered in the Google Cloud console.
+  enabled: true
+
 networkPolicy:
   # Tenant isolation on the shared TUM cluster: default-deny + explicit allows.
   # Rollback is one flag: --set networkPolicy.enabled=false
