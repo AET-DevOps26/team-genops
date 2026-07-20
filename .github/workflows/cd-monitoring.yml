@@ -12,9 +12,9 @@ on:
 permissions:
   contents: read
 
-# Same group as cd-prod/destroy-prod: cd-prod now upgrades the `monitoring`
-# Helm release too, and two concurrent upgrades of one release conflict —
-# queued, never cancelled.
+# A DISTINCT group from deploy-prod, deliberately: cd-prod calls this workflow
+# via workflow_call while already holding the deploy-prod lock for its whole
+# run.
 concurrency:
   group: deploy-prod
   cancel-in-progress: false
