@@ -14,14 +14,9 @@ permissions:
 
 # A DISTINCT group from deploy-prod, deliberately: cd-prod calls this workflow
 # via workflow_call while already holding the deploy-prod lock for its whole
-# run, so a callee sharing that group would wait on a lock its own caller
-# holds — a guaranteed deadlock (GitHub cancels the run when it detects one).
-# The residual race this accepts — a manual workflow_dispatch landing mid a
-# cd-prod run — is narrow (both just `helm upgrade` the same release; Helm
-# serializes via its own release lock) and far cheaper than a deadlocked
-# every prod release.
+# run.
 concurrency:
-  group: deploy-monitoring
+  group: deploy-prod
   cancel-in-progress: false
 
 jobs:
