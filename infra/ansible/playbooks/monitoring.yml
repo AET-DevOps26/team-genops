@@ -27,8 +27,7 @@
 
     # Same pattern as postgres-secret in deploy.yml: the playbook owns the
     # Secret (created outside the chart, from the vault); the chart references
-    # it by name (grafana.adminSecret). Grafana is stateless, so a rotated
-    # vault value takes effect on its next pod restart.
+    # it by name (grafana.adminSecret).
     - name: Create grafana-admin secret
       kubernetes.core.k8s:
         kubeconfig: "{{ kubeconfig }}"
@@ -41,7 +40,12 @@
             namespace: "{{ monitoring_namespace }}"
           stringData:
             admin-password: "{{ vault_grafana_admin_password }}"
+      register: grafana_admin_secret
 
+    # adminSecretVersion feeds the pod-template annotation that rolls Grafana
+    # when the password rotates. The Secret's resourceVersion
+    # so no password-derived value lands in the pod spec; it only changes
+    # when the Secret's content actually changed.
     - name: Deploy monitoring chart
       kubernetes.core.helm:
         kubeconfig: "{{ kubeconfig }}"
@@ -51,6 +55,9 @@
         state: present
         wait: true
         timeout: 5m
+        values:
+          grafana:
+            adminSecretVersion: "{{ grafana_admin_secret.result.metadata.resourceVersion }}"
 
     # Outside-in check: helm --wait proved the pods are Ready; this proves the
     # route to Grafana — LB, ingress, TLS, DNS. validate_certs stays on: an

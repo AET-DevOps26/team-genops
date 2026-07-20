@@ -25,6 +25,11 @@ spec:
         # Roll the pod whenever provisioning or a dashboard JSON changes —
         # replaces the manual `rollout restart` step of the kubectl era.
         checksum/config: {{ include (print $.Template.BasePath "/grafana-configmaps.yaml") . | sha256sum }}
+        {{- with .Values.grafana.adminSecretVersion }}
+        # Roll the pod when the admin Secret rotates. Helm can't hash the
+        # Secret (Ansible owns it), so Ansible passes its resourceVersion in.
+        secret-version/admin: {{ . | quote }}
+        {{- end }}
     spec:
       containers:
         - name: grafana
