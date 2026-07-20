@@ -12,11 +12,16 @@ on:
 permissions:
   contents: read
 
-# Same group as cd-prod/destroy-prod: cd-prod now upgrades the `monitoring`
-# Helm release too, and two concurrent upgrades of one release conflict —
-# queued, never cancelled.
+# A DISTINCT group from deploy-prod, deliberately: cd-prod calls this workflow
+# via workflow_call while already holding the deploy-prod lock for its whole
+# run, so a callee sharing that group would wait on a lock its own caller
+# holds — a guaranteed deadlock (GitHub cancels the run when it detects one).
+# The residual race this accepts — a manual workflow_dispatch landing mid a
+# cd-prod run — is narrow (both just `helm upgrade` the same release; Helm
+# serializes via its own release lock) and far cheaper than a deadlocked
+# every prod release.
 concurrency:
-  group: deploy-prod
+  group: deploy-monitoring
   cancel-in-progress: false
 
 jobs:
