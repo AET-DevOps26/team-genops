@@ -3,8 +3,7 @@
 # from version-controlled files, so state survives restarts by construction, and
 # a PV would only let UI edits drift from git ("dashboards are code").
 #
-# Prerequisite (hand-made, never committed): the {{ .Values.grafana.adminSecret }}
-# Secret — see values.yaml header.
+# Prerequisite (created by the Ansible pipeline from the vault).
 apiVersion: apps/v1
 kind: Deployment
 metadata:

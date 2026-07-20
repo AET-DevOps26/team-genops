@@ -7,6 +7,17 @@
 [![CD — Dev (AKS)](https://github.com/AET-DevOps26/team-genops/actions/workflows/cd-dev.yml/badge.svg?branch=main)](https://github.com/AET-DevOps26/team-genops/actions/workflows/cd-dev.yml?query=branch%3Amain)
 [![CodeQL](https://github.com/AET-DevOps26/team-genops/actions/workflows/codeql.yml/badge.svg?branch=main)](https://github.com/AET-DevOps26/team-genops/actions/workflows/codeql.yml?query=branch%3Amain)
 
+**Live environments**
+
+| Environment | URL | Deployed by |
+|---|---|---|
+| Dev (Azure AKS) | https://jobready-development.austriaeast.cloudapp.azure.com | every merge to `main` |
+| Prod (TUM Rancher) | https://jobready.stud.k8s.aet.cit.tum.de | GitHub release |
+| Grafana (prod monitoring) | https://genops-grafana.stud.k8s.aet.cit.tum.de | with prod releases |
+
+> The prod Prometheus UI is deliberately **not** exposed — a NetworkPolicy admits only Grafana.
+> Query metrics through Grafana (Explore) instead.
+
 JobReady consolidates the job-search journey into a single intelligent platform:
 
 - **Structured candidate profile** — work experience, education, skills, languages
@@ -289,8 +300,9 @@ pytest e2e_tests/ -v
 - **CD — Dev** (`cd-dev.yml`) — merge to `main` deploys automatically to **Azure AKS** via the
   [`infra/helm/jobready`](infra/helm/jobready) chart.
 - **CD — Prod** (`cd-prod.yml`) — release-gated deployment to **TUM Rancher**.
-- **CD — Monitoring** (`cd-monitoring.yml`) — changes under `infra/helm/monitoring/` deploy the
-  Prometheus/Grafana stack to the `genops-monitoring` namespace.
+- **CD — Monitoring** (`cd-monitoring.yml`) — release-gated: `cd-prod` calls it after every app
+  deploy, so the Prometheus/Grafana stack in `genops-monitoring` ships from the same release tag
+  as the app. `workflow_dispatch` is the escape hatch for urgent dashboard/alert fixes.
 - **CodeQL** (`codeql.yml`) — static security analysis.
 
 Infrastructure is provisioned with **Terraform** (`infra/terraform/`) and configured/deployed with
