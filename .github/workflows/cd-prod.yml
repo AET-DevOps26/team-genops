@@ -113,3 +113,12 @@ jobs:
           image_tag: ${{ steps.tag.outputs.tag }}
           vault_password: ${{ secrets.ANSIBLE_VAULT_PASSWORD_PROD }}
           app_url: ${{ steps.host.outputs.app_url }}
+
+  # Release-gate monitoring: run cd-monitoring as a called workflow AFTER the
+  # app deploy. A workflow_call runs at the CALLER's ref — the release tag —
+  # so dashboards/alerts deploy from the same tagged commit as the app and
+  # never reference metrics that haven't shipped yet.
+  deploy-monitoring:
+    needs: deploy
+    uses: ./.github/workflows/cd-monitoring.yml
+    secrets: inherit

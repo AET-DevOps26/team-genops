@@ -2,30 +2,21 @@ name: CD - Monitoring (Rancher)
 
 # Deploys the Prometheus/Grafana chart to the TUM Rancher monitoring namespace.
 #
-# Path-triggered on main rather than release-gated (unlike cd-prod): the chart
-# ships config only — dashboards, alert rules, operator CRs — no application
-# images, so a merged dashboard edit should reach prod immediately without
-# cutting a release. The blast radius is the monitoring namespace, never the
-# app.
+# Monitoring is RELEASE-GATED: cd-prod calls this workflow right after the app
+# deploy, and a workflow_call runs at the caller's ref — the release tag — so
+# dashboards/alerts always match the shipped app version.
 on:
-  push:
-    branches: [main]
-    paths:
-      - "infra/helm/monitoring/**"
-      - "infra/ansible/playbooks/monitoring.yml"
-      # The playbook + summary read monitoring_namespace/grafana_url from the
-      # prod inventory — an edit there must redeploy too.
-      - "infra/ansible/inventories/prod/**"
-      - ".github/workflows/cd-monitoring.yml"
+  workflow_call:
   workflow_dispatch:
 
 permissions:
   contents: read
 
-# One monitoring deploy at a time; queued, never cancelled. Separate group from
-# deploy-prod — the two releases touch disjoint namespaces.
+# Same group as cd-prod/destroy-prod: cd-prod now upgrades the `monitoring`
+# Helm release too, and two concurrent upgrades of one release conflict —
+# queued, never cancelled.
 concurrency:
-  group: deploy-monitoring
+  group: deploy-prod
   cancel-in-progress: false
 
 jobs:
@@ -58,9 +49,6 @@ jobs:
         with:
           version: v3.16.0
 
-      # The vault password is needed even though this playbook reads no vault
-      # secrets: the prod inventory auto-loads group_vars/all/vault.yml, and
-      # ansible refuses to parse an encrypted file it cannot decrypt.
       - name: Deploy monitoring via Ansible
         working-directory: infra/ansible
         env:

@@ -56,10 +56,15 @@ change), exposed at https://genops-grafana.stud.k8s.aet.cit.tum.de (TLS via the
 production cert-manager issuer, admin password from the `grafana-admin` Secret,
 which the pipeline creates from the Ansible vault).
 
-**Deploys automatically**: merging a change under `infra/helm/monitoring/` to
-`main` triggers `.github/workflows/cd-monitoring.yml` → Ansible
-`playbooks/monitoring.yml` (asserts `vault_grafana_admin_password`, creates the
-Secret, `helm upgrade`s the chart). Manual equivalent:
+**Deploys with prod releases**: `cd-prod` calls
+`.github/workflows/cd-monitoring.yml` (a reusable workflow) right after the app
+deploy, so the chart ships from the same release tag as the app and
+dashboards/alerts never reference metrics prod doesn't emit yet. It runs
+Ansible `playbooks/monitoring.yml` (asserts `vault_grafana_admin_password`,
+creates the Secret, `helm upgrade`s the chart — passing the Secret's
+resourceVersion so a rotated password rolls the Grafana pod). For urgent
+dashboard/alert fixes between releases, dispatch `cd-monitoring` manually
+(deploys from `main`). Manual equivalent:
 
 ```sh
 cd infra/ansible

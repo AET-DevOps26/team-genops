@@ -47,6 +47,10 @@ grafana:
   tag: 12.1.1
   # Name of the Secret holding key `admin-password`
   adminSecret: grafana-admin
+  # resourceVersion of that Secret, set by the Ansible playbook so a rotated
+  # password rolls the pod (env vars don't refresh in place). Empty (e.g. a
+  # manual helm install) just omits the annotation — no restart on rotation.
+  adminSecretVersion: ""
   resources:
     requests:
       memory: 128Mi
