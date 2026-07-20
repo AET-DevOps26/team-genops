@@ -18,8 +18,12 @@ spec:
   strategy:
     type: RollingUpdate
     rollingUpdate:
-      maxSurge: 1
-      maxUnavailable: 0
+      # Surge-free rollout: the prod namespace ResourceQuota is sized to the
+      # steady-state footprint with no headroom, so a surge pod can't be
+      # scheduled (FailedCreate: exceeded quota). Take the old pod down first,
+      # then start the new one.
+      maxSurge: 0
+      maxUnavailable: 1
   template:
     metadata:
       labels:
