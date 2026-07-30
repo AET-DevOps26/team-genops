@@ -7,7 +7,7 @@
     "generate": "./codegen.sh"
   },
   "devDependencies": {
-    "@openapitools/openapi-generator-cli": "^2.15.3",
+    "@openapitools/openapi-generator-cli": "^2.40.1",
     "@redocly/cli": "^1.25.0",
     "openapi-typescript": "^7.4.0"
   }
